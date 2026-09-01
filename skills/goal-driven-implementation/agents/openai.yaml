@@ -1,0 +1,4 @@
+interface:
+  display_name: "Goal-Driven Implementation"
+  short_description: "Graph-review and orchestrate sectioned builds"
+  default_prompt: "Use $goal-driven-implementation to create, graph-review, or execute a sectioned implementation plan with Codex subagents."

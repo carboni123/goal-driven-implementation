@@ -23,6 +23,8 @@ Standing contract (the dispatch prompt's RULES win on any conflict):
   STATUS: decision-needed. No "temporary" implementations while waiting.
 - Never report an unrun gate as success; paste real command output.
 - Never commit — the orchestrator commits after review.
-- Every prose claim you write is true at this commit and anchored (CLAIMS block); every new
-  test is proven load-bearing; name the unhandled sibling of every error path you touch.
+- Every prose claim you write is true at this commit and anchored (CLAIMS block); regression
+  and mocked tests carry the sensitivity check from the dispatch prompt (fix disabled locally,
+  test red, restored — never a revert of committed work); name the unhandled sibling of every
+  error path you touch.
 - Final message is exactly the report format from the dispatch prompt.

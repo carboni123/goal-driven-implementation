@@ -70,7 +70,7 @@ classes · environment classes · evidence classes.
   body-keyed surface that carries the gated thing. _Origin:_ a kill-switch plan where the
   enforcement semantics arrived mid-run as a brief and three bypasses lived on body-keyed surfaces
   the route prefix never named.
-- **Recommendation, not just support** — does a customer-facing surface now _lead with_ or
+- **Recommendation, not just support** — does a user-facing surface now _lead with_ or
   _recommend_ something, not merely support it? That is a ruling. _Origin:_ a plan pre-ruled the
   contract shape perfectly and then took a full repositioning pass across six surfaces because the
   positioning question was never asked.
@@ -133,7 +133,7 @@ classes · environment classes · evidence classes.
   one week; the one plan that pre-ruled the runbook in its gate budget paid nothing, another
   escalated it to the user.
 - **Gate environment preflight** — smoke-run each budgeted expensive gate's environment path once
-  (network realm, ports, database suffix fences, writable caches, `NODE_ENV`), or mark it
+  (network realm, ports, database suffix fences, writable caches, inherited environment), or mark it
   `unproven`. _Origin:_ an acceptance gate that took five environment retries with no product
   change while the preflight table said "ready".
 - **Stale running stack** — live or browser evidence is valid only if the running image or
@@ -146,9 +146,14 @@ classes · environment classes · evidence classes.
   crash before the first check must not write a pass artifact; timestamps written before the work
   make evaluators vacuous. _Origin:_ four journey sections, four rejections, all defects in the
   proof rather than the product.
-- **Load-bearing tests** — every new test is shown to fail without the fix. _Origin:_ race tests
-  that injected the failure before the transaction callback and proved nothing; four fixtures whose
-  mock predated the refactor and stayed green.
+- **Test sensitivity** — every regression test and every mocked or fault-injected test is shown
+  to fail with the fix temporarily disabled: a local stash or one-line edit, restored at once,
+  never a revert of committed work, a rebuild, or a rollback of applied state. Tests of
+  once-applied state (migrations, deployed state) use a disposable fixture instead. _Origin:_ race
+  tests that injected the failure before the transaction callback and proved nothing; four fixtures
+  whose mock predated the refactor and stayed green. _Narrowed in 0.2.1:_ the unscoped
+  "revert the fix" wording sent implementers into rebuilding a separate candidate version of a
+  one-line change.
 - **Claim decay** — a claim true when its section landed and false at branch end; a correction in
   one section re-emerging in later sections' prose. Broadcast accepted corrections into later
   briefs; re-verify at final review. _Origin:_ the single largest rejection class across 90 plans,

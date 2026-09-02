@@ -44,7 +44,7 @@ ledger row and add the accepted risk to Graph Findings; the final review must th
 ### Global gate
 
 ```bash
-<owning package full suite + affected dependents, e.g. turbo run test typecheck --affected — run once before recording>
+<owning package full suite + affected dependents, in the host toolchain's affected-tests form — run once before recording>
 ```
 
 Baseline result: <date, exit code, decisive output>
@@ -65,7 +65,7 @@ presence and reachability only; never record secret values.
 | Toolchain and agent routing      | Required tool versions; every role resolved per the routing table                                              | `<result>`                 | `<ready / invalid-environment>`                |
 | Required infrastructure          | DB/Redis/Docker/service DNS and ports needed by gates are reachable _from the realm that runs the gate_        | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
 | Credentials / external authority | Required values present and approved, unexposed                                                                | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
-| Host resources                   | Paths writable (no root-owned `dist`/caches); disk and memory adequate; `NODE_ENV` not inherited as production | `<result>`                 | `<ready / invalid-environment>`                |
+| Host resources                   | Paths writable (no root-owned build output/caches); disk and memory adequate; no production environment inherited | `<result>`                 | `<ready / invalid-environment>`                |
 | Running stack freshness          | Images/processes used for live evidence are at or ahead of the baseline SHA                                    | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
 | Baseline gate                    | The declared global gate has a valid observed result                                                           | `<result>`                 | `<ready / known-baseline-red>`                 |
 
@@ -100,13 +100,13 @@ image build.
 
 #### Floor rulings (the user owns these)
 
-Only items on the ruling floor: money customers pay, the public integration contract, irreversible
-outward actions — or the host repository's declared floor. Approval of this plan approves exactly
-these; anything broader is a new brief.
+Only items on the ruling floor: the host repository's declared floor, or the skill default
+(commercial terms, the public integration contract, irreversible outward actions). Approval of this
+plan approves exactly these; anything broader is a new brief.
 
 | #   | Section  | Decision                                    | Options                                                | Recommendation | Ruling                            |
 | --- | -------- | ------------------------------------------- | ------------------------------------------------------ | -------------- | --------------------------------- |
-| F1  | `<A2 ⚠>` | `<what changes for the customer>`           | `<a / b / c>`                                          | `<a, because>` | `<pending / ruled YYYY-MM-DD: a>` |
+| F1  | `<A2 ⚠>` | `<what changes for users or integrators>`   | `<a / b / c>`                                          | `<a, because>` | `<pending / ruled YYYY-MM-DD: a>` |
 | F2  | all      | New stable `error.code`s this plan may mint | `<exact strings, or "none — reuse <family>">`          |                | `<pending>`                       |
 | F3  | all      | Terminal external action                    | `<commit / push / PR / issue comment / deploy / none>` |                | `<pending>`                       |
 
@@ -114,6 +114,7 @@ these; anything broader is a new brief.
 
 | #   | Section                                 | Call                                                                                                                   | Rationale                                |
 | --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| R0  | all                                     | `lane: <full / bounded>` — for `bounded`, the eligibility checks made (see SKILL.md, Bounded-fix lane)                | `<what was read to decide>`              |
 | R1  | `<A1>`                                  | `<e.g. additive nullable column + index>`                                                                              | `<why, with the invariant it preserves>` |
 | R2  | `<B1 — enforce/gate/block/redact verb>` | Negative space: what stays open, which wind-down paths stay reachable, which body-keyed surfaces carry the gated thing | `<enumeration>`                          |
 
@@ -156,7 +157,7 @@ flowchart LR
 
 ### Goal 2 — <milestone>
 
-- [ ] <real user/system flow succeeds end to end — for a customer-facing flow, a scripted walkthrough of the assembled flow at the final-review gate>
+- [ ] <real user/system flow succeeds end to end — for a user-facing flow, a scripted walkthrough of the assembled flow at the final-review gate>
 - [ ] <audit/attribution/governance requirement>
 - [ ] <failure mode degrades safely>
 
@@ -310,20 +311,21 @@ IMPLEMENT:
 
 CONTRACT DECISION — ESCALATE:
 Stop before coding and return a decision brief if the work requires an unruled change on the
-ruling floor: money customers pay; the public integration contract (endpoints, shapes, stable
-error codes, signature scheme, SDK surface, documented semantics); an irreversible outward action.
-Anything else: decide, record `⇢` with rationale, continue.
+ruling floor — the host repository's declared floor, or the default: commercial terms; the public
+integration contract (endpoints, shapes, stable error codes, signature scheme, SDK/CLI/library
+surface, documented semantics); an irreversible outward action. Anything else: decide, record `⇢`
+with rationale, continue.
 
 Decision brief: product effect; 2-4 options; consequences; recommendation; evidence.
 
 VERIFY:
 
 - Global gate: <command>.
-- Subsystem tests: <commands>; every new test proven load-bearing (revert the fix, watch it go red).
+- Subsystem tests: <commands>; regression and mocked tests carry a sensitivity check (fix disabled locally, test red, restored — never a revert of committed work).
 - Live/end-to-end flow: <steps and expected observable result>; running stack at or ahead of HEAD.
 
 REVIEW:
-<Lenses: security, data, contract, reliability, convention/scope, doc-truth; + capacity when a limiter/quota/timeout is touched; + evaluator soundness for journey sections.>
+<Lenses: security, data, contract, reliability, convention/scope, doc-truth; + capacity when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
 
 ACCEPTANCE:
 <Exact Goal exit-test clause satisfied.>

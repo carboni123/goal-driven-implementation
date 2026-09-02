@@ -93,8 +93,13 @@ RULES
   evidence row, UI copy) must be true at THIS commit, not at branch end. Absolute words
   ("every", "always", "no longer", "only") need an anchor. Fix or flag any existing sentence
   your diff makes false, including ones you did not write.
-- Every new test must be proven load-bearing: revert the fix, run it, watch it go red, restore.
-  Paste that evidence.
+- SENSITIVITY CHECK, required for every regression test that guards a defect fix and every test
+  that relies on a mock, fake, or injected fault: disable the fix locally (a stash or a one-line
+  temporary edit), run only that test, confirm it fails, restore. Paste the red output. This is a
+  local check on the test, never a revert: nothing is committed, rebuilt, redeployed, or removed
+  from history, and accepted work is never undone to produce it. Anything applied once (a
+  migration, deployed or shared state) is never reverted for this; prove those tests with a
+  disposable fixture instead. Optional for tests of behavior that did not exist before the section.
 - Run the global gate, the subsystem tests, and the live/e2e flow. Confirm the running stack is
   at or ahead of your HEAD before trusting live evidence. Paste real output. Never report an
   unrun check as success.
@@ -110,7 +115,7 @@ DIFF: one line per changed file — what and why
 CLAIMS: one line per prose claim added or changed — claim → file:line that makes it true
 CALLS: non-floor decisions you made, one line each with rationale
 GATE EVIDENCE: command + decisive trailing output
-TESTS RUN: suites and results; load-bearing proof per new test
+TESTS RUN: suites and results; sensitivity check (red output) per regression or mocked test
 LIVE FLOW: steps, stack SHA, observed result
 ENV: known-blocker handling used, or "none"
 LIFECYCLE EFFECTS: produced/invalidated gate inputs; did the plan's prediction hold
@@ -126,8 +131,9 @@ DECISION BRIEF: product effect; 2–4 options; consequences; recommendation; evi
 ## 3. Section reviewer
 
 Read-only, one lens each, all applicable lenses launched in one message after the implementer
-reports. Never fewer than three lenses. `⚠` sections get the full set. Security stays whenever
-tenancy, auth, limits, resolvers, or hooks are touched. Doc-truth always runs.
+reports. Never fewer than three lenses outside the bounded-fix lane, which runs exactly
+convention/scope and doc-truth. `⚠` sections get the full set. Security stays whenever tenancy,
+auth, limits, resolvers, or hooks are touched. Doc-truth always runs.
 
 ```text
 You are a focused, read-only reviewer for one section of an implementation plan. Do not modify
@@ -154,7 +160,8 @@ Lens checklists:
 
 1. **Security/authz** — authz on every new path; validation at trust boundaries; secrets never in
    code or logs; injection surfaces; **every restriction the client enforces is also enforced
-   server-side**; tenant scoping on every raw read; body-keyed surfaces that carry the gated thing
+   server-side**; tenant or ownership scoping on every raw read where the repository has such a
+   boundary; body-keyed surfaces that carry the gated thing
    (inline media, links, headers, nested payloads), not only the route prefix.
 2. **Data/migration correctness** — additive and reversible; existing rows and legacy branches;
    constraints and indexes; **existing CHECKs, triggers, and allowlists admit any widened value**;
@@ -170,7 +177,8 @@ Lens checklists:
    per-interaction demand**; no orphaned state on the unhappy path.
 5. **Convention/scope** — naming, layering, test placement; change stays inside the section; no
    dead code or drive-bys; **test doubles carry the row shape a real row has today**, not a legacy
-   branch; new tests proven load-bearing.
+   branch; regression and mocked tests carry a sensitivity check (red output pasted in the
+   report), and no check was produced by reverting committed or shared state.
 6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
    makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
    UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is
@@ -292,7 +300,8 @@ unrelated code.
 RULES
 - Fix exactly the listed findings; do not redesign accepted sections or cross the ruling floor.
 - A correction that needs an unruled floor change stops with STATUS: decision-needed.
-- Every prose claim you touch follows the CLAIMS discipline; every new test is proven load-bearing.
+- Every prose claim you touch follows the CLAIMS discipline; regression and mocked tests carry the
+  sensitivity check from the implementer rules (local, never a revert of committed work).
 - Run every required gate; paste real output.
 
 Return:
@@ -301,7 +310,7 @@ DIFF: one line per file
 FINDINGS RESOLVED: finding — evidence
 CLAIMS: claim → anchor
 GATE EVIDENCE: command + output
-TESTS RUN: suites, results, load-bearing proof
+TESTS RUN: suites, results, sensitivity-check output
 EXIT TESTS: steps and observed results
 DEFERRALS / RISKS / DECISION BRIEF: as applicable
 ```

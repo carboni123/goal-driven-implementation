@@ -3,6 +3,47 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## 0.2.1 — 2026-09-02
+
+Evidence: two plans run on 0.2.0 in a repository other than the one the retrospective studied.
+One of them turned a one-line Compose behavior change (issue 19 there) into a 310-line plan,
+mapper fan-out, repeated full suites, several review rounds, and an implementer that rebuilt a
+separate "candidate version" of the fix to satisfy the revert-proof rule.
+
+### Changed
+
+- **Sensitivity check replaces "revert the fix, watch it go red".** The rule now names its
+  mechanism (a local stash or one-line temporary edit, restored at once), its scope (regression
+  tests that guard a defect fix, and tests that rely on a mock, fake, or injected fault), and what
+  it never is: a revert of committed work, a rebuild, a redeploy, or a rollback of once-applied
+  state such as a migration. Those get a disposable fixture. The graph-analysis class is renamed
+  **Test sensitivity**; its origin evidence is unchanged. The orchestrator accepts the pasted red
+  output and does not repeat the check. Motivation: the unscoped wording read as an instruction
+  to move backwards, against a fix-forward delivery model, and applied to every new test
+  regardless of risk.
+- **Bounded-fix lane.** The 0.2.0 unification dropped the baseline forks' two proportionality
+  valves ("skip aggregation for trivial sections", "small low-risk diffs collapse to two lenses")
+  without replacing them, while the trigger list still pulled "fix an issue end to end" into the
+  full loop. The lane restores proportionality with a structural gate rather than a size gate:
+  one section, nothing on the floor, no write into a shared column, enum, event type, or registry,
+  no migration, auth, limiter, or public-contract surface, provable with the owning package's
+  tests. Inside it: plan still written (the ledger is the retrospective's record), mapper fan-out
+  skipped when the orchestrator can anchor context itself, two lenses (convention/scope,
+  doc-truth), affected-subset gate per section, section review doubles as final review, global
+  gate once on the merged tree. A disqualifier found mid-lane continues under the full loop from
+  the current state. Recorded as `lane: bounded` in Recorded calls and on the ledger row. The
+  reader-sweep evidence is why the gate is structural: the failures were small diffs into shared
+  surfaces.
+- **Product-neutral wording.** The default ruling floor and several examples were written in the
+  vocabulary of the retrospective's host product (customers, money customers pay, rate cards,
+  credit thresholds, webhook signature schemes, `turbo run test --affected`, `NODE_ENV`,
+  dashboard/BFF). The floor now reads commercial terms / public integration contract /
+  irreversible outward actions, states that it is written for a product with paying users and a
+  public API, and tells a library, CLI, internal tool, or infrastructure repository to declare
+  its own. Examples are toolchain-neutral; "customer-facing" is "user-facing" throughout the
+  skill, template, and agent definitions. Origins in `graph-analysis.md` keep their original
+  wording because they are evidence, not rules.
+
 ## 0.2.0 — 2026-09-01
 
 ### Unified

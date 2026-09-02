@@ -39,30 +39,35 @@ independent agent. If no independent reviewer can be obtained at all, stop and s
 
 ## Ruling floor
 
-A human ruling is required only when a change alters what a customer buys, integrates against,
-or irreversibly receives. If the host repository declares its own floor (an ADR, a
-`.ontology/escalate-floor.md`, an AGENTS.md rule), that declaration wins. Default floor:
+A human ruling is required only when a change alters what users pay for, what external parties
+integrate against, or what happens irreversibly outside the repository. The default floor below
+is written for a product with paying users and a public API; a library, a CLI, an internal tool,
+or an infrastructure repository has a different one. If the host repository declares its own floor
+(an ADR, an AGENTS.md rule, a dedicated escalation file), that declaration wins and the default is
+not consulted. Default floor:
 
-1. **Money customers pay** — prices, rate cards, plan limits and quotas, credit thresholds and
-   their semantics.
+1. **Commercial terms** — anything that changes what users are charged or entitled to: prices,
+   plan limits, quotas, thresholds and their semantics. Empty in a repository with no such surface.
 2. **The public integration contract** — public endpoints added, renamed, or removed; public
-   request/response shapes; stable error codes; webhook signature schemes; the published SDK
-   surface; documented customer-visible semantics. Closing an enforcement gap so behavior matches
-   the documented promise is _not_ floor.
-3. **Irreversible outward actions** — anything that reaches a real customer, publishes to a
-   public surface, spends real money, or mutates production data.
+   request/response shapes; stable error codes; signature or authentication schemes third parties
+   implement; the published SDK, CLI, or library surface; documented externally visible semantics.
+   Closing an enforcement gap so behavior matches the documented promise is _not_ floor.
+3. **Irreversible outward actions** — anything that reaches a real user or third party, publishes
+   to a public surface, spends real money, or mutates production data.
 
 Explicitly **not** floor, decide and record the rationale: internal schema and additive
 migrations, internal state machines, module boundaries and fences, observability names and
-metric labels, code comments, dashboard/BFF surfaces outside the public contract, dev-database
-targets, rollout ordering the repository's deploy automation already guarantees, agent routing
-fallbacks, PR shape, opening a PR. A silent decision is the violation, not an autonomous one:
-record orchestrator rulings with `⇢` and a one-line rationale where the next reader will find them.
+metric labels, code comments, internal UI or backend-for-frontend surfaces outside the public
+contract, development-database targets, rollout ordering the repository's deploy automation
+already guarantees, agent routing fallbacks, PR shape, opening a PR. A silent decision is the
+violation, not an autonomous one: record orchestrator rulings with `⇢` and a one-line rationale
+where the next reader will find them.
 
 ## Select a mode
 
 - Existing plan for this feature → **EXECUTE**, resuming at the first eligible unchecked item.
-- No plan → **PLAN**.
+- No plan → **PLAN**. Decide the lane first (**Bounded-fix lane** below) and record it in the
+  plan; the full loop is the default.
 - **Approval.** A plan whose analysis pass finds a floor item (any `⚠` section, any ruling in the
   floor table) waits for the user to rule on exactly those rulings. A plan with no floor item, in a
   repository that declares its ruling floor, starts EXECUTE immediately and posts the rendered graph
@@ -80,6 +85,46 @@ changing approved scope, contracts, or completed history, validate, and continue
 when the transition occurs. Every intentionally remaining item is a typed deferral row (class,
 risk, owner, **tracking issue or machine-checkable re-entry gate**, milestone it blocks).
 
+## Bounded-fix lane
+
+Most of this loop's cost is earned by multi-section work that writes into shared state. A change
+that does none of that runs a proportionate loop instead. Eligibility is decided by what the
+change touches, never by its line count: the reader-sweep class in
+`references/graph-analysis.md` originated in small diffs into shared surfaces.
+
+Eligible when every check holds after the orchestrator has read the code. Record the checks as
+a Recorded call (`lane: bounded`, `⇢`) and put `lane: bounded` on the ledger row:
+
+- One section, one vertical slice, one commit.
+- Nothing on the ruling floor, default or declared.
+- No new or widened value written into a shared column, enum, event type, registry, or any
+  value read outside the owning package — nothing to reader-sweep.
+- No migration; no auth, tenancy, or input-validation path; no limiter, quota, timeout, or
+  admission policy; no public contract surface; no enforce, gate, block, or redact verb.
+- The goal is provable with the owning package's tests: no image build, deploy, or live run in
+  the gate budget.
+
+Any check failing, or any doubt, means the full loop. A disqualifier found mid-lane (an
+implementer's WRITERS, SIBLINGS, or RISKS line, a reviewer finding) ends the lane: record it,
+keep every accepted artifact, and continue under the full loop from the current state. Nothing
+is redone.
+
+Inside the lane:
+
+- **PLAN.** The plan file is still written from the template: it is the ledger and the record a
+  retrospective reads. One section, one goal. Skip the mapper fan-out when the orchestrator can
+  anchor every context item itself in one read. The graph is the minimal
+  input → section → goal → PR chain. Graph analysis still runs; classes that cannot apply are
+  recorded as `None` in one line each. Validate. Rendering is optional; the raw Mermaid in the
+  message is enough.
+- **EXECUTE.** No aggregation step. One implementer with the standard template. Two review
+  lenses: convention/scope and doc-truth. The orchestrator re-runs the affected test subset named
+  in the gate budget, reads the full diff, and applies the same seven checks and the same
+  convergence rule.
+- **COMPLETE.** The section review is the final review; no whole-branch fan-out. Re-baseline on
+  `origin/main` and run the global gate (owning package's full suite plus affected dependents)
+  once against the merged tree. Annotate, report.
+
 ## PLAN mode
 
 1. Read the inputs (roadmap, PRD, ADRs, issues) and the repository instruction files. Treat
@@ -91,16 +136,18 @@ risk, owner, **tracking issue or machine-checkable re-entry gate**, milestone it
 3. Instantiate `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions).
    Fill every field. In particular:
    - **Global gate**: a real command, run once now. Default to the owning package's _full_ suite
-     plus affected dependents (for example `turbo run test --affected`), never the section's own
-     test subset — fail-closed registries in sibling packages are where post-merge fixes come from.
+     plus affected dependents (the host's affected-tests command, whatever its toolchain), never
+     the section's own test subset — fail-closed registries in sibling packages are where
+     post-merge fixes come from.
    - **Execution-environment preflight**: probe every capability _and_ smoke-run the environment
      path of every budgeted expensive gate once, or classify that gate `unproven`. Fill the
      **Known blockers** rows: every host/environment condition that has blocked this repository's
-     gates before, with its pre-approved handling (runbook, container recipe, `NODE_ENV`, ports).
+     gates before, with its pre-approved handling (runbook, container recipe, inherited
+     environment variables, ports).
    - **Lifecycle gate budget**: columns `consumes / invalidated by`, `planned runs`
      (implementer and orchestrator counted separately), `actual runs` (filled at completion),
      `preflight`. Schedule the **cheapest real-client probe** (a browser page load, one journey leg,
-     one live HTTP burst) before the first image build, not after.
+     one live HTTP burst) before the first expensive gate (image build, deploy), not after.
    - **Rulings**: two tables. _Floor rulings_ the user owns (options + recommendation), including
      any new stable error code by exact string (or "none — reuse `<family>`"), and the **terminal
      action** (commit / push / PR / comment / deploy / none). _Recorded calls_ the orchestrator
@@ -109,7 +156,7 @@ risk, owner, **tracking issue or machine-checkable re-entry gate**, milestone it
      which wind-down paths stay reachable, which body-keyed surfaces carry the gated thing.
    - **Goals**: observable exit tests. Every clause that asserts something is _rejected_ gets a
      paired clause asserting legitimate use is _admitted_, measured on real client behavior (one
-     page view, one honest burst), never a hand-picked count. A plan that changes a customer-facing
+     page view, one honest burst), never a hand-picked count. A plan that changes a user-facing
      flow gets one goal whose exit test is a scripted end-to-end walkthrough at the final-review gate.
    - **Sections**: one S/M vertical slice each. Size by invariant inversion — how many unstated
      assumptions the change falsifies — not by diff size. For any invariant a section changes,
@@ -168,13 +215,16 @@ security/authz · data/migration · contract/API · failure-mode/reliability · 
 **doc-truth** (every claim in the diff traced to code) · **capacity/false-positive** (only when the
 diff touches a limiter, quota, timeout, or admission policy) · **evaluator soundness** (only for
 journey/proof sections: a green run counts after fault injection turns it red). Rules: never fewer
-than three lenses; `⚠` sections get the full set; keep security whenever tenancy, auth, limits,
-resolvers, or hooks are touched; doc-truth always. Each returns APPROVE or REJECT with anchors;
+than three lenses outside the bounded-fix lane (which runs convention/scope and doc-truth); `⚠`
+sections get the full set; keep security whenever tenancy, auth, limits, resolvers, or hooks are
+touched; doc-truth always. Each returns APPROVE or REJECT with anchors;
 approvals cite 2–5 anchors too. A reviewer can be wrong — refute a finding against the code and
 record the refutation rather than implementing it.
 
 **5. Verify yourself.** Re-run the global gate in the main session (owning package's full suite
-plus affected dependents). A test the implementer authored but did not execute blocks acceptance.
+plus affected dependents; in the bounded-fix lane, the affected subset named in the gate budget).
+A test the implementer authored but did not execute blocks acceptance. A sensitivity check the
+implementer reported is accepted on its pasted red output; do not repeat it.
 Before trusting live or browser evidence, confirm the running stack is at or ahead of the section's
 HEAD; a stale image invalidates the evidence, not the product. Read the full diff: scope, dead
 code, test placement, claims. After any defect fix, grep for the same shape on sibling surfaces
@@ -207,7 +257,9 @@ When every section is checked:
    in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
    at HEAD, including pre-existing sentences the new claims sit beside; (f) **rollout window** —
    old binary × new schema during replacement. Findings go to one correction implementer scoped to
-   the findings; commit additively; repeat until clean under the convergence rule.
+   the findings; commit additively; repeat until clean under the convergence rule. In the
+   bounded-fix lane the section review already served as the final review: skip the fan-out and
+   run the global gate once against the merged tree.
 3. **Expensive gates** — run each budgeted gate once against the reviewed candidate, in the
    budgeted order; record `actual runs`. A `>1.5×` overrun is a Graph Findings miss to name.
 4. **Deferrals** — file the tracking issue for every deferral row that has none (`gh issue

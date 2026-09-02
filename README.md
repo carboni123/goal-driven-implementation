@@ -41,9 +41,16 @@ Targets: `~/.claude/skills/`, `~/.claude/agents/` (four `gdi-*` roles), `~/.code
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
    the ledger, report.
 
-The **ruling floor** is the customer contract: money customers pay, the public integration
-contract, irreversible outward actions. Everything else the orchestrator decides and records.
-A host repository can declare its own floor and the skill uses that instead.
+A change that is one section, touches nothing on the floor, and writes nothing into shared state
+runs the **bounded-fix lane** instead: same plan file and implementer, two review lenses, the
+affected tests, no whole-branch fan-out. Eligibility is decided by what the diff touches, not its
+size, and any disqualifier found mid-run continues under the full loop without redoing work.
+
+The **ruling floor** defaults to commercial terms, the public integration contract, and
+irreversible outward actions. Everything else the orchestrator decides and records. A host
+repository declares its own floor in its AGENTS.md or an ADR and the skill uses that instead; the
+default is written for a product with paying users and a public API and is not a fit for every
+repository.
 
 ## Layout
 

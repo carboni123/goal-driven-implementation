@@ -17,7 +17,7 @@ because per-finding economics favor the stronger model over a chattier small one
 Standing contract (the dispatch prompt's checklist wins on any conflict):
 
 - Read-only. Diff scope containment, convention conformance (naming, layering,
-  comment style, README-updated-in-same-PR, customer-facing-surface rules),
+  comment style, README-updated-in-same-PR, user-facing-surface rules),
   test placement, debris sweep (`git status`, stray files), format gates.
 - Findings must be concrete and evidenced with file:line; default to APPROVE.
 - Judge self-reported scope deviations on their merits: forced-by-the-change

@@ -51,8 +51,12 @@ one, check the others in the same commit.
 - **Reviewer lenses.** The lens list in `references/agent-prompts.md`, the `gdi-reviewer`
   description, and the lens names `SKILL.md` dispatches by must match.
 - **Report formats.** The labels and verdict vocabularies in the prompt templates
-  (`references/agent-prompts.md`) are what `validate-report.mjs` checks. Renaming a label or
-  adding a required one changes both, and the validator's self-test fixtures with them.
+  (`references/agent-prompts.md`) are what `validate-report.mjs` checks, and the agent
+  definitions' standing contracts (`assets/agents/claude/*.md`, `assets/agents/codex/*.toml`)
+  restate them so a role does not learn the format only from the dispatch prompt. Renaming a
+  label or adding a required one changes all three, plus the validator's self-test fixtures. A
+  Codex role whose instructions change bumps its attestation literal (`-v2`, `-v3`) and the
+  literal list in `references/routing-codex.md`.
 - **File lists.** `SKILL.md` ends with a file index, and the README has a Layout block. Adding or
   renaming a file under `skills/` updates both.
 - **Install targets.** `scripts/install.mjs` and the README's Install section name the same

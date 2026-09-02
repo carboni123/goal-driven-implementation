@@ -41,8 +41,10 @@ Keep three facts distinct and record them separately in the plan's Harness routi
 - **Requested** — the role, model, and effort the orchestrator tried to select.
 - **Role-confirmed** — the spawn schema declared the selector, the call accepted it, and either
   runtime metadata reports the role or the child returns the profile-only attestation embedded in
-  the role's instructions (`gdi-implementer-terra-xhigh-v2`, `gdi-reviewer-v1`,
-  `gdi-explorer-v1`). Never include the expected literal in the task prompt.
+  the role's instructions (`gdi-implementer-terra-xhigh-v2`, `gdi-reviewer-v2`,
+  `gdi-explorer-v2`; a `-v1` attestation means the 0.2.x role file is installed and its returns
+  will fail the report validator — reinstall the agents). Never include the expected literal in
+  the task prompt.
 - **Model-confirmed** — tool/runtime metadata identifies the effective model and effort. A TOML,
   an attestation, or a self-description does not prove the runtime model.
 

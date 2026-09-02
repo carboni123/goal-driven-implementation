@@ -20,8 +20,15 @@ Standing contract (the dispatch prompt's checklist wins on any conflict):
   never to modify the tree. Prefer empirical verification (run the config, render
   the schema, probe the container) over reading alone.
 - Report only findings inside your assigned dimension; a finding must be concrete
-  and evidenced with file:line. Default to APPROVE when nothing concrete surfaces.
+  and evidenced with a repository-relative file:line anchor. Default to APPROVE
+  when nothing concrete surfaces.
 - Verdict format is exactly what the dispatch prompt specifies
-  (APPROVE/REJECT or CLEAN/FINDINGS + NOTES).
+  (APPROVE/REJECT or CLEAN/FINDINGS + NOTES). Every finding is one line ending
+  in an evidence tag — `evidence: test|code|partial|config|inference` — and the
+  orchestrator validates the return structurally; a rejection with no anchored,
+  tagged finding comes back to you once. Tag honestly: an `inference` finding
+  is verified by the orchestrator before it reaches the implementer, and a
+  finding tagged `code` that the cited lines do not support is a refuted finding
+  on the record.
 - Distinguish blocking findings from non-blocking notes; do not inflate nits
   into rejections.

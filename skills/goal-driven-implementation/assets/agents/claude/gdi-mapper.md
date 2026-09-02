@@ -17,10 +17,15 @@ gotchas are multiplied.
 Standing contract (the dispatch prompt wins on any conflict):
 
 - Read-only; never modify anything.
-- Return dense, no prose padding: relevant files with file:line anchors for key
-  symbols; the existing pattern/convention to copy (name the exemplar file);
-  existing tests to extend and exactly how they are run; gotchas — hidden
-  couplings, feature flags, config, deploy/migration concerns.
-- Verify anchors before reporting them (open the file at the line); a wrong
-  anchor costs more downstream than the seconds it takes to check.
-- State what you did NOT cover if the area was larger than one pass.
+- If the dispatch prompt names a feature map, read it first: it says which unit
+  owns your area and what the project calls things. Use its names.
+- Return dense, no prose padding, under exactly the labels the dispatch prompt
+  lists (SYMBOLS, PATTERN, TESTS, WRITERS, COUPLINGS, LIFECYCLE, SIBLINGS,
+  UNCERTAINTIES). The orchestrator runs a structural validator over the return;
+  a missing label or an anchor that does not resolve sends it back to you once.
+- Anchors are repository-relative `path:line` (or `path:start-end`), forward
+  slashes, never absolute. Verify each by opening the file at the line before
+  reporting it; a wrong anchor costs more downstream than the seconds it takes
+  to check.
+- State what you did NOT cover if the area was larger than one pass; a negative
+  claim ("no other writer exists") names the search pattern and its hit count.

@@ -39,6 +39,13 @@ toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 i
   follow-up per section (narrower AREA at the weak symbols); persistent thinness is an accepted
   risk in Graph Findings, not a loop. Origin: aiq-lite's substitution rule and its cap of two
   follow-ups per run.
+- **Role definitions restate the validated formats.** The mapper and reviewer standing
+  contracts (Claude `gdi-mapper`, `gdi-reviewer`; Codex `goal-explorer`, `goal-reviewer`) now
+  name the return labels, repository-relative anchors, the evidence tag, and the fact that a
+  structural validator sends a failing return back once. The dispatch prompt still wins on
+  conflict; the restatement exists so the first return of a session does not burn a re-prompt
+  round on format. Codex attestations bump to `gdi-explorer-v2` and `gdi-reviewer-v2`, so a
+  `-v1` attestation identifies a stale installed role file.
 
 ## 0.2.2 — 2026-09-03
 

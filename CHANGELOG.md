@@ -3,6 +3,43 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## 0.3.0 — unreleased (branch `0.3.0`)
+
+Evidence: the aiq-lite `code-research` skill (v0.0.6-sketch), whose live runs against a large
+monorepo produced two mechanisms this skill lacked. Ported to dependency-free Node so the skill's
+toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 is the control.
+
+### Added
+
+- **`assets/scout-repo.mjs`** — a deterministic feature map of the host repository (apps,
+  feature slices, shared kernels; file and char counts; layers; anchor docs; package name; the
+  one-line description each unit's own README gives it) from one tree walk and no LLM call.
+  PLAN mode runs it before mapping: mappers are dispatched one per unit the inputs touch and
+  named from the map, section TARGETs name the owning unit, and the plan header records the map.
+  `--classify <paths>` maps changed paths to owning units and reports how many units and shared
+  kernels a set touches — the structural evidence the bounded-fix lane eligibility check and the
+  reader-sweep class ask for; the lane re-runs it over `git diff --name-only` at accept time.
+  Nested checkouts (any directory carrying its own `.git`) and package stores are skipped: the
+  first run against the retrospective's monorepo counted 64,851 files and 477 "features" until
+  `.worktrees/` and `.pnpm-store/` were excluded; the corrected run reports 5,203 files and 36.
+- **`assets/validate-report.mjs`** — structural validation of agent returns before the
+  orchestrator acts on them: mapper (labels present, SYMBOLS anchored, thin/soft warnings),
+  reviewer and final reviewer (verdict vocabulary, evidence anchor count, REJECT with no findings,
+  every finding anchored and evidence-tagged), implementer (status vocabulary, labels, CLAIMS
+  anchored, GATE EVIDENCE non-empty, decision brief present), and `anchors` for any text
+  including the plan file. With `--repo-root` every `path:line` anchor must name an existing
+  file and a line inside it. A hard error goes back to the same agent once with the error list;
+  reviewers only ever see an implementer report that validates.
+- **Evidence tags on findings.** Every reviewer and final-review finding ends with
+  `evidence: test|code|partial|config|inference`. A REJECT whose findings are all `inference`
+  does not reach the implementer until the orchestrator has verified each against the code and
+  upgraded the tag with its own anchor or refuted it on the record. Origin: the aiq-lite
+  distinction between evidence strengths, and this skill's own rule that a reviewer can be wrong.
+- **Mapper follow-up rule.** A `thin` or `soft` mapper return earns at most one targeted
+  follow-up per section (narrower AREA at the weak symbols); persistent thinness is an accepted
+  risk in Graph Findings, not a loop. Origin: aiq-lite's substitution rule and its cap of two
+  follow-ups per run.
+
 ## 0.2.2 — 2026-09-03
 
 Evidence: a key-inventory survey of one repository on 2026-09-03 found 272 readable configuration

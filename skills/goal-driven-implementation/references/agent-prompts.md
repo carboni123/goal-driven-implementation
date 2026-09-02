@@ -22,7 +22,8 @@ Contents:
 ## 1. Mapper
 
 Read-only. Dispatch only for context items that lack `file:line` anchors or whose anchored files
-changed since the plan was written. Cap 2 per section; all in one message.
+changed since the plan was written. Cap 2 per section; all in one message. In PLAN mode, one
+mapper per unit the inputs touch, named from the feature map.
 
 ```text
 Map one area of this codebase for an upcoming implementation section. Read-only — do not modify
@@ -30,8 +31,13 @@ anything, do not delegate.
 
 AREA: {context item}
 SECTION GOAL: {one-line goal}
+FEATURE MAP: {path to the scout map, or "none — flat repository"}
+UNIT: {unit name and path from the map that owns this area, or "n/a"}
 
-Verify every anchor by opening the file at that line before reporting it. Return, densely:
+If a feature map is given, read it first: confirm which unit owns the area, use the map's names
+for units, and report under UNCERTAINTIES any way the area's framing disagrees with the map.
+Verify every anchor by opening the file at that line before reporting it. Anchors are
+repository-relative `path:line`. Return, densely:
 SYMBOLS: relevant symbols with file:line anchors
 PATTERN: the existing convention to copy and its exemplar file
 TESTS: existing tests to extend and the exact command that runs them
@@ -41,6 +47,18 @@ LIFECYCLE: artifacts/config/credentials produced; build-time vs runtime binding;
 SIBLINGS: other modules/routes implementing the same shape (job, guard, resolver)
 UNCERTAINTIES: claims you could not verify, stated as such
 ```
+
+Validate every return before merging:
+
+```bash
+node <skill-root>/assets/validate-report.mjs --kind mapper --repo-root <repo> --input <return.md>
+```
+
+A hard error (missing label, unanchored SYMBOLS, an anchor whose file or line does not exist)
+goes back to the **same** mapper once with the error list pasted; a second failure is recorded
+under **Premise corrections** as an unmapped area, not chased. A `thin` or `soft` warning earns at
+most one targeted follow-up per section: a narrower AREA pointed at the symbols the first pass
+found weak. Persistent thinness is an accepted risk in Graph Findings.
 
 Merge returns into one deduplicated brief. Record any correction to the plan's premise under
 **Premise corrections**.
@@ -126,6 +144,16 @@ RISKS: what a reviewer should scrutinize; unrelated issues noticed
 DECISION BRIEF: product effect; 2–4 options; consequences; recommendation; evidence (only if needed)
 ```
 
+Validate the report before any reviewer is dispatched:
+
+```bash
+node <skill-root>/assets/validate-report.mjs --kind implementer --repo-root <repo> --input <report.md>
+```
+
+A hard error (missing label, a CLAIMS line without an anchor, an anchor that does not resolve,
+empty GATE EVIDENCE, `decision-needed` without a brief) goes back to the same implementer once as
+a rejection with the error list; reviewers see only a report that validates.
+
 ---
 
 ## 3. Section reviewer
@@ -152,9 +180,23 @@ anchored; default to APPROVE when nothing concrete surfaces. Approvals cite anch
 Final message:
 VERDICT: APPROVE | REJECT
 EVIDENCE: 2–5 file:line anchors — what each establishes
-FINDINGS: none | file:line — issue — impact — required correction
+FINDINGS: none | one line each: file:line — issue — impact — required correction — evidence: test|code|partial|config|inference
 NOTES: non-blocking observations
 ```
+
+Evidence tags, strongest first: `test` a test asserts the behavior or its absence; `code`
+readable from the cited implementation; `partial` the happy path was read, the edge not traced;
+`config` supported by a flag, environment value, or stub rather than runtime code; `inference`
+deduced from naming, structure, or pattern. Validate each return:
+
+```bash
+node <skill-root>/assets/validate-report.mjs --kind reviewer --repo-root <repo> --input <return.md>
+```
+
+A hard error (REJECT with no findings, a finding without an anchor or tag, a dead anchor) goes
+back to the same reviewer once. A REJECT whose findings are all `evidence: inference` does not
+reach the implementer as-is: the orchestrator verifies each against the code and either upgrades
+the tag with its own anchor or refutes it on the record.
 
 Lens checklists:
 
@@ -219,9 +261,12 @@ concrete and anchored. Approvals cite anchors.
 Final message:
 VERDICT: CLEAN | FINDINGS
 EVIDENCE: 2–8 anchors — what each establishes
-FINDINGS: none | file:line — issue — impact — required correction
+FINDINGS: none | one line each: file:line — issue — impact — required correction — evidence: test|code|partial|config|inference
 NOTES: non-blocking observations
 ```
+
+Validate each return with `validate-report.mjs --kind final --repo-root <repo>`; the same
+re-prompt-once and all-inference rules as the section reviewer apply.
 
 Lenses:
 
@@ -335,7 +380,9 @@ PLAN FILE: {path}
 Read the plan's sources, topology, DEPENDS ON clauses, goals, rulings tables, gate budget,
 preflight, known blockers, section blocks, and ledger. Check every class in
 references/graph-analysis.md, and additionally:
-- every file:line anchor resolves; every named symbol, scope, column, or export exists as claimed
+- every file:line anchor resolves (run `node <skill-root>/assets/validate-report.mjs --kind
+  anchors --repo-root <repo> --input <plan>` and read the errors); every named symbol, scope,
+  column, or export exists as claimed
 - every DEPENDS ON edge is buildable (no workspace cycle, no import in an impossible direction)
 - every input clause reaches a section or the out-of-scope list
 - every enforce/gate/block/redact section has a negative-space ruling

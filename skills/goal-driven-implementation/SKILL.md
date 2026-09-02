@@ -98,7 +98,10 @@ a Recorded call (`lane: bounded`, `⇢`) and put `lane: bounded` on the ledger r
 - One section, one vertical slice, one commit.
 - Nothing on the ruling floor, default or declared.
 - No new or widened value written into a shared column, enum, event type, registry, or any
-  value read outside the owning package — nothing to reader-sweep.
+  value read outside the owning package — nothing to reader-sweep. Structural evidence:
+  `scout-repo.mjs <repo> --classify <paths the section will touch>` reports one owning unit and
+  no shared kernel. Re-run it over `git diff --name-only` at accept time; a shared kernel or a
+  second unit in the diff is a disqualifier.
 - No migration; no auth, tenancy, or input-validation path; no limiter, quota, timeout, or
   admission policy; no public contract surface; no enforce, gate, block, or redact verb.
 - The goal is provable with the owning package's tests: no image build, deploy, or live run in
@@ -131,8 +134,15 @@ Inside the lane:
    input claims as hypotheses: an issue's proposed fix, field names, and "already reverted" claims
    are verified against the tree during mapping, and corrections are recorded at the top of the
    plan under **Premise corrections**.
-2. If the code is unfamiliar, fan out 2–4 read-only mappers (mapper template) and merge their
-   returns. Mappers verify every anchor they report.
+2. Scout the repository first — no LLM call, one tree walk:
+   `node <skill-root>/assets/scout-repo.mjs <repo> --out <plan-dir>/<slug>-feature-map.yml`.
+   The map lists apps, feature slices, and shared kernels with the description each unit's own
+   README gives it. Read it before mapping: it is the repository's vocabulary and its ownership
+   structure. Then, if the code is unfamiliar, fan out 2–4 read-only mappers (mapper template),
+   one per unit the inputs touch, named from the map, and validate each return with
+   `validate-report.mjs --kind mapper` before merging. A flat repository (`features: 0`) maps as
+   one unit. The map is a working file: list it under baseline exclusions unless host conventions
+   keep generated plan artifacts.
 3. Instantiate `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions).
    Fill every field. In particular:
    - **Global gate**: a real command, run once now. Default to the owning package's _full_ suite
@@ -160,7 +170,8 @@ Inside the lane:
      flow gets one goal whose exit test is a scripted end-to-end walkthrough at the final-review gate.
    - **Sections**: one S/M vertical slice each. Size by invariant inversion — how many unstated
      assumptions the change falsifies — not by diff size. For any invariant a section changes,
-     list its **writers** as deliberately as its readers.
+     list its **writers** as deliberately as its readers. TARGET names the owning unit from the
+     feature map; a section that writes into a shared kernel says so there.
    - **Base drift policy**: when to re-baseline on `origin/main` and what happens if a stacked
      predecessor merges.
 4. Draw the topology graph (conventions in the template). Every section sits on a full
@@ -176,9 +187,11 @@ Inside the lane:
    (enforce/gate verbs without a negative-space ruling), **data-path reachability** (what writes
    this data in production — a seed is not a rollout), **constraint admissibility** (which CHECKs,
    triggers, allowlists filter a widened column), **rollout window** (old binary × new schema during
-   replacement), **plan as evidence** (every anchor resolves, every named symbol exists and is
-   exported, every `DEPENDS ON` edge is buildable), **known blockers**. For plans over ~8 sections,
-   fan the checklist out to one read-only reviewer as a second pair of eyes.
+   replacement), **plan as evidence** (every anchor resolves — run
+   `validate-report.mjs --kind anchors --input <plan-file> --repo-root <repo>` — every named
+   symbol exists and is exported, every `DEPENDS ON` edge is buildable), **known blockers**. For
+   plans over ~8 sections, fan the checklist out to one read-only reviewer as a second pair of
+   eyes.
 6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file>`. Fix errors; never waive
    them in prose.
 7. Present graph-first: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>`
@@ -197,13 +210,17 @@ dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick
 unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer is alive.
 
 **1. Aggregate.** Skip when the section's context items already carry `file:line` anchors that
-still resolve. Otherwise dispatch ≤2 mappers for the unanchored or stale items and merge.
+still resolve (`validate-report.mjs --kind anchors` over the section block says so mechanically).
+Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, apply the
+follow-up rule from the prompts reference, and merge.
 
 **2. Implement.** One implementer, section block verbatim, context brief, global gate, preflight,
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
 sections of this plan). Keep its handle; all follow-ups resume the same agent. The implementer's
 report carries a **CLAIMS** block: every prose assertion it added or changed (README, comment,
 docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_.
+Validate the report (`validate-report.mjs --kind implementer --repo-root <repo>`) before any
+reviewer is dispatched; a hard error goes back to the same agent once.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →
@@ -217,9 +234,11 @@ diff touches a limiter, quota, timeout, or admission policy) · **evaluator soun
 journey/proof sections: a green run counts after fault injection turns it red). Rules: never fewer
 than three lenses outside the bounded-fix lane (which runs convention/scope and doc-truth); `⚠`
 sections get the full set; keep security whenever tenancy, auth, limits, resolvers, or hooks are
-touched; doc-truth always. Each returns APPROVE or REJECT with anchors;
-approvals cite 2–5 anchors too. A reviewer can be wrong — refute a finding against the code and
-record the refutation rather than implementing it.
+touched; doc-truth always. Each returns APPROVE or REJECT with anchors and an evidence tag per
+finding; approvals cite 2–5 anchors too. Validate each return (`--kind reviewer`). A reviewer can
+be wrong — refute a finding against the code and record the refutation rather than implementing
+it; a REJECT whose findings are all `evidence: inference` is verified by the orchestrator first
+and reaches the implementer only with an upgraded tag or not at all.
 
 **5. Verify yourself.** Re-run the global gate in the main session (owning package's full suite
 plus affected dependents; in the bounded-fix lane, the affected subset named in the gate budget).
@@ -256,8 +275,9 @@ When every section is checked:
    branch writes into a shared column, enum, event type, or registry, checked against every reader
    in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
    at HEAD, including pre-existing sentences the new claims sit beside; (f) **rollout window** —
-   old binary × new schema during replacement. Findings go to one correction implementer scoped to
-   the findings; commit additively; repeat until clean under the convergence rule. In the
+   old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
+   to one correction implementer scoped to the findings; commit additively; repeat until clean
+   under the convergence rule. In the
    bounded-fix lane the section review already served as the final review: skip the fan-out and
    run the global gate once against the merged tree.
 3. **Expensive gates** — run each budgeted gate once against the reviewed candidate, in the
@@ -278,6 +298,10 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/plan-template.md` — plan skeleton (`gdi_schema: 2`).
 - `assets/validate-plan.mjs` — strict structural validation; `--self-test`.
 - `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML.
+- `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
+  LLM call; `--classify` maps changed paths to owning units; `--self-test`.
+- `assets/validate-report.mjs` — structural check of mapper, reviewer, final-review, and
+  implementer returns, and of anchors in any text; `--self-test`.
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.

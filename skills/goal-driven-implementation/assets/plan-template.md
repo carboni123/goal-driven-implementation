@@ -10,6 +10,7 @@ harness: <claude | codex>
 
 Sources: <roadmap / PRD / ADR / issue references>
 Written: <YYYY-MM-DD>
+Feature map: <path from scout-repo.mjs — n apps / n features / n shared kernels, or "flat repository">
 
 ## Premise corrections
 
@@ -275,7 +276,7 @@ SOURCES:
 <Roadmap, PRD, ADR, or issue clauses.>
 
 TARGET:
-<Repository / service / subsystem, plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose.>
+<Owning unit from the feature map (name and path), plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose. Name any shared kernel written.>
 
 DEPENDS ON:
 <Checked section IDs, or "none".>

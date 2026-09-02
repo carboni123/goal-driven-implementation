@@ -50,7 +50,8 @@ classes · environment classes · evidence classes.
   already listed. _Origin:_ retaining a credential broke unwritten assumptions in four places
   across three sections; the plan had named three readers, all held, and every serious defect lived
   in the unlisted writers.
-- **Plan as evidence** — every anchor resolves, every named symbol/scope/column/export exists,
+- **Plan as evidence** — every anchor resolves (`validate-report.mjs --kind anchors` over the
+  plan file checks file and line mechanically), every named symbol/scope/column/export exists,
   every `DEPENDS ON` edge is buildable. Behavior claims in the plan get the same discipline as
   docs. _Origin:_ a plan prescribed an import direction that was a workspace cycle; another named a
   scope that did not exist; another's IMPLEMENT text asserted a false behavior the implementer

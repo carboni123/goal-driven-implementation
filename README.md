@@ -28,14 +28,17 @@ Targets: `~/.claude/skills/`, `~/.claude/agents/` (four `gdi-*` roles), `~/.code
 
 ## What a run looks like
 
-1. **PLAN** — map the code, write the plan from `assets/plan-template.md`, draw the topology
-   graph (inputs → sections → goal exit tests → final review → gates → PR), run the
+1. **PLAN** — scout the repository into a feature map (`assets/scout-repo.mjs`, no LLM call),
+   map the code one unit at a time, write the plan from `assets/plan-template.md`, draw the
+   topology graph (inputs → sections → goal exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
    validate, render, and either wait for the user's ruling on floor items or start.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
-   eight review lenses in parallel, the orchestrator re-runs the gate and reads the diff, then
-   accepts (commit section + ledger together) or sends exact gaps back to the same implementer
-   until it converges.
+   eight review lenses in parallel, every agent return validated structurally
+   (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
+   orchestrator acts on it, the orchestrator re-runs the gate and reads the diff, then accepts
+   (commit section + ledger together) or sends exact gaps back to the same implementer until it
+   converges.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
@@ -63,6 +66,8 @@ skills/goal-driven-implementation/
     plan-template.md             gdi_schema: 2 plan skeleton
     validate-plan.mjs            strict structural validator (--self-test)
     render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
+    scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
+    validate-report.mjs          structural check of agent returns and anchors (--self-test)
     agents/claude/gdi-*.md       pinned Claude Code roles
     agents/codex/goal-*.toml     Codex custom agents
   references/
@@ -87,8 +92,11 @@ the legacy rules; resuming one adds the schema-2 surfaces without touching appro
 
 ```bash
 node skills/goal-driven-implementation/assets/validate-plan.mjs --self-test
+node skills/goal-driven-implementation/assets/scout-repo.mjs --self-test
+node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md
 node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md --no-open
+node skills/goal-driven-implementation/assets/scout-repo.mjs path/to/repo --out feature-map.yml
 ```
 
 Change the skill in `skills/goal-driven-implementation/`, bump `assets/VERSION`, add a

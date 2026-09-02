@@ -21,6 +21,8 @@ code.
 | `skills/.../assets/plan-template.md`           | The `gdi_schema: 2` plan skeleton every plan is instantiated from.                                       | Yes, in step with the validator         |
 | `skills/.../assets/validate-plan.mjs`          | Strict structural validator with built-in fixtures (`--self-test`).                                      | Yes, in step with the template          |
 | `skills/.../assets/render-plan-graph.mjs`      | Plan → HTML renderer (graphs, findings, budget, ledger).                                                  | Yes                                     |
+| `skills/.../assets/scout-repo.mjs`             | Repository → feature map (apps, features, shared kernels); `--classify` maps paths to units. Self-tested. | Yes, in step with the mapper prompt     |
+| `skills/.../assets/validate-report.mjs`        | Structural validator for mapper, reviewer, final, and implementer returns and for anchors. Self-tested.   | Yes, in step with the report formats    |
 | `skills/.../assets/agents/claude/gdi-*.md`     | Pinned Claude Code agent definitions. Model and effort live in the frontmatter.                          | Yes, in step with `routing-claude.md`   |
 | `skills/.../assets/agents/codex/goal-*.toml`   | Codex custom agents. Model and effort live in the TOML.                                                  | Yes, in step with `routing-codex.md`    |
 | `skills/.../assets/VERSION`                    | The release number stamped into every plan as `gdi_version`.                                             | Only on release                         |
@@ -48,6 +50,9 @@ one, check the others in the same commit.
   wrote; a validator change that rejects a previously valid plan is a schema bump, not a fix.
 - **Reviewer lenses.** The lens list in `references/agent-prompts.md`, the `gdi-reviewer`
   description, and the lens names `SKILL.md` dispatches by must match.
+- **Report formats.** The labels and verdict vocabularies in the prompt templates
+  (`references/agent-prompts.md`) are what `validate-report.mjs` checks. Renaming a label or
+  adding a required one changes both, and the validator's self-test fixtures with them.
 - **File lists.** `SKILL.md` ends with a file index, and the README has a Layout block. Adding or
   renaming a file under `skills/` updates both.
 - **Install targets.** `scripts/install.mjs` and the README's Install section name the same
@@ -59,13 +64,18 @@ There is no CI. Run these locally and report the output.
 
 ```bash
 node skills/goal-driven-implementation/assets/validate-plan.mjs --self-test
+node skills/goal-driven-implementation/assets/scout-repo.mjs --self-test
+node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
 node skills/goal-driven-implementation/assets/render-plan-graph.mjs <some-plan.md> --no-open
 node scripts/install.mjs --dry-run
 ```
 
-- The self-test must print `validate-plan self-test passed (schema 2 + legacy schema 1)`.
-- When you touch the validator, add or extend a fixture inside it for the rule you changed. A
-  rule with no fixture is untested.
+- Each self-test prints a single `... self-test passed` line.
+- When you touch a validator or the scout, add or extend a fixture inside it for the rule you
+  changed. A rule with no fixture is untested.
+- Run the scout against a real monorepo, not only the fixture, when you change its exclusions
+  or detection rules: the fixture cannot reproduce a nested worktree checkout or a package
+  store, and both have inflated a map thirtyfold before.
 - `plan-template.md` is a skeleton with placeholders and is **not expected** to pass the
   validator. Do not "fix" the template to make it validate.
 - The renderer has no fixtures. Render a real plan (or a filled-in copy of the template) and

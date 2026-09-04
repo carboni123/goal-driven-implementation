@@ -178,7 +178,11 @@ Lens checklists:
 5. **Convention/scope** — naming, layering, test placement; change stays inside the section; no
    dead code or drive-bys; **test doubles carry the row shape a real row has today**, not a legacy
    branch; regression and mocked tests carry a sensitivity check (red output pasted in the
-   report), and no check was produced by reverting committed or shared state.
+   report), and no check was produced by reverting committed or shared state; **no unjustified
+   configuration key** — a new environment variable or other host-set key is a finding unless the
+   section names who sets it, on which host, and what breaks at the default (numeric knobs are
+   named constants in the owning module, runtime-changed values are config rows, env is for
+   secrets, endpoints, and per-host selectors; a Zod default is not a justification).
 6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
    makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
    UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is

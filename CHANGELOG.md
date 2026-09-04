@@ -3,6 +3,25 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## 0.2.2 — 2026-09-03
+
+Evidence: a key-inventory survey of one repository on 2026-09-03 found 272 readable configuration
+keys, 79 of them numeric tunables of which exactly one had ever been set on any host, and a schema
+growing by roughly 40 keys a month against 6 removed. The pattern behind the growth was the
+implementer's hedge: a number it could not justify became an environment variable with a schema
+default, and the next section copied the pair.
+
+### Added
+
+- **Unjustified configuration key** finding class on the convention/scope lens. A new
+  environment variable or other host-set key is a finding unless the section records who sets
+  it, on which host, and what breaks at the default. Numeric knobs belong in a named constant in
+  the owning module, runtime-changed values in a config table, and env holds secrets, endpoints,
+  and per-host selectors. A schema default is the hedge the class exists to catch, not the
+  justification. Added to the dispatch checklist (`references/agent-prompts.md`, dimension 5)
+  and to the Claude convention reviewer's standing contract; Codex's single reviewer role reads
+  the same checklist.
+
 ## 0.2.1 — 2026-09-02
 
 Evidence: two plans run on 0.2.0 in a repository other than the one the retrospective studied.

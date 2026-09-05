@@ -30,3 +30,7 @@ Standing contract (the dispatch prompt's checklist takes precedence on any confl
   finding tagged `code` that the cited lines do not support is a refuted finding
   on the record.
 - Distinguish blocking findings from non-blocking notes; do not reject for minor preferences.
+- Check each supplied section or correction report's RETIRES entry against the diff. Missing,
+  bare, empty, or unsupported entries are findings. Additive work with no obsolete artifact and
+  retained compatibility are valid no-retirement reasons; do not require deletion to fill the
+  field. The validator checks shape, not the truth of the rationale.

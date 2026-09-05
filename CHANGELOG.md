@@ -11,6 +11,15 @@ toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 i
 
 ### Added
 
+- **Justified retirement reports.** Section and final-review correction implementers now return
+  `RETIRES`: artifacts actually removed, or a concrete reason none was retired, including additive
+  work with no obsolete artifact or retained compatibility. The report validator rejects a missing,
+  bare, or empty `none` explanation; reviewers check whether the stated rationale is true. A
+  `decision-needed` correction also requires a substantive separate or compact decision brief.
+  This directly bumps current Codex source attestations from implementer
+  `gdi-implementer-astra-low-v3` to `gdi-implementer-astra-low-v4` and reviewer
+  `gdi-reviewer-v2` to `gdi-reviewer-v3`; it does not establish runtime reload. Evidence: Tyxter
+  #877 task 4's requested retirement-report requirement.
 - **`assets/scout-repo.mjs`** — a deterministic feature map of the host repository (apps,
   feature slices, shared kernels; file and char counts; layers; anchor docs; package name; the
   one-line description each unit's own README gives it) from one tree walk and no LLM call.
@@ -81,10 +90,11 @@ toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 i
   metaphors and rhetorical phrasing in the workflow, references, plan template, and agent
   instructions with direct descriptions of actions, conditions, and evidence. Examples include
   "cost is earned," "highest-yield spend," "a numeric knob," and "a second pair of eyes."
-  The request identified unnecessary reading effort and imprecision as the problem. Workflow
-  requirements, reviewer lenses, model/effort pins, report fields, and schema rules are unchanged.
-  The edited Codex implementer instructions use `gdi-implementer-astra-low-v4`, with the routing
-  attestation list updated to match. Historical changelog entries and frozen forks are unchanged.
+  The request identified unnecessary reading effort and imprecision as the problem. The
+  direct-wording edit did not change workflow requirements, reviewer lenses, model/effort pins,
+  report fields, or schema rules. It left the current Codex implementer attestation at
+  `gdi-implementer-astra-low-v3`; its earlier v4 claim was inaccurate. The later retirement-report
+  change records the direct v3-to-v4 bump and matching routing update. Frozen forks are unchanged.
 
 ## 0.2.2 — 2026-09-03
 

@@ -3,7 +3,7 @@
 // present, verdict well-formed, every file:line anchor resolves to a real file and a line that
 // exists. Pattern taken from the aiq-lite code-research subagent validator.
 //
-//   node validate-report.mjs --kind <mapper|reviewer|final|implementer|anchors>
+//   node validate-report.mjs --kind <mapper|reviewer|final|implementer|correction|anchors>
 //                            [--input <file>] [--repo-root <dir>] [--json]
 //   <agent output> | node validate-report.mjs --kind reviewer --repo-root .
 //   node validate-report.mjs --self-test
@@ -20,7 +20,11 @@
 //                orchestrator verifies before relaying.
 //   final        as reviewer with VERDICT: CLEAN|FINDINGS and 2–8 evidence anchors.
 //   implementer  STATUS: complete|blocked|decision-needed; report labels present; every CLAIMS
-//                line anchored; GATE EVIDENCE non-empty; decision-needed carries a DECISION BRIEF.
+//                line anchored; RETIRES non-empty and a `none` entry is explained; GATE EVIDENCE
+//                non-empty; decision-needed carries a DECISION BRIEF.
+//   correction   correction report labels present; STATUS vocabulary and CLAIMS anchors checked;
+//                RETIRES non-empty and a `none` entry is explained; GATE EVIDENCE non-empty;
+//                decision-needed carries a substantive separate or compact decision brief.
 //   anchors      only the anchor check, for any text (a plan file, a brief, a finding list).
 //
 // An anchor is `path/with.ext:N` or `path/with.ext:N-M`, optionally in backticks. Absolute paths
@@ -38,8 +42,12 @@ const LABEL_RE = /^([A-Z][A-Z0-9 /_-]{1,40}):[ \t]*(.*)$/;
 
 const MAPPER_LABELS = ["SYMBOLS", "PATTERN", "TESTS", "WRITERS", "COUPLINGS", "LIFECYCLE", "SIBLINGS", "UNCERTAINTIES"];
 const IMPLEMENTER_LABELS = [
-  "STATUS", "ANCHOR DELTA", "DIFF", "CLAIMS", "CALLS", "GATE EVIDENCE", "TESTS RUN",
+  "STATUS", "ANCHOR DELTA", "DIFF", "RETIRES", "CLAIMS", "CALLS", "GATE EVIDENCE", "TESTS RUN",
   "ACCEPTANCE", "SIBLINGS", "DEFERRALS", "RISKS",
+];
+const CORRECTION_LABELS = [
+  "STATUS", "DIFF", "RETIRES", "FINDINGS RESOLVED", "CLAIMS", "GATE EVIDENCE", "TESTS RUN",
+  "EXIT TESTS",
 ];
 const REVIEW_LABELS = ["VERDICT", "EVIDENCE", "FINDINGS"];
 
@@ -72,6 +80,11 @@ function anchorsIn(text) {
 const bullets = (body) =>
   body.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && l !== "none");
 const isNone = (body) => /^\s*none\b/i.test(body.trim());
+const hasNoneExplanation = (body) => {
+  const suffix = body.trim().replace(/^none\b/i, "").trim();
+  const content = suffix.replace(/^[\s—–:;,.!?-]+/, "").trim();
+  return Boolean(content) && !/^(justified|justification|reason|rationale)[\s—–:;,.!?-]*$/i.test(content);
+};
 
 // ---------- checks ----------
 
@@ -147,17 +160,56 @@ function checkImplementer(sec, errors, warnings) {
   const status = (sec.get("STATUS") ?? "").trim().split(/\s+/)[0]?.toLowerCase() ?? "";
   if (sec.has("STATUS") && !["complete", "blocked", "decision-needed"].includes(status))
     errors.push(`STATUS must be complete|blocked|decision-needed, got ${JSON.stringify(status)}`);
-  const claimsBody = sec.get("CLAIMS") ?? "";
-  if (sec.has("CLAIMS") && !isNone(claimsBody)) {
-    for (const c of bullets(claimsBody))
-      if (anchorsIn(c).length === 0) errors.push(`CLAIMS line without an anchor: ${short(c)}`);
-  }
+  checkRetires(sec, errors);
+  checkClaims(sec, errors);
   if (sec.has("GATE EVIDENCE") && !(sec.get("GATE EVIDENCE") ?? "").trim())
     errors.push("GATE EVIDENCE is empty");
   if (status === "complete" && /\b(not run|unrun|did not run|skipped)\b/i.test(sec.get("TESTS RUN") ?? ""))
     warnings.push("STATUS: complete but TESTS RUN mentions an unrun or skipped check");
   if (status === "decision-needed" && !sec.has("DECISION BRIEF"))
     errors.push("STATUS: decision-needed without a DECISION BRIEF");
+}
+
+function checkRetires(sec, errors) {
+  if (!sec.has("RETIRES")) return;
+  const retirees = sec.get("RETIRES") ?? "";
+  if (!retirees.trim()) errors.push("RETIRES is empty");
+  else if (isNone(retirees) && !hasNoneExplanation(retirees))
+    errors.push("RETIRES: none requires a concrete explanation, such as additive work with no obsolete artifact or retained compatibility");
+}
+
+function checkClaims(sec, errors) {
+  const claimsBody = sec.get("CLAIMS") ?? "";
+  if (sec.has("CLAIMS") && !isNone(claimsBody)) {
+    for (const c of bullets(claimsBody))
+      if (anchorsIn(c).length === 0) errors.push(`CLAIMS line without an anchor: ${short(c)}`);
+  }
+}
+
+function hasDecisionText(body) {
+  const text = body.trim();
+  return Boolean(text) && !isNone(text) && /[A-Za-z0-9]/.test(text);
+}
+
+function hasCorrectionDecisionBrief(sec) {
+  if (hasDecisionText(sec.get("DECISION BRIEF") ?? "")) return true;
+  const compact = sec.get("DEFERRALS / RISKS / DECISION BRIEF") ?? "";
+  return hasDecisionText(compact) && !/^(?:DEFERRALS?|RISKS?)\s*:/i.test(compact.trim());
+}
+
+function checkCorrection(sec, errors, warnings) {
+  requireLabels(sec, CORRECTION_LABELS, errors);
+  const status = (sec.get("STATUS") ?? "").trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  if (sec.has("STATUS") && !["complete", "blocked", "decision-needed"].includes(status))
+    errors.push(`STATUS must be complete|blocked|decision-needed, got ${JSON.stringify(status)}`);
+  checkRetires(sec, errors);
+  checkClaims(sec, errors);
+  if (sec.has("GATE EVIDENCE") && !(sec.get("GATE EVIDENCE") ?? "").trim())
+    errors.push("GATE EVIDENCE is empty");
+  if (status === "complete" && /\b(not run|unrun|did not run|skipped)\b/i.test(sec.get("TESTS RUN") ?? ""))
+    warnings.push("STATUS: complete but TESTS RUN mentions an unrun or skipped check");
+  if (status === "decision-needed" && !hasCorrectionDecisionBrief(sec))
+    errors.push("STATUS: decision-needed without a substantive correction DECISION BRIEF");
 }
 
 const short = (s, n = 90) => (s.length <= n ? s : `${s.slice(0, n - 1).trimEnd()}…`);
@@ -178,6 +230,9 @@ export function validate(text, kind, repoRoot) {
       break;
     case "implementer":
       checkImplementer(sec, errors, warnings);
+      break;
+    case "correction":
+      checkCorrection(sec, errors, warnings);
       break;
     case "anchors":
       break;
@@ -241,21 +296,100 @@ function selfTest() {
     const finalBadVerdict = validate("VERDICT: APPROVE\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS: none", "final", dir);
     assert(finalBadVerdict.errors.some((e) => e.includes("VERDICT must be one of CLEAN|FINDINGS")), "final verdict vocabulary");
 
-    const implGood = validate(
-      ["STATUS: complete", "ANCHOR DELTA: none", "DIFF: a.ts — fix", "CLAIMS: README says X → b.md:1",
-       "CALLS: none", "GATE EVIDENCE: npm test → 3 passed", "TESTS RUN: unit; sensitivity check red output pasted",
-       "LIVE FLOW: n/a", "ENV: none", "LIFECYCLE EFFECTS: none", "ACCEPTANCE: Goal 1 clause 2",
-       "SIBLINGS: none", "DEFERRALS: none", "RISKS: none"].join("\n"),
-      "implementer", dir);
+    const implementerReport = (retires) => [
+      "STATUS: complete", "ANCHOR DELTA: none", "DIFF: a.ts — fix", `RETIRES: ${retires}`,
+      "CLAIMS: README says X → b.md:1", "CALLS: none", "GATE EVIDENCE: npm test → 3 passed",
+      "TESTS RUN: unit; sensitivity check red output pasted", "LIVE FLOW: n/a", "ENV: none",
+      "LIFECYCLE EFFECTS: none", "ACCEPTANCE: Goal 1 clause 2", "SIBLINGS: none",
+      "DEFERRALS: none", "RISKS: none",
+    ].join("\n");
+    const implGood = validate(implementerReport("legacy-flag removed from a.ts"), "implementer", dir);
     assert(implGood.ok, `implementer good failed: ${implGood.errors}`);
+    const implRetention = validate(
+      implementerReport("none — retained compatibility facade still serves legacy callers"),
+      "implementer", dir,
+    );
+    assert(implRetention.ok, `implementer justified retention failed: ${implRetention.errors}`);
+    const implAdditive = validate(
+      implementerReport("none — additive work leaves no obsolete artifact"),
+      "implementer", dir,
+    );
+    assert(implAdditive.ok, `implementer additive work failed: ${implAdditive.errors}`);
+    const implMissingRetires = validate(
+      implementerReport("legacy-flag removed from a.ts").replace(/^RETIRES:.*\n/m, ""),
+      "implementer", dir,
+    );
+    assert(implMissingRetires.errors.some((e) => e.includes("missing label: RETIRES:")), "implementer missing RETIRES");
+    const implBareNone = validate(implementerReport("none"), "implementer", dir);
+    assert(implBareNone.errors.some((e) => e.startsWith("RETIRES: none")), "implementer bare none");
+    const implEmptyJustification = validate(implementerReport("none — justified:"), "implementer", dir);
+    assert(implEmptyJustification.errors.some((e) => e.startsWith("RETIRES: none")), "implementer empty justification");
+    const implPunctuatedJustification = validate(implementerReport("none — justified: —"), "implementer", dir);
+    assert(implPunctuatedJustification.errors.some((e) => e.startsWith("RETIRES: none")), "implementer punctuated justification");
+    const implDanglingNone = validate(implementerReport("none —"), "implementer", dir);
+    assert(implDanglingNone.errors.some((e) => e.startsWith("RETIRES: none")), "implementer dangling none");
     const implBad = validate(
-      ["STATUS: decision-needed", "ANCHOR DELTA: none", "DIFF: a.ts", "CLAIMS: README says X (no anchor)",
+      ["STATUS: decision-needed", "ANCHOR DELTA: none", "DIFF: a.ts", "RETIRES: none — additive work leaves no obsolete artifact",
+       "CLAIMS: README says X (no anchor)",
        "CALLS: none", "GATE EVIDENCE:", "TESTS RUN: unit", "ACCEPTANCE: -", "SIBLINGS: none",
        "DEFERRALS: none", "RISKS: none"].join("\n"),
       "implementer", dir);
     assert(implBad.errors.some((e) => e.includes("CLAIMS line without an anchor")), "unanchored claim");
     assert(implBad.errors.some((e) => e.includes("GATE EVIDENCE is empty")), "empty gate evidence");
     assert(implBad.errors.some((e) => e.includes("DECISION BRIEF")), "decision-needed without brief");
+
+    const correctionReport = (retires) => [
+      "STATUS: complete", "DIFF: a.ts — remove stale branch", `RETIRES: ${retires}`,
+      "FINDINGS RESOLVED: stale branch — a.ts:2", "CLAIMS: none",
+      "GATE EVIDENCE: npm test → 3 passed", "TESTS RUN: unit", "EXIT TESTS: n/a",
+      "DEFERRALS / RISKS / DECISION BRIEF: none",
+    ].join("\n");
+    const correctionGood = validate(
+      correctionReport("none — compatibility facade remains for a supported reader"),
+      "correction", dir,
+    );
+    assert(correctionGood.ok, `correction good failed: ${correctionGood.errors}`);
+    const correctionAdditive = validate(
+      correctionReport("none — additive correction leaves no obsolete artifact"),
+      "correction", dir,
+    );
+    assert(correctionAdditive.ok, `correction additive work failed: ${correctionAdditive.errors}`);
+    const correctionSeparateFields = validate(
+      correctionReport("legacy branch removed").replace(
+        "DEFERRALS / RISKS / DECISION BRIEF: none",
+        "DEFERRALS: none\nRISKS: none\nDECISION BRIEF: none",
+      ),
+      "correction", dir,
+    );
+    assert(correctionSeparateFields.ok, `correction separate fields failed: ${correctionSeparateFields.errors}`);
+    const correctionMissingRetires = validate(
+      correctionReport("legacy branch removed").replace(/^RETIRES:.*\n/m, ""),
+      "correction", dir,
+    );
+    assert(correctionMissingRetires.errors.some((e) => e.includes("missing label: RETIRES:")), "correction missing RETIRES");
+    const correctionBareNone = validate(correctionReport("none"), "correction", dir);
+    assert(correctionBareNone.errors.some((e) => e.startsWith("RETIRES: none")), "correction bare none");
+    const correctionEmptyJustification = validate(correctionReport("none — justified:"), "correction", dir);
+    assert(correctionEmptyJustification.errors.some((e) => e.startsWith("RETIRES: none")), "correction empty justification");
+    const correctionDecisionNeeded = (brief) => correctionReport("legacy branch removed")
+      .replace("STATUS: complete", "STATUS: decision-needed")
+      .replace("DEFERRALS / RISKS / DECISION BRIEF: none", brief);
+    const correctionSeparateBrief = validate(
+      correctionDecisionNeeded("DECISION BRIEF: Choose the supported routing before installation"),
+      "correction", dir,
+    );
+    assert(correctionSeparateBrief.ok, `correction separate brief failed: ${correctionSeparateBrief.errors}`);
+    const correctionCompactBrief = validate(
+      correctionDecisionNeeded("DEFERRALS / RISKS / DECISION BRIEF: Choose the supported routing before installation"),
+      "correction", dir,
+    );
+    assert(correctionCompactBrief.ok, `correction compact brief failed: ${correctionCompactBrief.errors}`);
+    const correctionMissingBrief = validate(correctionDecisionNeeded(""), "correction", dir);
+    assert(correctionMissingBrief.errors.some((e) => e.includes("substantive correction DECISION BRIEF")), "correction missing brief");
+    const correctionEmptyBrief = validate(correctionDecisionNeeded("DECISION BRIEF:"), "correction", dir);
+    assert(correctionEmptyBrief.errors.some((e) => e.includes("substantive correction DECISION BRIEF")), "correction empty brief");
+    const correctionNoneBrief = validate(correctionDecisionNeeded("DECISION BRIEF: none"), "correction", dir);
+    assert(correctionNoneBrief.errors.some((e) => e.includes("substantive correction DECISION BRIEF")), "correction none brief");
 
     const noRoot = validate("VERDICT: APPROVE\nEVIDENCE: nowhere/x.ts:1, y.ts:2\nFINDINGS: none", "reviewer", null);
     assert(noRoot.ok, "without --repo-root, existence is not checked");
@@ -288,8 +422,8 @@ function main(argv) {
   const input = opt("--input");
   const repoRootArg = opt("--repo-root");
   const json = args.includes("--json");
-  if (!kind || !["mapper", "reviewer", "final", "implementer", "anchors"].includes(kind)) {
-    console.error("usage: validate-report.mjs --kind mapper|reviewer|final|implementer|anchors [--input file] [--repo-root dir] [--json] | --self-test");
+  if (!kind || !["mapper", "reviewer", "final", "implementer", "correction", "anchors"].includes(kind)) {
+    console.error("usage: validate-report.mjs --kind mapper|reviewer|final|implementer|correction|anchors [--input file] [--repo-root dir] [--json] | --self-test");
     return 2;
   }
   let text;

@@ -45,11 +45,12 @@ Keep three facts distinct and record them separately in the plan's Harness routi
 - **Requested** — the role, model, and effort the orchestrator tried to select.
 - **Role-confirmed** — the spawn schema declared the selector, the call accepted it, and either
   runtime metadata reports the role or the child returns the profile-only attestation embedded in
-  the role's instructions (`gdi-implementer-astra-low-v3`, `gdi-reviewer-v2`,
-  `gdi-explorer-v3`). An older implementer or mapper literal identifies a stale role file;
-  reinstall and reload before using that custom role, or use the direct pinned fallback below.
-  Reviewer `-v2` is still current; a `-v1` mapper or reviewer also lacks the validated report
-  contract. Never include the expected literal in the task prompt.
+  the role's instructions (`gdi-implementer-astra-low-v4`, `gdi-reviewer-v3`,
+  `gdi-explorer-v3`). An older implementer, mapper, or reviewer literal identifies a stale role
+  file; reinstall and reload before using that custom role, or use the direct pinned fallback
+  below. Reviewer `-v3` is current; implementer `-v3` and reviewer `-v2` lack the
+  retirement-report contract, mapper `-v2` has stale routing/model-pin provenance, and mapper
+  `-v1` lacks the validated-report contract. Never include the expected literal in the task prompt.
 - **Model-confirmed** — tool/runtime metadata identifies the effective model and effort. A TOML,
   an attestation, or a self-description does not prove the runtime model.
 

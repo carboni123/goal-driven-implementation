@@ -131,6 +131,8 @@ Your final message is exactly this report:
 STATUS: complete | blocked | decision-needed
 ANCHOR DELTA: anchors that moved or symbols that did not exist, or "none"
 DIFF: one line per changed file — what and why
+RETIRES: actual files/exports/flags removed, or none — justified: additive work leaves no obsolete artifact,
+  retained compatibility, or another concrete reason
 CLAIMS: one line per prose claim added or changed — claim → file:line that makes it true
 CALLS: non-floor decisions you made, one line each with rationale
 GATE EVIDENCE: command + decisive trailing output
@@ -151,9 +153,10 @@ Validate the report before any reviewer is dispatched:
 node <skill-root>/assets/validate-report.mjs --kind implementer --repo-root <repo> --input <report.md>
 ```
 
-A hard error (missing label, a CLAIMS line without an anchor, an anchor that does not resolve,
-empty GATE EVIDENCE, `decision-needed` without a brief) goes back to the same implementer once as
-a rejection with the error list; reviewers see only a report that validates.
+A hard error (missing label, bare or unexplained `RETIRES: none`, a CLAIMS line without an anchor,
+an anchor that does not resolve, empty GATE EVIDENCE, `decision-needed` without a brief) goes back
+to the same implementer once as a rejection with the error list; reviewers see only a report that
+validates.
 
 ---
 
@@ -173,10 +176,15 @@ SECTION GOAL: {one-line goal}
 DIFF SCOPE: {changed files or commit range}
 BASELINE EXCLUSIONS: {pre-existing changes}
 CHECK FOR: {lens checklist}
+IMPLEMENTER REPORT: {validated section report}
 
-Read the diff and enough surrounding code to judge it in context. You may run tests, render
-schemas, or probe the running stack to verify — never to modify. A finding must be concrete and
-anchored; default to APPROVE when no concrete issue is found. Approvals cite anchors too.
+Read the report, diff, and enough surrounding code to judge them in context. `RETIRES` must name
+artifacts actually removed, or explain why none was retired — for example, additive work leaves no
+obsolete artifact or a compatibility facade remains. Do not require deletion merely to fill the
+field. Reject a missing, bare, empty, or unsupported entry. The validator checks the field's shape
+only — the reviewer judges whether its rationale is true. You may run tests, render schemas, or
+probe the running stack to verify — never to modify. A finding must be concrete and anchored;
+default to APPROVE when no concrete issue is found. Approvals cite anchors too.
 
 Final message:
 VERDICT: APPROVE | REJECT
@@ -225,11 +233,13 @@ Lens checklists:
    configuration key** — a new environment variable or other host-set key is a finding unless the
    section names who sets it, on which host, and what breaks at the default (numeric parameters are
    named constants in the owning module, runtime-changed values are config rows, env is for
-   secrets, endpoints, and per-host selectors; a Zod default is not a justification).
+   secrets, endpoints, and per-host selectors; a Zod default is not a justification); compare
+   **RETIRES** against the diff and reject a missing or unsupported retirement rationale.
 6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
    makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
    UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is
-   a REJECT. A count, version, route list, or evidence claim must trace to a serialized artifact.
+   a REJECT. A count, version, route list, evidence claim, or RETIRES rationale must trace to a
+   serialized artifact or the diff.
 7. **Capacity/false-positive** — run only when the diff touches a limiter, quota, timeout, or
    admission policy. Enumerate every legitimate client of the governed surface, including the
    product's own first-party traffic, and its highest per-interaction request count you can find in
@@ -255,9 +265,14 @@ LENS: {one of a–f below}
 BRANCH: {merged tree / commit range}
 PLAN: {plan path}
 BASELINE EXCLUSIONS: {pre-existing changes}
+CORRECTION REPORTS: {validated correction reports, or "none"}
 
-Read the whole branch and enough of the repository to judge it in context. Findings must be
-concrete and anchored. Approvals cite anchors.
+Read the correction reports, whole branch, and enough of the repository to judge them in context.
+For each correction report, accept a concrete no-retirement reason when additive work leaves no
+obsolete artifact or a compatibility facade remains; do not require deletion merely to fill the
+field. Reject a missing, bare, empty, or unsupported RETIRES entry. The validator checks its shape
+only, not whether the rationale is true. Findings must be concrete and anchored. Approvals cite
+anchors.
 
 Final message:
 VERDICT: CLEAN | FINDINGS
@@ -305,6 +320,8 @@ in the same format:
 
 Re-run the global gate and every affected test; paste fresh output. Previous evidence is void.
 Preserve the working-tree baseline.
+Return the full report with RETIRES; explain any `none` entry, including additive work with no
+obsolete artifact where applicable.
 ```
 
 Convergence rule: rounds continue while unresolved findings decrease. Stop and report to the user when a
@@ -357,12 +374,27 @@ RULES
 Return:
 STATUS: complete | blocked | decision-needed
 DIFF: one line per file
+RETIRES: actual files/exports/flags removed, or none — justified: additive work leaves no obsolete artifact,
+  retained compatibility, or another concrete reason
 FINDINGS RESOLVED: finding — evidence
 CLAIMS: claim → anchor
 GATE EVIDENCE: command + output
 TESTS RUN: suites, results, sensitivity-check output
 EXIT TESTS: steps and observed results
 DEFERRALS / RISKS / DECISION BRIEF: as applicable
+```
+
+Use the compact combined field above, or separate applicable `DEFERRALS`, `RISKS`, and
+`DECISION BRIEF` labels.
+
+For `STATUS: decision-needed`, provide a substantive decision brief either in a separate
+`DECISION BRIEF` field or in the compact field; an empty or `none` brief is invalid. A complete
+correction need not include a decision brief.
+
+Validate the correction report before re-running final review:
+
+```bash
+node <skill-root>/assets/validate-report.mjs --kind correction --repo-root <repo> --input <report.md>
 ```
 
 ---

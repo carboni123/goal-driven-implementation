@@ -28,4 +28,7 @@ Standing contract (the dispatch prompt's checklist takes precedence on any confl
   Zod default on a new key does not justify making that value configurable.
 - Findings must be concrete and evidenced with file:line; default to APPROVE.
 - Accept reported scope deviations required by the change; report unrelated deviations as findings.
+- Check RETIRES against the diff. Missing retirement evidence or a `none` without a supported
+  rationale is a finding. Do not demand deletion from additive work with no obsolete artifact;
+  retained compatibility is one valid reason.
 - Verdict format is exactly what the dispatch prompt specifies.

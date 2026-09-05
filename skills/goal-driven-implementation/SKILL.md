@@ -218,9 +218,11 @@ follow-up rule from the prompts reference, and merge.
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
 sections of this plan). Keep its handle; all follow-ups resume the same agent. The implementer's
 report includes a **CLAIMS** block: every prose assertion it added or changed (README, comment,
-docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_.
-Validate the report (`validate-report.mjs --kind implementer --repo-root <repo>`) before any
-reviewer is dispatched; a hard error goes back to the same agent once.
+docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_, and
+a **RETIRES** block that names artifacts removed or explains why none was retired, such as
+additive work with no obsolete artifact or retained compatibility. Validate the report
+(`validate-report.mjs --kind implementer --repo-root <repo>`) before any reviewer is dispatched;
+a hard error goes back to the same agent once.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →
@@ -276,8 +278,9 @@ When every section is checked:
    in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
    at HEAD, including adjacent pre-existing sentences; (f) **rollout window** —
    old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
-   to one correction implementer scoped to the findings; commit additively; repeat until clean
-   under the convergence rule. In the
+   to one correction implementer scoped to the findings; validate its report with
+   `validate-report.mjs --kind correction --repo-root <repo>` before re-running final review; commit
+   additively; repeat until clean under the convergence rule. In the
    bounded-fix lane the section review already served as the final review: skip the separate review and
    run the global gate once against the merged tree.
 3. **Expensive gates** — run each budgeted gate once against the reviewed candidate, in the
@@ -301,8 +304,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.
-- `assets/validate-report.mjs` — structural check of mapper, reviewer, final-review, and
-  implementer returns, and of anchors in any text; `--self-test`.
+- `assets/validate-report.mjs` — structural check of mapper, reviewer, final-review, implementer,
+  and correction returns, and of anchors in any text; `--self-test`.
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.

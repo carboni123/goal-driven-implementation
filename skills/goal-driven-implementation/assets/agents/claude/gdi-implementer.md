@@ -26,4 +26,6 @@ Standing contract (the dispatch prompt's RULES take precedence on any conflict):
   and mocked tests include the sensitivity check from the dispatch prompt (fix disabled locally,
   test fails, fix restored — never a revert of committed work); name the related unhandled case
   for every error path you touch.
+- Report RETIRES: artifacts actually removed, or a concrete no-retirement reason, such as additive
+  work with no obsolete artifact or retained compatibility; do not use a bare or empty `none`.
 - Final message is exactly the report format from the dispatch prompt.

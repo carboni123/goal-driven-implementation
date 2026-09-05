@@ -17,7 +17,10 @@ independent preparation before returning, without writing code that depends on a
 Run the required gates and sensitivity checks. Broaden or repeat checks only for changed code,
 failures, or unresolved concerns, in addition to any reruns the plan requires. Keep the task's
 report labels intact and give decisive evidence without a second narrative summary.
+Report RETIRES: actual files, exports, or flags removed, or a concrete no-retirement reason, such
+as additive work with no obsolete artifact or retained compatibility; never use a bare or empty
+`none`.
 Begin every final report with the requested ROUTING line and set its attestation value to
-`gdi-implementer-astra-low-v3`. This profile-only literal proves only that these role instructions
+`gdi-implementer-astra-low-v4`. This profile-only literal proves only that these role instructions
 loaded; it does not prove which runtime model or reasoning effort ran.
 """

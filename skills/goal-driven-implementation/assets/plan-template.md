@@ -45,10 +45,11 @@ ledger row and add the accepted risk to Graph Findings; the final review must th
 ### Global gate
 
 ```bash
-<owning package full suite + affected dependents, in the host toolchain's affected-tests form — run once before recording>
+<final gate: owning package full suite + affected dependents, using the host toolchain>
 ```
 
-Baseline result: <date, exit code, decisive output>
+Baseline result: <focused command/reproduction, tested state, date, exit code, decisive output>
+Final gate: <scheduled stage and executor; valid evidence reference if already run>
 
 ### Execution-environment preflight
 
@@ -67,8 +68,8 @@ presence and reachability only; never record secret values.
 | Required infrastructure          | DB/Redis/Docker/service DNS and ports needed by gates are reachable _from the realm that runs the gate_        | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
 | Credentials / external authority | Required values present and approved, unexposed                                                                | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
 | Host resources                   | Paths writable (no root-owned build output/caches); disk and memory adequate; no production environment inherited | `<result>`                 | `<ready / invalid-environment>`                |
-| Running stack freshness          | Images/processes used for live evidence are at or ahead of the baseline SHA                                    | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
-| Baseline gate                    | The declared global gate has a valid observed result                                                           | `<result>`                 | `<ready / known-baseline-red>`                 |
+| Running stack freshness          | Images/processes include the tested changes and matching relevant inputs                                       | `<result or not-required>` | `<ready / invalid-environment / not-required>` |
+| Baseline gate                    | Focused baseline has an observed result; broader baseline only for a concrete risk or host rule                 | `<result>`                 | `<ready / known-baseline-red>`                 |
 
 #### Known blockers
 
@@ -84,10 +85,10 @@ never a rejection round and never a user decision.
 ### Expensive or mutating lifecycle gate budget
 
 List every gate whose repetition costs meaningful time, money, risk, or external state. A later
-input that changes what the gate consumes invalidates its evidence. Count the implementer's run
-and the orchestrator's verification run separately. Smoke-run each gate's environment path once
-in preflight or mark it `unproven`. Schedule the cheapest real-client probe before the first
-image build.
+input that changes what the gate consumes invalidates its evidence. Assign each run to an executor;
+another role reviews the evidence rather than duplicating the run. Count any needed reruns under
+the executor that performs them. Smoke-run each gate's environment path once in preflight or mark
+it `unproven`. Schedule the cheapest real-client probe before the first image build.
 
 | Gate                                                                                 | Consumes / invalidated by                                   | Planned runs (impl / orch) | Preflight             | Actual runs | Why this count is safe                                                               |
 | ------------------------------------------------------------------------------------ | ----------------------------------------------------------- | -------------------------: | --------------------- | ----------: | ------------------------------------------------------------------------------------ |
@@ -321,9 +322,13 @@ Decision brief: product effect; 2-4 options; consequences; recommendation; evide
 
 VERIFY:
 
-- Global gate: <command>.
-- Subsystem tests: <commands>; regression and mocked tests include a sensitivity check (fix disabled locally, test fails, fix restored — never a revert of committed work).
-- Live/end-to-end flow: <steps and expected observable result>; running stack at or ahead of HEAD.
+- Focused section checks: <commands and the distinct behaviors they establish>.
+- Defect reproduction: <before/after evidence, or obstacle and alternative evidence>; use targeted
+  sensitivity checks per SKILL.md's proportionate-verification policy.
+- Global gate: <command and scheduled stage; run here only for a concrete risk or host rule>.
+- Live/end-to-end flow: <required steps, expected result, and scheduled stage, or not required>;
+  running stack includes tested changes and matching relevant inputs.
+- Evidence reuse: <valid results and tested state; inputs that invalidate them>.
 
 REVIEW:
 <Lenses: security, data, contract, reliability, convention/scope, doc-truth; + capacity when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
@@ -337,10 +342,13 @@ COMMIT:
 
 ## 4. Main-session acceptance protocol
 
-Before accepting a section, verify: gates re-run and passing; required DB/integration/e2e tests
-actually ran; no floor item crossed without a ruling; acceptance maps to an exit test; the diff
-stays within the section and excludes baseline changes; conventions followed; deferrals explicit,
-safe, and tracked. Read the full diff and the CLAIMS block against the code.
+Before accepting a section, verify: section gate evidence valid and passing; required section
+DB/integration/e2e tests actually ran; no floor item crossed without a ruling; acceptance maps to
+an exit test; the diff stays within the section and excludes baseline changes; conventions
+followed; deferrals explicit, safe, and tracked. Read the full diff and the CLAIMS block against
+the code. Review commands,
+results, tested state, and environment; rerun only missing or invalidated checks or a targeted
+probe for a finding. Final gates not yet due remain pending, never reported as passed.
 
 On acceptance, append the ledger record and commit the section diff and this ledger change
 together. On rejection, resume the same implementer with exact `file:line` gaps and continue
@@ -373,6 +381,7 @@ Record schema for a checked row (one line per rejection round):
 - [ ] Whole-branch final review (seams, contract, conformance, reader sweep, claim decay, rollout window) is clean; corrections committed.
 - [ ] Goal 1 exit tests pass with evidence.
 - [ ] Goal 2 exit tests pass with evidence.
+- [ ] Global and budgeted gate evidence is valid and passing for the final reviewed candidate.
 - [ ] Every budgeted gate records actual runs; overruns named in Graph Findings.
 - [ ] Every deferral has a tracking issue or a machine-checkable re-entry gate.
 - [ ] Topology graph marks match the ledger (validator passes), re-rendered, compared with Graph Findings.

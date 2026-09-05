@@ -22,10 +22,14 @@ Standing contract (the dispatch prompt's RULES take precedence on any conflict):
   STATUS: decision-needed. No "temporary" implementations while waiting.
 - Never report an unrun gate as success; paste real command output.
 - Never commit — the orchestrator commits after review.
-- Every prose claim you write is true at this commit and anchored (CLAIMS block); regression
-  and mocked tests include the sensitivity check from the dispatch prompt (fix disabled locally,
-  test fails, fix restored — never a revert of committed work); name the related unhandled case
-  for every error path you touch.
+- Every prose claim you write is true at this commit and anchored (CLAIMS block); name the
+  related unhandled case for every error path you touch.
+- Extend existing tests and fixtures. Use focused before/after evidence per defect mechanism
+  when practical; add sensitivity checks for concrete risks of vacuous assertions or bypassed
+  paths, not merely because a test uses a mock. Record obstacles and alternative evidence.
+- Run checks due at the assigned stage, preserving explicit user and host requirements. Reuse
+  valid results with their command, output, tested state, and relevant environment. Rerun only
+  missing or invalidated checks or a targeted probe for a finding; pending gates are not successes.
 - Report RETIRES: artifacts actually removed, or a concrete no-retirement reason, such as additive
   work with no obsolete artifact or retained compatibility; do not use a bare or empty `none`.
 - Final message is exactly the report format from the dispatch prompt.

@@ -87,7 +87,7 @@ other agent writes code for this section. Do not delegate writing.
 {pre-existing changed/untracked files to preserve and exclude}
 
 === GLOBAL GATE ===
-{verified command}
+{final verification command and scheduled stage; existing valid evidence, if any}
 
 === EXECUTION-ENVIRONMENT PREFLIGHT ===
 {status, baseline SHA, realm, known blockers with pre-approved handling}
@@ -112,16 +112,20 @@ RULES
   evidence row, UI copy) must be true at THIS commit, not at branch end. Absolute words
   ("every", "always", "no longer", "only") need an anchor. Fix or flag any existing sentence
   your diff makes false, including ones you did not write.
-- SENSITIVITY CHECK, required for every regression test that guards a defect fix and every test
-  that relies on a mock, fake, or injected fault: disable the fix locally (a stash or a one-line
-  temporary edit), run only that test, confirm it fails, restore. Paste the failing-test output.
-  This is a local check on the test, never a revert: nothing is committed, rebuilt, redeployed, or removed
-  from history, and accepted work is never undone to produce it. Anything applied once (a
-  migration, deployed or shared state) is never reverted for this; prove those tests with a
-  disposable fixture instead. Optional for tests of behavior that did not exist before the section.
-- Run the global gate, the subsystem tests, and the live/e2e flow. Confirm the running stack is
-  at or ahead of your HEAD before trusting live evidence. Paste real output. Never report an
-  unrun check as success.
+- Extend existing tests and fixtures; each addition needs a distinct behavior or failure mode.
+  For a defect fix, obtain a focused failure before and pass after when practical; an existing
+  observed reproduction counts. Group assertions for the same mechanism. Record any obstacle to
+  before evidence and the alternative evidence; do not create infrastructure just for the report.
+- Add a sensitivity check for a concrete risk of a bypassed path, vacuous assertion, or misplaced
+  fault injection; using a mock alone is not a trigger. Confirm the expected behavioral failure.
+  Use a local temporary edit or disposable fixture, never a rollback of applied state, a revert
+  of committed work, or a separate rebuild/deploy solely to manufacture failing output.
+- Run the section's focused checks and any host-required checks due now; broader and live/e2e
+  gates run at their scheduled stage. Reuse valid evidence and rerun only missing or invalidated
+  checks or a targeted probe needed to resolve a finding. Preserve checks for auth/tenancy,
+  persistence, concurrency, and public contracts where required. Confirm the running stack
+  includes the tested changes and matching relevant inputs before trusting live evidence.
+  Paste real output and identify the tested state; pending gates are not successes.
 - Treat a contradicted preflight assumption as a blocker; do not improvise a different database,
   network realm, credential, or lifecycle path. Known blockers have pre-approved handling; use it
   and record it under ENV.
@@ -135,9 +139,9 @@ RETIRES: actual files/exports/flags removed, or none — justified: additive wor
   retained compatibility, or another concrete reason
 CLAIMS: one line per prose claim added or changed — claim → file:line that makes it true
 CALLS: non-floor decisions you made, one line each with rationale
-GATE EVIDENCE: command + decisive trailing output
-TESTS RUN: suites and results; sensitivity check (failing-test output) per regression or mocked test
-LIVE FLOW: steps, stack SHA, observed result
+GATE EVIDENCE: command + decisive output + tested state; reused evidence reference or pending stage
+TESTS RUN: suites and results; defect reproduction evidence; targeted sensitivity checks if needed
+LIVE FLOW: steps, tested stack, observed result; or not required / scheduled stage
 ENV: known-blocker handling used, or "none"
 LIFECYCLE EFFECTS: produced/invalidated gate inputs; did the plan's prediction hold
 ACCEPTANCE: the exit-test clause this satisfies
@@ -182,9 +186,10 @@ Read the report, diff, and enough surrounding code to judge them in context. `RE
 artifacts actually removed, or explain why none was retired — for example, additive work leaves no
 obsolete artifact or a compatibility facade remains. Do not require deletion merely to fill the
 field. Reject a missing, bare, empty, or unsupported entry. The validator checks the field's shape
-only — the reviewer judges whether its rationale is true. You may run tests, render schemas, or
-probe the running stack to verify — never to modify. A finding must be concrete and anchored;
-default to APPROVE when no concrete issue is found. Approvals cite anchors too.
+only — the reviewer judges whether its rationale is true. Review supplied verification evidence
+before running checks. Run a targeted probe for a concrete gap or uncertain validity; do not
+repeat valid runs solely for independent review. Never modify the tree. A finding must be concrete
+and anchored; default to APPROVE when no concrete issue is found. Approvals cite anchors too.
 
 Final message:
 VERDICT: APPROVE | REJECT
@@ -228,9 +233,11 @@ Lens checklists:
    per-interaction demand**; no orphaned state on the unhappy path.
 5. **Convention/scope** — naming, layering, test placement; change stays inside the section; no
    dead code or unrelated changes; **test doubles use the current row structure**, not a legacy
-   structure; regression and mocked tests include a sensitivity check (failing-test output pasted
-   in the report), and no check was produced by reverting committed or shared state; **no unjustified
-   configuration key** — a new environment variable or other host-set key is a finding unless the
+   structure; defect reproduction and any needed sensitivity checks address the actual mechanism,
+   with obstacles and alternative evidence stated. Require a concrete coverage gap before asking
+   for more tests or fixtures; mocks alone do not justify mutation checks. No proof reverts
+   committed or applied state; **no unjustified configuration key** — a new environment variable
+   or other host-set key is a finding unless the
    section names who sets it, on which host, and what breaks at the default (numeric parameters are
    named constants in the owning module, runtime-changed values are config rows, env is for
    secrets, endpoints, and per-host selectors; a Zod default is not a justification); compare
@@ -245,10 +252,11 @@ Lens checklists:
    product's own first-party traffic, and its highest per-interaction request count you can find in
    the repository (prefetch requests, polling cadence, batch sizes). Prove one legitimate interaction is
    admitted; an arbitrary "under-limit" count is not evidence.
-8. **Evaluator soundness** — run only for journey/proof sections. A passing run is evidence only
-   after fault injection makes it fail; a crash before the first check must not write a pass
-   artifact; evaluators synchronized on a timestamp written before the work are vacuous; recipients
-   and identifiers are distinct per run.
+8. **Evaluator soundness** — run only for journey/proof sections. New or changed evaluators must
+   detect the relevant failure; inject a targeted fault when detection is uncertain. Reuse valid
+   soundness evidence for unchanged evaluators. A crash before the first check must not write a
+   pass artifact; timestamps written before the work cannot prove completion; recipients and
+   identifiers are distinct per run.
 
 ---
 
@@ -272,7 +280,9 @@ For each correction report, accept a concrete no-retirement reason when additive
 obsolete artifact or a compatibility facade remains; do not require deletion merely to fill the
 field. Reject a missing, bare, empty, or unsupported RETIRES entry. The validator checks its shape
 only, not whether the rationale is true. Findings must be concrete and anchored. Approvals cite
-anchors.
+anchors. Review supplied verification evidence first; run targeted checks for concrete gaps or
+uncertain validity, not to repeat valid evidence solely for independent review. Final gates
+scheduled after this review remain pending; they must pass before plan completion.
 
 Final message:
 VERDICT: CLEAN | FINDINGS
@@ -318,7 +328,10 @@ in the same format:
 1. {file:line — gap — required fix}
 2. {...}
 
-Re-run the global gate and every affected test; paste fresh output. Previous evidence is void.
+Identify which check inputs this correction changes. Run missing or invalidated checks and any
+targeted probe needed for the findings; retain valid results with their evidence references.
+Do not rerun the global gate solely because this is a rejection; keep broader gates at their
+scheduled stage unless a concrete risk or host rule requires them now.
 Preserve the working-tree baseline.
 Return the full report with RETIRES; explain any `none` entry, including additive work with no
 obsolete artifact where applicable.
@@ -362,14 +375,15 @@ unrelated code.
 {merged tree; pre-existing changes to preserve}
 
 === REQUIRED GATES ===
-{global gate, affected suites, goal exit tests}
+{affected checks, scheduled final gates, reusable evidence with tested state}
 
 RULES
 - Fix exactly the listed findings; do not redesign accepted sections or cross the ruling floor.
 - A correction that needs an unruled floor change stops with STATUS: decision-needed.
-- Every prose claim you touch follows the CLAIMS requirements; regression and mocked tests include the
-  sensitivity check from the implementer rules (local, never a revert of committed work).
-- Run every required gate; paste real output.
+- Every prose claim you touch follows the CLAIMS requirements. Apply the implementer's focused
+  reproduction and targeted sensitivity rules; extend existing tests and fixtures first.
+- Identify invalidated evidence, run the affected checks due now, and cite valid reused results.
+  Keep broader gates at their scheduled stage; paste real output and identify the tested state.
 
 Return:
 STATUS: complete | blocked | decision-needed
@@ -378,8 +392,8 @@ RETIRES: actual files/exports/flags removed, or none — justified: additive wor
   retained compatibility, or another concrete reason
 FINDINGS RESOLVED: finding — evidence
 CLAIMS: claim → anchor
-GATE EVIDENCE: command + output
-TESTS RUN: suites, results, sensitivity-check output
+GATE EVIDENCE: command + output + tested state; reused evidence reference or pending stage
+TESTS RUN: suites, results, defect reproduction; targeted sensitivity checks if needed
 EXIT TESTS: steps and observed results
 DEFERRALS / RISKS / DECISION BRIEF: as applicable
 ```
@@ -421,7 +435,8 @@ references/graph-analysis.md, and additionally:
 - every enforce/gate/block/redact section has a negative-space ruling
 - every rejection exit test has a paired admission exit test measured on real client behavior
 - every section that writes a new shared value has a reader-sweep entry
-- gate baselines were actually run (evidence present), not written
+- the focused baseline has observed evidence; any broader baseline has a concrete risk or host
+  requirement; final gates are explicitly scheduled and not misreported as already passed
 - no section is L-sized; the invariant-inversion count justifies each section's size
 
 Return:

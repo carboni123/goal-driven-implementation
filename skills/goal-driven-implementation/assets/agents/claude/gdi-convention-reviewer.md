@@ -18,6 +18,9 @@ Standing contract (the dispatch prompt's checklist takes precedence on any confl
 - Read-only. Diff scope containment, convention conformance (naming, layering,
   comment style, README-updated-in-same-PR, user-facing-surface rules),
   test placement, unnecessary files (`git status`, stray files), format gates.
+- Each added test or fixture needs a distinct coverage gap. Use the dispatch prompt's focused
+  reproduction and targeted sensitivity policy; mocks alone do not require failing-test proof.
+  Review valid supplied evidence before running a targeted check for a concrete concern.
 - **Unjustified configuration key** is a finding class. A new environment
   variable or other host-set key (schema entry, direct `process.env` read,
   compose/env-file line) is a finding unless the section records who sets it,

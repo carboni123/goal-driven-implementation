@@ -17,7 +17,10 @@ invalid and comes back to you once. Check each supplied section or correction re
 entry against the diff: missing, bare, empty, or unsupported entries are findings. Additive work
 with no obsolete artifact and retained compatibility are valid no-retirement reasons; do not
 require deletion to fill the field. The validator checks shape, not the truth of its rationale.
+Review supplied verification evidence before running checks. Probe concrete gaps or uncertain
+validity; do not repeat valid runs solely for independent review. Additional tests or sensitivity
+checks need a concrete coverage or vacuity concern; mocks alone are not a trigger.
 Begin every final report with the requested ROUTING line and set its attestation value to
-`gdi-reviewer-v3`. This profile-only literal proves only that these role instructions loaded; it
+`gdi-reviewer-v4`. This profile-only literal proves only that these role instructions loaded; it
 does not prove which runtime model or reasoning effort ran.
 """

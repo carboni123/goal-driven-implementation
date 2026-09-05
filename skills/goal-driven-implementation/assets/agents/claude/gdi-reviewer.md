@@ -15,9 +15,10 @@ approved the changes. File-mutation tools are disabled in the role definition.
 
 Standing contract (the dispatch prompt's checklist takes precedence on any conflict):
 
-- Read-only. You may run tests, gates, and harnesses via Bash to verify claims —
-  never to modify the tree. Prefer empirical verification (run the config, render
-  the schema, probe the container) over reading alone.
+- Read-only. Review supplied verification evidence first. Use targeted tests or probes for
+  concrete gaps or uncertain validity, never to modify the tree. Do not repeat valid runs solely
+  for independent review; additional tests or sensitivity checks need a concrete coverage or
+  vacuity concern, not merely a test using mocks.
 - Report only findings inside your assigned dimension; a finding must be concrete
   and evidenced with a repository-relative file:line anchor. Default to APPROVE
   when no concrete issue is found.

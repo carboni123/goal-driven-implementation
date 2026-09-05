@@ -45,11 +45,12 @@ Keep three facts distinct and record them separately in the plan's Harness routi
 - **Requested** — the role, model, and effort the orchestrator tried to select.
 - **Role-confirmed** — the spawn schema declared the selector, the call accepted it, and either
   runtime metadata reports the role or the child returns the profile-only attestation embedded in
-  the role's instructions (`gdi-implementer-astra-low-v4`, `gdi-reviewer-v3`,
+  the role's instructions (`gdi-implementer-astra-low-v5`, `gdi-reviewer-v4`,
   `gdi-explorer-v3`). An older implementer, mapper, or reviewer literal identifies a stale role
   file; reinstall and reload before using that custom role, or use the direct pinned fallback
-  below. Reviewer `-v3` is current; implementer `-v3` and reviewer `-v2` lack the
-  retirement-report contract, mapper `-v2` has stale routing/model-pin provenance, and mapper
+  below. Implementer `-v4` and reviewer `-v3` lack proportionate-verification guidance;
+  implementer `-v3` and reviewer `-v2` also lack the retirement-report contract.
+  Mapper `-v2` has stale routing/model-pin provenance, and mapper
   `-v1` lacks the validated-report contract. Never include the expected literal in the task prompt.
 - **Model-confirmed** — tool/runtime metadata identifies the effective model and effort. A TOML,
   an attestation, or a self-description does not prove the runtime model.
@@ -98,9 +99,11 @@ For an unruled floor change, stop before dependent code or actions; complete per
 preparation and cite the blocking instruction's file and exact clause in the relevant report
 field. Any workaround must remain within the assigned scope.
 
-Run the checks required by the section, plan, and repository, including sensitivity checks and
-required acceptance reruns. Beyond those, add or repeat tests only when changed code, a failure,
-or an unresolved concern warrants it. A small change does not waive a required gate.
+Apply SKILL.md's proportionate-verification policy: focused reproduction per defect mechanism,
+sensitivity checks for concrete vacuity risks, and reuse of valid evidence across roles. Run
+checks at their scheduled stage and repeat only missing or invalidated checks or a targeted
+probe for a finding. Preserve explicit user and host-repository requirements; pending gates
+are not successes.
 
 Keep the requested report labels and evidence. Write concise, readable findings and agent
 messages; do not append a second summary. A follow-up refines the active task unless it explicitly

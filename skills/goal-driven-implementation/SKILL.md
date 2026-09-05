@@ -14,7 +14,7 @@ vertical slice with its own goal, gates, acceptance clause, and commit. Every pl
 
 | Role                    | Who                            | May                                                                                                              | Must never                                                                                      |
 | ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| ORCHESTRATOR + REVIEWER | Main session                   | Read anything; write the plan and ledger; spawn and direct agents; re-run gates; commit accepted work            | Edit product source or product docs — an implementer makes every product change                 |
+| ORCHESTRATOR + REVIEWER | Main session                   | Read anything; write the plan and ledger; spawn and direct agents; verify gate evidence; commit accepted work    | Edit product source or product docs — an implementer makes every product change                 |
 | IMPLEMENTER             | Exactly one per section        | Write code inside the active section; run gates and tests; spawn read-only helpers only where the harness allows | Touch future sections; commit; delegate writing; cross a ruling floor without an approved brief |
 | MAPPER                  | Read-only agent                | Map code, tests, conventions, lifecycle couplings                                                                | Write files                                                                                     |
 | REVIEWER                | Read-only agent, one lens each | Review one dimension with `file:line` evidence                                                                   | Write files                                                                                     |
@@ -84,6 +84,36 @@ changing approved scope, contracts, or completed history, validate, and continue
 when the transition occurs. Every intentionally remaining item is a typed deferral row (class,
 risk, owner, **tracking issue or machine-checkable re-entry gate**, milestone it blocks).
 
+## Proportionate verification
+
+- Define the defect mechanism and acceptance criteria before choosing tests. Extend existing
+  suites and fixtures first. Each added test must establish a distinct behavior or failure mode;
+  additional test infrastructure needs a concrete coverage gap, not a report-format obligation.
+- For a defect fix, demonstrate a focused failure before the correction and a pass afterward
+  when practical. An existing observed reproduction counts as before evidence. One reproduction
+  can support several assertions about the same mechanism. If before evidence is impractical,
+  record the reason and the alternative evidence; do not claim an unobserved failure.
+- A mock or fake alone does not require a sensitivity check. Add one when there is a concrete
+  concern that the double bypasses the changed path, an assertion is vacuous, or fault injection
+  misses the intended boundary. Check for the expected behavioral failure, not a setup crash.
+  Use a local temporary edit or disposable fixture; never roll back applied state, revert
+  committed work, or rebuild/redeploy a separate candidate solely to manufacture failing output.
+- Run focused checks during implementation and the required broader checks against the final
+  reviewed candidate. Preserve checks for auth/tenancy, persistence, concurrency, and public
+  contracts where those guarantees depend on them. Explicit user and host-repository checks
+  still apply at their required stage.
+- Share evidence across implementer, reviewers, and orchestrator: command, result, tested
+  source/worktree state, and relevant environment. Review that evidence before repeating work.
+  A correction invalidates only checks whose source, tests, configuration, dependencies, or
+  environment inputs changed. If validity is uncertain or a finding needs a probe, rerun the
+  affected check. A new agent, report edit, or commit SHA alone does not invalidate evidence.
+- For new or changed journey evaluators, verify that the relevant failure cannot produce a pass;
+  target a faulty boundary when its detection is uncertain. Reuse valid evaluator evidence when
+  exercising an unchanged harness; do not fault-inject every journey execution by default.
+
+Apply this policy to unchecked work in older plans, preserving completed evidence and explicit
+user or host requirements. Keep report labels and plan schema unchanged.
+
 ## Bounded-fix lane
 
 The full workflow provides checks for multi-section work and changes to shared state. An isolated
@@ -120,12 +150,12 @@ Inside the lane:
   recorded as `None` in one line each. Validate. Rendering is optional; the raw Mermaid in the
   message is enough.
 - **EXECUTE.** No aggregation step. One implementer with the standard template. Two review
-  lenses: convention/scope and doc-truth. The orchestrator re-runs the affected test subset named
-  in the gate budget, reads the full diff, and applies the same seven checks and the same
+  lenses: convention/scope and doc-truth. The orchestrator verifies the affected test evidence
+  named in the gate budget, reads the full diff, and applies the same seven checks and the same
   convergence rule.
 - **COMPLETE.** The section review is the final review; no separate whole-branch review. Re-baseline on
-  `origin/main` and run the global gate (owning package's full suite plus affected dependents)
-  once against the merged tree. Annotate, report.
+  `origin/main` and verify the global gate (owning package's full suite plus affected dependents)
+  against the merged tree, reusing evidence only if its inputs remain valid. Annotate, report.
 
 ## PLAN mode
 
@@ -144,19 +174,21 @@ Inside the lane:
    keep generated plan artifacts.
 3. Instantiate `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions).
    Fill every field. In particular:
-   - **Global gate**: a real command, run once now. Default to the owning package's _full_ suite
-     plus affected dependents (the host's affected-tests command, whatever its toolchain), never
-     the section's own test subset, which has missed failures in fail-closed registries in other
-     packages that required post-merge fixes.
+   - **Global gate**: name the final verification command: the owning package's _full_ suite
+     plus affected dependents, including fail-closed registries in other packages. Establish a
+     focused baseline or reproduction, reusing valid evidence when available; run a broader
+     baseline only for a concrete risk or host rule. Record the baseline's scope separately
+     from the scheduled final gate.
    - **Execution-environment preflight**: probe every capability _and_ smoke-run the environment
      path of every budgeted expensive gate once, or classify that gate `unproven`. Fill the
      **Known blockers** rows: every host/environment condition that has blocked this repository's
      gates before, with its pre-approved handling (runbook, container recipe, inherited
      environment variables, ports).
    - **Lifecycle gate budget**: columns `consumes / invalidated by`, `planned runs`
-     (implementer and orchestrator counted separately), `actual runs` (filled at completion),
-     `preflight`. Schedule the **cheapest real-client probe** (a browser page load, one user-flow step,
-     one live HTTP burst) before the first expensive gate (image build, deploy), not after.
+     (assign each run to an executor; no duplicate run solely for another role), `actual runs`
+     (filled at completion), `preflight`. Schedule the **cheapest real-client probe** (a browser
+     page load, one user-flow step, one live HTTP burst) before the first expensive gate
+     (image build, deploy), not after.
    - **Rulings**: two tables. _Floor rulings_ the user owns (options + recommendation), including
      any new stable error code by exact string (or "none — reuse `<family>`"), and the **terminal
      action** (commit / push / PR / comment / deploy / none). _Recorded calls_ the orchestrator
@@ -203,10 +235,10 @@ Inside the lane:
 
 Read `references/agent-prompts.md` before the first dispatch; use its templates verbatim.
 
-**0. Preflight.** Validate the plan. Re-run environment probes when the SHA, worktree, realm,
-services, credentials, or toolchain changed; record presence, never secret values. Resolve roles
-per the harness reference and record the evidence. Set `status: executing` before the first
-dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
+**0. Preflight.** Validate the plan. Re-run affected environment probes when their worktree,
+realm, service, credential, or toolchain inputs changed; record presence, never secret values.
+Resolve roles per the harness reference and record the evidence. Set `status: executing` before
+the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
 unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer agent exists.
 
 **1. Aggregate.** Skip when the section's context items already have `file:line` anchors that
@@ -233,7 +265,7 @@ the agent is lost, record it and resume with a new one given the full prior repo
 security/authz · data/migration · contract/API · failure-mode/reliability · convention/scope ·
 **doc-truth** (every claim in the diff traced to code) · **capacity/false-positive** (only when the
 diff touches a limiter, quota, timeout, or admission policy) · **evaluator soundness** (only for
-journey/proof sections: a passing run counts after fault injection makes it fail). Rules: never fewer
+journey/proof sections, using the proportionate-verification policy). Rules: never fewer
 than three lenses outside the bounded-fix lane (which runs convention/scope and doc-truth); `⚠`
 sections get the full set; keep security whenever tenancy, auth, limits, resolvers, or hooks are
 touched; doc-truth always. Each returns APPROVE or REJECT with anchors and an evidence tag per
@@ -242,17 +274,17 @@ be wrong — refute a finding against the code and record the refutation rather 
 it; a REJECT whose findings are all `evidence: inference` is verified by the orchestrator first
 and reaches the implementer only with an upgraded tag or not at all.
 
-**5. Verify yourself.** Re-run the global gate in the main session (owning package's full suite
-plus affected dependents; in the bounded-fix lane, the affected subset named in the gate budget).
-A test the implementer authored but did not execute blocks acceptance. A sensitivity check the
-implementer reported is accepted on its pasted failing-test output; do not repeat it.
-Before trusting live or browser evidence, confirm the running stack is at or ahead of the section's
-HEAD; evidence from a stale image cannot establish whether the current code works. Read the full
+**5. Verify evidence.** Review the section's commands, results, tested worktree state, and relevant
+environment. Run missing or invalidated section checks; do not repeat valid runs because another
+agent executed them. New or changed tests due at this stage must actually run. Later-stage tests
+and broader gates stay pending until due and block plan completion until passed. Before trusting
+live or browser evidence, confirm the running stack includes the tested changes and matching
+relevant inputs. Read the full
 diff: scope, dead code, test placement, claims. After any defect fix, search for the same defect
 pattern elsewhere in the repository and record hits under RISKS or as a filed issue.
 
-**6. Accept or reject.** All seven checks: gates re-run and passing · required DB /
-integration / e2e tests actually ran · no floor crossed without a ruling · acceptance maps to an
+**6. Accept or reject.** All seven checks: section gate evidence valid and passing · required section
+DB / integration / e2e tests actually ran · no floor crossed without a ruling · acceptance maps to an
 exit test · scope stayed inside the section · conventions followed · deferrals explicit, safe, and
 tracked. Reject → resume the same implementer with exact gaps. **Convergence rule:** in-contract
 rounds continue while unresolved findings decrease; stop and report when a round identifies a
@@ -281,10 +313,10 @@ When every section is checked:
    to one correction implementer scoped to the findings; validate its report with
    `validate-report.mjs --kind correction --repo-root <repo>` before re-running final review; commit
    additively; repeat until clean under the convergence rule. In the
-   bounded-fix lane the section review already served as the final review: skip the separate review and
-   run the global gate once against the merged tree.
-3. **Expensive gates** — run each budgeted gate once against the reviewed candidate, in the
-   budgeted order; record `actual runs`. Record any `>1.5×` overrun as a missed finding in Graph
+   bounded-fix lane the section review already served as the final review: skip the separate review.
+3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
+   in the budgeted order. Reuse valid results; run missing or invalidated checks once and record
+   `actual runs`. Record any `>1.5×` overrun as a missed finding in Graph
    Findings.
 4. **Deferrals** — file the tracking issue for every deferral row that has none (`gh issue
 create` or the host's equivalent) or give it a machine-checkable re-entry gate. A deferral with

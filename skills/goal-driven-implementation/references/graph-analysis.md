@@ -138,23 +138,32 @@ classes · environment classes · evidence classes.
   or mark it `unproven`. _Origin:_ an acceptance gate that took five environment retries with no product
   change while the preflight table said "ready".
 - **Stale running stack** — live or browser evidence is valid only if the running image or
-  process is at or ahead of the section's HEAD. _Origin:_ a stale workers image produced a false
+  process includes the tested changes and matching relevant inputs. A newer SHA alone is not
+  proof of that match. _Origin:_ a stale workers image produced a false
   "300 delivered unpaced" signal that cost a live investigation.
 
 ## Evidence classes
 
-- **Evaluator soundness** — a passing user-flow test counts only after fault injection makes it fail; a
-  crash before the first check must not write a pass artifact; timestamps written before the work
-  make evaluators vacuous. _Origin:_ four journey sections, four rejections, all defects in the
-  proof rather than the product.
-- **Test sensitivity** — every regression test and every mocked or fault-injected test is shown
-  to fail with the fix temporarily disabled: a local stash or one-line edit, restored at once,
-  never a revert of committed work, a rebuild, or a rollback of applied state. Tests of
-  once-applied state (migrations, deployed state) use a disposable fixture instead. _Origin:_ race
+- **Evaluator soundness** — new or changed evaluators must detect the relevant failure; use a
+  targeted fault when detection is uncertain and reuse valid evidence for unchanged evaluators.
+  A crash before the first check must not write a pass artifact; timestamps written before the
+  work cannot prove completion. _Origin:_ four journey sections, four rejections, all defects in
+  the proof rather than the product.
+- **Test sensitivity** — apply `SKILL.md`'s proportionate-verification policy: focused before/after
+  evidence per defect mechanism when practical, additional sensitivity checks for concrete risks
+  of bypassed paths, vacuous assertions, or misplaced faults. A mock alone is not a trigger.
+  Use temporary local edits or disposable fixtures; never revert committed work, rebuild a
+  separate candidate for proof, or roll back applied state. _Origin:_ race
   tests that injected the failure before the transaction callback and proved nothing; four fixtures
   whose mock predated the refactor and still passed. _Narrowed in 0.2.1:_ the unscoped
   "revert the fix" wording sent implementers into rebuilding a separate candidate version of a
-  one-line change.
+  one-line change. _Further narrowed by maintainer request, 2026-09-05:_ Tyxter fixes accumulated
+  excessive test/proof work; the blanket rule also demanded failures from tests of unaffected
+  behavior. Target the original vacuity risk instead of requiring proof per test.
+- **Evidence reuse** — review the command, result, tested worktree state, and relevant environment.
+  Invalidate only checks whose inputs changed; a new reviewer or rejection is not invalidation.
+  Probe concrete gaps and uncertain validity. _Origin:_ the same Tyxter feedback identified
+  mandatory implementer/orchestrator reruns and rejection prompts discarding all prior evidence.
 - **Claim decay** — a claim true when its section was committed and false at branch end; a correction in
   one section re-emerging in later sections' prose. Broadcast accepted corrections into later
   briefs; re-verify at final review. _Origin:_ the most frequent rejection class across 90 plans

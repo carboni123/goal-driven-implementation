@@ -3,11 +3,30 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
-## 0.3.0 — unreleased (branch `0.3.0`)
+## 0.4.0 — 2026-09-05
 
-Evidence: the aiq-lite `code-research` skill (v0.0.6-sketch), whose live runs against a large
-monorepo produced two mechanisms this skill lacked. Ported to dependency-free Node so the skill's
-toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 is the control.
+### Changed — proportionate verification
+
+- **Maintainer ruling, 2026-09-05.** Tyxter fixes reportedly grew from about 30 minutes to four
+  hours. A sample of its 20 latest non-merge `fix(...)` commits averaged 1,596 added lines;
+  path-based grouping attributed about 55% to tests/fixtures/journeys and 22% to plans. These
+  counts establish growth, not which tests were unnecessary or where elapsed time went. The
+  maintainer authorized narrowing the skill's proof and rerun requirements.
+- Replace sensitivity proof for every regression or mocked test with focused before/after
+  evidence per defect mechanism when practical; an existing observed reproduction counts.
+  Require additional sensitivity checks for concrete risks of bypassed paths, vacuous assertions,
+  or misplaced faults. Unchanged behavior may correctly pass with the fix disabled. The original
+  race-test and stale-mock failures remain covered by targeted checks, without per-test rituals.
+- Share valid evidence across roles and correction rounds. Invalidate it by relevant inputs,
+  not a rejection, new agent, or commit SHA alone. Focused baselines and section checks precede
+  broader final gates; explicit user and host requirements retain their required stage. New or
+  changed evaluators need soundness evidence; unchanged harnesses reuse valid evidence. No
+  applied-state rollback or separate rebuild/deploy is introduced for sensitivity proof.
+- Align workflow, dispatch/review/correction prompts, graph-analysis rationale, plan template,
+  and both harnesses' role instructions. Report labels, validators, schema, model/effort pins,
+  and frozen forks are unchanged. Codex attestations advance to `gdi-implementer-astra-low-v5`
+  and `gdi-reviewer-v4`; the mapper attestation is unchanged. This records source changes, not
+  installation or runtime reload.
 
 ### Added
 
@@ -20,6 +39,15 @@ toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 i
   `gdi-implementer-astra-low-v3` to `gdi-implementer-astra-low-v4` and reviewer
   `gdi-reviewer-v2` to `gdi-reviewer-v3`; it does not establish runtime reload. Evidence: Tyxter
   #877 task 4's requested retirement-report requirement.
+
+## 0.3.0 — 2026-09-05 (tag `v0.3`)
+
+Evidence: the aiq-lite `code-research` skill (v0.0.6-sketch), whose live runs against a large
+monorepo produced two mechanisms this skill lacked. Ported to dependency-free Node so the skill's
+toolchain stays `node` only.
+
+### Added
+
 - **`assets/scout-repo.mjs`** — a deterministic feature map of the host repository (apps,
   feature slices, shared kernels; file and char counts; layers; anchor docs; package name; the
   one-line description each unit's own README gives it) from one tree walk and no LLM call.

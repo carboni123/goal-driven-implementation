@@ -36,7 +36,7 @@ Targets: `~/.claude/skills/`, `~/.claude/agents/` (four `gdi-*` roles), `~/.code
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
    eight review lenses in parallel, every agent return validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
-   orchestrator acts on it, the orchestrator re-runs the gate and reads the diff, then accepts
+   orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
    (commit section + ledger together) or sends exact gaps back to the same implementer until it
    converges.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
@@ -48,6 +48,11 @@ A change that is one section, touches nothing on the floor, and writes nothing i
 runs the **bounded-fix lane** instead: same plan file and implementer, two review lenses, the
 affected tests, no whole-branch fan-out. Eligibility is decided by what the diff touches, not its
 size, and any disqualifier found mid-run continues under the full loop without redoing work.
+
+Verification is proportionate in both lanes: focused defect reproduction, additional sensitivity
+checks for concrete risks, and evidence shared across roles while its inputs remain valid.
+Broader gates run against the final reviewed candidate; explicit user and host checks still apply
+at their required stage. A rejection invalidates affected evidence, not every previous result.
 
 The **ruling floor** defaults to commercial terms, the public integration contract, and
 irreversible outward actions. Everything else the orchestrator decides and records. A host
@@ -81,7 +86,7 @@ claude/, codex/                  the two forks as they were on 2026-09-01 (basel
 
 ## Versioning
 
-Releases are git tags (`v0.2.0`). `assets/VERSION` carries the same number and every plan the
+Releases are git tags (`vX.Y.Z`). `assets/VERSION` carries the same number and every plan the
 skill writes records it as `gdi_version`, so a later retrospective can correlate plan outcomes
 with skill revisions. `CHANGELOG.md` records what changed and the evidence that motivated it.
 

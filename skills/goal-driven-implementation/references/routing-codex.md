@@ -2,7 +2,7 @@
 
 ## Policy
 
-Keep the main session (`gpt-5.6-sol` at `max`) as the control plane. It orchestrates, reviews
+Keep the main session (`gpt-5.6-sol` at `max`) as the orchestrator. It directs agents, reviews
 evidence, and commits; it never edits product code and is never a spawned worker.
 
 | Role        | Custom agent             | Model Â· effort           | Notes                             |
@@ -14,7 +14,7 @@ evidence, and commits; it never edits product code and is never a spawned worker
 Select each role's model and effort explicitly; never let a child inherit the main-session route.
 Never spawn a Sol implementer, reviewer, or peer reasoner. A delegated Sol orchestrator is
 permitted only for a bounded multi-section subtree when the runtime confirms the child can spawn
-and steer its own subagents at the role-specific pins above; it never edits, accepts, or commits.
+and direct its own subagents at the role-specific pins above; it never edits, accepts, or commits.
 
 `goal-implementer-terra` is a stable installed role identifier, not a model assertion. Keep its
 filename, `name`, and existing config registrations; its TOML now selects Astra. Mapping retains
@@ -22,7 +22,7 @@ the same anchor and report checks.
 
 ## Installing the roles
 
-Definitions ship at `assets/agents/codex/*.toml`. Current Codex releases auto-discover personal
+Definitions are included at `assets/agents/codex/*.toml`. Current Codex releases auto-discover personal
 custom agents from `~/.codex/agents/`; copy them there:
 
 ```bash
@@ -38,7 +38,7 @@ Skill discovery: the `npx skills` CLI installs to `~/.codex/skills/<name>/`; Ope
 lists `~/.agents/skills/` (user scope) and `<repo>/.agents/skills/` (repo scope). The installer
 writes both user paths.
 
-## Verification protocol (before the first production dispatch)
+## Verification protocol (before the first task dispatch)
 
 Keep three facts distinct and record them separately in the plan's Harness routing table:
 
@@ -58,7 +58,8 @@ after it started; inspect the current spawn schema and send only keys it declare
 read-only scratch dispatch per role; capture metadata; record.
 
 Both routes require an explicit bounded fork (`fork_turns: "none"` or a small integer; never
-`"all"`, which inherits the main-session route). Do not rely on the default fork. Fallback ladder:
+`"all"`, which inherits the main-session route). Do not rely on the default fork. Try these routes
+in order:
 (1) `agent_type` naming the current registered role;
 (2) direct `model` + `reasoning_effort` at that role's pins when the schema declares them:
 
@@ -89,12 +90,12 @@ does not inherit them. Apply those rules to the listed findings, with template Â
 correction scope, required gates, and report format instead of a section's IMPLEMENT list.
 
 ```text
-Carry the assigned task through to its required evidence and report. Use prior user instructions
+Complete the assigned task and provide the required evidence and report. Use prior user instructions
 and recorded rulings as authorization for the same scope; resolve routine choices within your
 role. User instructions take precedence over skill guidance, subject to higher-priority rules.
 For an unruled floor change, stop before dependent code or actions; complete permitted independent
 preparation and cite the blocking instruction's file and exact clause in the relevant report
-field. Never expand the assigned scope to manufacture a workaround.
+field. Any workaround must remain within the assigned scope.
 
 Run the checks required by the section, plan, and repository, including sensitivity checks and
 required acceptance reruns. Beyond those, add or repeat tests only when changed code, a failure,
@@ -108,9 +109,9 @@ Do not spawn subagents from an ordinary worker. Any delegated orchestrator may d
 roles and subtree expressly assigned to it under the routing policy.
 ```
 
-The root owns mapper and reviewer fan-out under `SKILL.md`'s counts and eligibility rules; an
+The root dispatches mappers and reviewers under `SKILL.md`'s counts and eligibility rules; an
 Astra implementer stays the sole writer. Apply the wrapper's authorization guidance when
-orchestrating too: surface only unresolved rulings, with the exact instruction and evidence.
+orchestrating too: request only unresolved rulings, with the exact instruction and evidence.
 This adapts the [Astra prompting guidance](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra.md#prompting-best-practices)
 (read 2026-09-05) to GDI's existing role boundaries and verification gates.
 

@@ -10,7 +10,7 @@ Implement exactly one approved plan section. You may edit product code within th
 must not commit, edit the progress ledger, work on future sections, or spawn subagents. Follow
 existing patterns, preserve pre-existing user changes, stop for unapproved contract decisions, run
 required verification, and return concise evidence to the orchestrator.
-Carry authorized section work through implementation and verification. Resolve routine choices
+Complete authorized section implementation and verification. Resolve routine choices
 under CALLS; an existing ruling covers that same decision without another approval. If blocked by
 an instruction, cite its file and exact clause in the relevant report field. Complete permitted
 independent preparation before returning, without writing code that depends on an unruled choice.

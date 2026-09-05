@@ -73,7 +73,7 @@ presence and reachability only; never record secret values.
 #### Known blockers
 
 Every host or environment condition that has blocked this repository's gates before, with the
-handling approved in advance. Hitting one of these during EXECUTE is an `⚙` environment retry,
+handling approved in advance. Encountering one during EXECUTE is an `⚙` environment retry,
 never a rejection round and never a user decision.
 
 | Condition                                                 | Detection             | Pre-approved handling                                               |
@@ -108,16 +108,16 @@ plan approves exactly these; anything broader is a new brief.
 | #   | Section  | Decision                                    | Options                                                | Recommendation | Ruling                            |
 | --- | -------- | ------------------------------------------- | ------------------------------------------------------ | -------------- | --------------------------------- |
 | F1  | `<A2 ⚠>` | `<what changes for users or integrators>`   | `<a / b / c>`                                          | `<a, because>` | `<pending / ruled YYYY-MM-DD: a>` |
-| F2  | all      | New stable `error.code`s this plan may mint | `<exact strings, or "none — reuse <family>">`          |                | `<pending>`                       |
+| F2  | all      | New stable `error.code`s this plan may add  | `<exact strings, or "none — reuse <family>">`          |                | `<pending>`                       |
 | F3  | all      | Terminal external action                    | `<commit / push / PR / issue comment / deploy / none>` |                | `<pending>`                       |
 
 #### Recorded calls (orchestrator-ruled under the floor, user-vetoable)
 
-| #   | Section                                 | Call                                                                                                                   | Rationale                                |
-| --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| R0  | all                                     | `lane: <full / bounded>` — for `bounded`, the eligibility checks made (see SKILL.md, Bounded-fix lane)                | `<what was read to decide>`              |
-| R1  | `<A1>`                                  | `<e.g. additive nullable column + index>`                                                                              | `<why, with the invariant it preserves>` |
-| R2  | `<B1 — enforce/gate/block/redact verb>` | Negative space: what stays open, which wind-down paths stay reachable, which body-keyed surfaces carry the gated thing | `<enumeration>`                          |
+| #   | Section                                 | Call                                                                                                                                                                               | Rationale                                |
+| --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| R0  | all                                     | `lane: <full / bounded>` — for `bounded`, the eligibility checks made (see SKILL.md, Bounded-fix lane)                                                                             | `<what was read to decide>`              |
+| R1  | `<A1>`                                  | `<e.g. additive nullable column + index>`                                                                                                                                          | `<why, with the invariant it preserves>` |
+| R2  | `<B1 — enforce/gate/block/redact verb>` | Negative space: operations that remain available, paths needed to finish or stop existing work, routes whose request bodies identify or contain restricted resources or operations | `<enumeration>`                          |
 
 ### Base drift policy
 
@@ -131,16 +131,16 @@ squash commit; no history rewrite of pushed commits without an explicit ruling>.
 - No unrun gate may be reported as successful; a test authored but not executed blocks acceptance.
 - Preserve and exclude unrelated pre-existing working-tree changes.
 - In-contract correction rounds continue until the section converges. Stop only when a round
-  surfaces a floor item, repeats a class the previous round was told to fix, or breaks the section
+  identifies a floor item, repeats a class the previous round was told to fix, or breaks the section
   boundary. Round count and token use are never decision boundaries.
 - Environment retries (`⚙`) follow the Known blockers table and never count as rounds.
-- Do not drift into future sections.
+- Do not work on future sections.
 
 ```mermaid
 flowchart LR
   AGG["AGGREGATE<br>skip when anchored; ≤2 mappers"] --> IMPL["IMPLEMENT<br>one agent, sequential"]
   IMPL --> REV["REVIEW<br>≥3 lenses in parallel"]
-  REV --> GATE{"full-diff read + gates green +<br>seven checks pass?"}
+  REV --> GATE{"full-diff read + gates pass +<br>seven checks pass?"}
   GATE -- "reject (converging)" --> IMPL
   GATE -- accept --> COMMIT["commit section + ledger<br>+ corrections in force"]
   GATE -- "floor item / repeated class / boundary" --> STOP["stop for a decision"]
@@ -153,7 +153,7 @@ flowchart LR
 - [ ] <observable production outcome>
 - [ ] <security/reliability condition>
 - [ ] <rejection clause: excess / forbidden input receives X>
-- [ ] <paired admission clause: one legitimate interaction — a real page view, an honest burst — stays under the cap / is accepted; measured, not hand-picked>
+- [ ] <paired admission clause: one legitimate interaction — a real page view, a legitimate request burst — stays under the cap / is accepted; measured, not arbitrary>
 - [ ] <no stale state or regression condition>
 
 ### Goal 2 — <milestone>
@@ -168,7 +168,7 @@ The plan is complete only when every goal exit test passes.
 
 ### Topology graph
 
-The graph is the primary approval surface and becomes the execution trace at completion.
+Use the graph to review and approve the plan, then annotate it with execution results at completion.
 
 - One stadium node per scope-justifying input (issue, PRD clause, explicit request); dashed
   provenance edges from an input to the sections that serve it. Every clause of an input reaches
@@ -237,9 +237,9 @@ type, or registry):
 
 At completion (trace vs findings):
 
-- Confirmed: <finding that fired as predicted>
-- Never fired: <accepted risk that stayed quiet>
-- Missed: <trouble the analysis did not predict>
+- Confirmed: <problem that occurred as predicted>
+- Did not occur: <accepted risk that did not occur>
+- Missed: <problem the analysis did not predict>
 
 ### Corrections in force
 
@@ -254,7 +254,7 @@ and prepends this block to every later implementer prompt.
 
 ### Soft dependencies
 
-- `<B>` follows `<A>` to reduce churn, not blocked by it.
+- `<B>` follows `<A>` to avoid repeated work; it can be implemented independently.
 
 ### Recommended linear order
 
@@ -294,7 +294,7 @@ WRITERS:
 <Every writer of any state whose invariant this section changes, with file:line. Readers to verify follow.>
 
 SIBLING SURFACES:
-<Other modules/routes that implement the same shape (job, guard, resolver) — checked or explicitly out of scope.>
+<Other modules/routes that implement the same pattern (job, guard, resolver) — checked or explicitly out of scope.>
 
 LIFECYCLE / GATE EFFECTS:
 
@@ -322,7 +322,7 @@ Decision brief: product effect; 2-4 options; consequences; recommendation; evide
 VERIFY:
 
 - Global gate: <command>.
-- Subsystem tests: <commands>; regression and mocked tests carry a sensitivity check (fix disabled locally, test red, restored — never a revert of committed work).
+- Subsystem tests: <commands>; regression and mocked tests include a sensitivity check (fix disabled locally, test fails, fix restored — never a revert of committed work).
 - Live/end-to-end flow: <steps and expected observable result>; running stack at or ahead of HEAD.
 
 REVIEW:
@@ -337,7 +337,7 @@ COMMIT:
 
 ## 4. Main-session acceptance protocol
 
-Before accepting a section, verify: re-run gate evidence green; required DB/integration/e2e tests
+Before accepting a section, verify: gates re-run and passing; required DB/integration/e2e tests
 actually ran; no floor item crossed without a ruling; acceptance maps to an exit test; the diff
 stays within the section and excludes baseline changes; conventions followed; deferrals explicit,
 safe, and tracked. Read the full diff and the CLAIMS block against the code.
@@ -375,7 +375,7 @@ Record schema for a checked row (one line per rejection round):
 - [ ] Goal 2 exit tests pass with evidence.
 - [ ] Every budgeted gate records actual runs; overruns named in Graph Findings.
 - [ ] Every deferral has a tracking issue or a machine-checkable re-entry gate.
-- [ ] Topology graph marks match the ledger (validator green), re-rendered, compared with Graph Findings.
+- [ ] Topology graph marks match the ledger (validator passes), re-rendered, compared with Graph Findings.
 - [ ] Routing table complete; tokens per section reported.
 
 ## Deferrals

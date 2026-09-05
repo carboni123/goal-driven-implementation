@@ -45,7 +45,7 @@ TESTS: existing tests to extend and the exact command that runs them
 WRITERS: every writer of the state this section changes (not only readers)
 COUPLINGS: flags, config, migrations, generated code, fail-closed registries in other packages
 LIFECYCLE: artifacts/config/credentials produced; build-time vs runtime binding; gates affected
-SIBLINGS: other modules/routes implementing the same shape (job, guard, resolver)
+SIBLINGS: other modules/routes implementing the same pattern (job, guard, resolver)
 UNCERTAINTIES: claims you could not verify, stated as such
 ```
 
@@ -57,9 +57,9 @@ node <skill-root>/assets/validate-report.mjs --kind mapper --repo-root <repo> --
 
 A hard error (missing label, unanchored SYMBOLS, an anchor whose file or line does not exist)
 goes back to the **same** mapper once with the error list pasted; a second failure is recorded
-under **Premise corrections** as an unmapped area, not chased. A `thin` or `soft` warning earns at
-most one targeted follow-up per section: a narrower AREA pointed at the symbols the first pass
-found weak. Persistent thinness is an accepted risk in Graph Findings.
+under **Premise corrections** as an unmapped area; do not retry again. A `thin` or `soft` warning
+allows at most one targeted follow-up per section: a narrower AREA limited to symbols with
+insufficient evidence. Record any remaining evidence gaps as an accepted risk in Graph Findings.
 
 Merge returns into one deduplicated brief. Record any correction to the plan's premise under
 **Premise corrections**.
@@ -68,7 +68,7 @@ Merge returns into one deduplicated brief. Record any correction to the plan's p
 
 ## 2. Implementer
 
-Exactly one alive at a time. Keep its handle; every follow-up resumes the same agent.
+Only one implementer agent may exist at a time. Keep its handle; every follow-up resumes that agent.
 
 ```text
 You are the sole implementation agent for ONE section of a goal-driven implementation plan. No
@@ -94,7 +94,7 @@ other agent writes code for this section. Do not delegate writing.
 
 RULES
 - Read the repository instruction files and every touched module's README first.
-- Implement exactly the IMPLEMENT list — one vertical slice. No future sections, no drive-by
+- Implement exactly the IMPLEMENT list — one vertical slice. No future sections, no unrelated
   refactors, no unrelated fixes; report unrelated findings under RISKS.
 - Before your first edit, re-run the section's defining search (the symbols in CONTEXT and
   WRITERS) and report any delta from the plan's anchors under ANCHOR DELTA.
@@ -102,11 +102,11 @@ RULES
   correction instead of implementing the wording.
 - RULING FLOOR: if the work requires an unruled change on the floor named in CONTRACT DECISION —
   ESCALATE, stop before writing that code and return STATUS: decision-needed with a brief. Do not
-  ship a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
-- For every error path you add or touch, name its unhandled sibling — raw/non-domain throw past
+  implement a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
+- For every error path you add or touch, name the related unhandled case — raw/non-domain throw past
   an instanceof gate, timeout, partial write, crash between two writes, replay, concurrent
-  writer, the same hole one step further down the chain — and handle it or list it under RISKS.
-- After fixing a defect, search for the same shape on sibling surfaces; report hits under
+  writer, the same defect in the next operation — and handle it or list it under RISKS.
+- After fixing a defect, search for the same defect pattern elsewhere in the repository; report hits under
   SIBLINGS (do not fix outside your section).
 - Every prose claim you write or change (README, comment, docs page, OpenAPI description,
   evidence row, UI copy) must be true at THIS commit, not at branch end. Absolute words
@@ -114,8 +114,8 @@ RULES
   your diff makes false, including ones you did not write.
 - SENSITIVITY CHECK, required for every regression test that guards a defect fix and every test
   that relies on a mock, fake, or injected fault: disable the fix locally (a stash or a one-line
-  temporary edit), run only that test, confirm it fails, restore. Paste the red output. This is a
-  local check on the test, never a revert: nothing is committed, rebuilt, redeployed, or removed
+  temporary edit), run only that test, confirm it fails, restore. Paste the failing-test output.
+  This is a local check on the test, never a revert: nothing is committed, rebuilt, redeployed, or removed
   from history, and accepted work is never undone to produce it. Anything applied once (a
   migration, deployed or shared state) is never reverted for this; prove those tests with a
   disposable fixture instead. Optional for tests of behavior that did not exist before the section.
@@ -134,12 +134,12 @@ DIFF: one line per changed file — what and why
 CLAIMS: one line per prose claim added or changed — claim → file:line that makes it true
 CALLS: non-floor decisions you made, one line each with rationale
 GATE EVIDENCE: command + decisive trailing output
-TESTS RUN: suites and results; sensitivity check (red output) per regression or mocked test
+TESTS RUN: suites and results; sensitivity check (failing-test output) per regression or mocked test
 LIVE FLOW: steps, stack SHA, observed result
 ENV: known-blocker handling used, or "none"
 LIFECYCLE EFFECTS: produced/invalidated gate inputs; did the plan's prediction hold
 ACCEPTANCE: the exit-test clause this satisfies
-SIBLINGS: same-shape hits elsewhere, or "none"
+SIBLINGS: matching implementation patterns elsewhere, or "none"
 DEFERRALS: omitted work and why deferral is safe
 RISKS: what a reviewer should scrutinize; unrelated issues noticed
 DECISION BRIEF: product effect; 2–4 options; consequences; recommendation; evidence (only if needed)
@@ -176,7 +176,7 @@ CHECK FOR: {lens checklist}
 
 Read the diff and enough surrounding code to judge it in context. You may run tests, render
 schemas, or probe the running stack to verify — never to modify. A finding must be concrete and
-anchored; default to APPROVE when nothing concrete surfaces. Approvals cite anchors too.
+anchored; default to APPROVE when no concrete issue is found. Approvals cite anchors too.
 
 Final message:
 VERDICT: APPROVE | REJECT
@@ -204,26 +204,26 @@ Lens checklists:
 1. **Security/authz** — authz on every new path; validation at trust boundaries; secrets never in
    code or logs; injection surfaces; **every restriction the client enforces is also enforced
    server-side**; tenant or ownership scoping on every raw read where the repository has such a
-   boundary; body-keyed surfaces that carry the gated thing
-   (inline media, links, headers, nested payloads), not only the route prefix.
+   boundary; restricted resources or operations identified or included in request bodies, inline
+   media, links, headers, and nested payloads, not only the route prefix.
 2. **Data/migration correctness** — additive and reversible; existing rows and legacy branches;
    constraints and indexes; **existing CHECKs, triggers, and allowlists admit any widened value**;
    **what writes this data in production** (a seed is not a rollout); rollback compatibility with
    the currently deployed binary.
-3. **Contract/API compatibility** — public shapes unchanged unless ruled; old clients and data;
+3. **Contract/API compatibility** — public data structures unchanged unless ruled; old clients and data;
    **every new value written into a shared enum, column, event type, or registry has every reader
-   enumerated and handled** (grep the repository, not the diff); fan-out complete for SDK-visible
-   changes (type mirror, parity test, CHANGELOG, README example, conformance row, OpenAPI).
+   enumerated and handled** (search the whole repository); update every affected artifact for
+   SDK-visible changes (type mirror, parity test, CHANGELOG, README example, conformance row, OpenAPI).
 4. **Failure-mode/reliability** — sane error states; timeouts and retries on external calls;
    partial failure and idempotency; races between the writers listed in the section; **who else
    already traverses any shared limiter, queue, or table this change re-scopes, and their
    per-interaction demand**; no orphaned state on the unhappy path.
 5. **Convention/scope** — naming, layering, test placement; change stays inside the section; no
-   dead code or drive-bys; **test doubles carry the row shape a real row has today**, not a legacy
-   branch; regression and mocked tests carry a sensitivity check (red output pasted in the
-   report), and no check was produced by reverting committed or shared state; **no unjustified
+   dead code or unrelated changes; **test doubles use the current row structure**, not a legacy
+   structure; regression and mocked tests include a sensitivity check (failing-test output pasted
+   in the report), and no check was produced by reverting committed or shared state; **no unjustified
    configuration key** — a new environment variable or other host-set key is a finding unless the
-   section names who sets it, on which host, and what breaks at the default (numeric knobs are
+   section names who sets it, on which host, and what breaks at the default (numeric parameters are
    named constants in the owning module, runtime-changed values are config rows, env is for
    secrets, endpoints, and per-host selectors; a Zod default is not a justification).
 6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
@@ -233,10 +233,10 @@ Lens checklists:
 7. **Capacity/false-positive** — run only when the diff touches a limiter, quota, timeout, or
    admission policy. Enumerate every legitimate client of the governed surface, including the
    product's own first-party traffic, and its highest per-interaction request count you can find in
-   the repository (prefetch fan-out, polling cadence, batch sizes). Prove one honest interaction is
-   admitted; a hand-picked "under-limit" count is not evidence.
-8. **Evaluator soundness** — run only for journey/proof sections. A green run is evidence only
-   after fault injection turns it red; a crash before the first check must not write a pass
+   the repository (prefetch requests, polling cadence, batch sizes). Prove one legitimate interaction is
+   admitted; an arbitrary "under-limit" count is not evidence.
+8. **Evaluator soundness** — run only for journey/proof sections. A passing run is evidence only
+   after fault injection makes it fail; a crash before the first check must not write a pass
    artifact; evaluators synchronized on a timestamp written before the work are vacuous; recipients
    and identifiers are distinct per run.
 
@@ -273,19 +273,19 @@ Lenses:
 
 - **(a) Seams and late obligations** — state one section writes and another consumes: races,
   double handling, dropped obligations. For every seam a later section introduced (trace
-  threading, an idempotency fence, a release marker), enumerate all call sites across the branch
+  propagation, an idempotency check, a release marker), enumerate all call sites across the branch
   and prove each satisfies it; a partial rollout is a finding.
-- **(b) Whole-surface contract and conformance coherence** — the assembled public surface as one
-  thing: routes, error codes, SDK, OpenAPI, docs corpus, conformance table.
+- **(b) Whole-surface contract and conformance coherence** — consistency across routes, error
+  codes, SDK, OpenAPI, documentation, and conformance table.
 - **(c) Plan conformance, deferrals, debris** — deferrals really deferred and still reachable;
-  routed-forward obligations landed; no scaffolding, stray files, or plan-authored rule breaks
+  work assigned to later sections completed; no scaffolding, stray files, or violations of plan rules
   (commit subjects, ids, naming).
 - **(d) Reader sweep of the diff's complement** — every value this branch writes into a shared
   column, enum, event type, or registry, checked against every reader in the repository,
   especially fail-closed registries and reports in other packages. This lens reads files the diff
   did not touch.
 - **(e) Claim decay** — every claim written by an earlier section re-verified at HEAD, including
-  pre-existing sentences the new claims sit beside and comments in files earlier sections wrote.
+  adjacent pre-existing sentences and comments in files changed by earlier sections.
 - **(f) Rollout window** — during replacement, the old binary runs against the new schema and the
   new binary may see old rows: does either write a state the other cannot interpret; does a
   migration backfill run before the old worker is gone.
@@ -307,8 +307,8 @@ Re-run the global gate and every affected test; paste fresh output. Previous evi
 Preserve the working-tree baseline.
 ```
 
-Convergence rule: rounds continue while findings shrink. Stop and report to the user when a
-round surfaces a floor item, repeats a class the previous round was told to fix, or breaks the
+Convergence rule: rounds continue while unresolved findings decrease. Stop and report to the user when a
+round identifies a floor item, repeats a class the previous round was told to fix, or breaks the
 section boundary. Never stop over a round count or token threshold.
 
 ---
@@ -350,7 +350,7 @@ unrelated code.
 RULES
 - Fix exactly the listed findings; do not redesign accepted sections or cross the ruling floor.
 - A correction that needs an unruled floor change stops with STATUS: decision-needed.
-- Every prose claim you touch follows the CLAIMS discipline; regression and mocked tests carry the
+- Every prose claim you touch follows the CLAIMS requirements; regression and mocked tests include the
   sensitivity check from the implementer rules (local, never a revert of committed work).
 - Run every required gate; paste real output.
 
@@ -369,7 +369,7 @@ DEFERRALS / RISKS / DECISION BRIEF: as applicable
 
 ## 8. Plan topology reviewer
 
-For plans over ~8 sections, or whenever the plan carries a data migration, a numbering or
+For plans over ~8 sections, or whenever the plan includes a data migration, a numbering or
 identifier scheme, an external-world premise, or a limiter/quota change. Read-only, one agent.
 
 ```text

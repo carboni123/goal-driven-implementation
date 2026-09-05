@@ -3,8 +3,9 @@
 Substitute `{...}` placeholders and keep everything else intact. Dispatch mechanics (agent
 names, model/effort, follow-up calls, routing evidence) are harness-specific — read
 `references/routing-claude.md` or `references/routing-codex.md` and use its dispatch wrapper
-around these bodies. Where a harness exposes routing metadata, every spawned role begins its
-report with `ROUTING: requested=<...>; confirmed=<...>`; omit the line where it does not.
+around these bodies. For Codex, prepend its prompt wrapper on initial dispatches, corrections,
+and follow-ups. Where a harness exposes routing metadata, begin the report with its specified
+`ROUTING` header (Codex: `requested`, `attestation`, `runtime`); omit it where it does not.
 
 Contents:
 

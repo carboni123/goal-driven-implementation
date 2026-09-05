@@ -47,6 +47,34 @@ toolchain stays `node` only. Validate against real plans before tagging; 0.2.1 i
   round on format. Codex attestations bump to `gdi-explorer-v2` and `gdi-reviewer-v2`, so a
   `-v1` attestation identifies a stale installed role file.
 
+### Changed — Codex routing and prompting
+
+- **Codex role economics, maintainer ruling (2026-09-05).** The maintainer's GDI run feedback
+  requests mappers on `gpt-5.6-luna` at `max`, implementers on `gpt-6-astra` at `low`, and
+  reviewers staying on `gpt-5.6-terra` at `high`. Motivation: Luna mapping was cheaper and faster;
+  Astra produced better code with less churn at about the same observed task cost as Terra.
+  This feedback is the human ruling for AGENTS.md's role-economics floor, not a benchmark or
+  guaranteed cost claim. TOMLs, routing, fallback selection, and resume guidance now agree.
+  The main-session pin stays Sol `max`. The installed `goal-implementer-terra` identifier stays
+  stable for existing registrations while selecting Astra; no install targets or roles change.
+  Implementer and mapper attestations become `gdi-implementer-astra-low-v3` and
+  `gdi-explorer-v3`; reviewer `gdi-reviewer-v2` remains current. Old profile attestations prompt
+  a reinstall and reload or the direct pinned fallback, never a claim that the runtime model was
+  verified. Both dispatch routes explicitly require a bounded fork to avoid model inheritance.
+- **Codex prompting adapted to Astra.** The same request cites OpenAI's
+  [Astra guide](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra.md#prompting-best-practices)
+  (read 2026-09-05), which identifies premature clarification, skill-instruction sensitivity,
+  verbose reports, under-delegation, and excessive verification as behaviors to tune. A Codex
+  dispatch wrapper and the implementer's standing instructions carry approved work through to
+  evidence, reuse existing rulings, identify the exact instruction behind a blocker, and limit
+  extra testing after required gates pass. The root retains mapper/reviewer fan-out; workers
+  keep their existing delegation limits. Required gates, sensitivity checks, independent review,
+  report labels, schema compatibility, and Claude behavior are preserved. The shared prompt
+  preamble now defers routing-header fields to the harness, fixing its conflicting Codex
+  `confirmed` example. Independent dispatch simulation also found that generic correction
+  workers could miss the implementer rules with no inherited history; the Codex dispatch now
+  includes those rules while retaining the correction-specific scope and report.
+
 ## 0.2.2 — 2026-09-03
 
 Evidence: a key-inventory survey of one repository on 2026-09-03 found 272 readable configuration

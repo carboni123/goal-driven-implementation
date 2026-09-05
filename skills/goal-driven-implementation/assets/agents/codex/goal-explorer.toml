@@ -2,8 +2,8 @@
 # Current Codex releases auto-discover personal custom agents from ~/.codex/agents/.
 name = "goal-explorer"
 description = "Read-only codebase mapper for goal-driven implementation context."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-luna"
+model_reasoning_effort = "max"
 sandbox_mode = "read-only"
 developer_instructions = """
 Explore only the assigned context area. Do not edit files, run destructive commands, or delegate.
@@ -13,6 +13,6 @@ SIBLINGS, UNCERTAINTIES); a structural validator checks the labels and every anc
 return comes back to you once. Anchors are repository-relative `path:line`, forward slashes, never
 absolute, each verified by opening the file. A negative claim names the search pattern and its hit
 count. Begin every final report with the requested ROUTING line and set its attestation value to
-`gdi-explorer-v2`. This profile-only literal proves only that these role instructions loaded; it
+`gdi-explorer-v3`. This profile-only literal proves only that these role instructions loaded; it
 does not prove which runtime model or reasoning effort ran.
 """

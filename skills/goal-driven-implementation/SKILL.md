@@ -9,15 +9,21 @@ The plan file is both the implementation contract and the progress ledger. Each 
 vertical slice with its own goal, gates, acceptance clause, and commit. Every plan includes
 `gdi_schema` and `gdi_version` frontmatter; the version is this skill's release
 (`assets/VERSION`) so later retrospectives can correlate plan outcomes with skill revisions.
+Record the resolved skill root and source revision when available. An installed copy, repository
+checkout, and runtime-loaded agent profile may differ; a release label alone cannot identify
+unreleased edits. Follow the harness's routing check before attributing a run to a new profile.
 
 ## Role contract
 
-| Role                    | Who                            | May                                                                                                              | Must never                                                                                      |
-| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| ORCHESTRATOR + REVIEWER | Main session                   | Read anything; write the plan and ledger; spawn and direct agents; verify gate evidence; commit accepted work    | Edit product source or product docs — an implementer makes every product change                 |
-| IMPLEMENTER             | Exactly one per section        | Write code inside the active section; run gates and tests; spawn read-only helpers only where the harness allows | Touch future sections; commit; delegate writing; cross a ruling floor without an approved brief |
-| MAPPER                  | Read-only agent                | Map code, tests, conventions, lifecycle couplings                                                                | Write files                                                                                     |
-| REVIEWER                | Read-only agent, one lens each | Review one dimension with `file:line` evidence                                                                   | Write files                                                                                     |
+| Role                    | Who                            | May                                                                                                                          | Must never                                                                                      |
+| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| PLANNER + ORCHESTRATOR  | Main session                   | Read anything; write the plan and bounded task briefs; direct agents; assess reviews and gate evidence; commit accepted work | Edit product source or product docs — an implementer makes every product change                 |
+| IMPLEMENTER             | Exactly one per section        | Write code inside the active section; run gates and tests; spawn read-only helpers only where the harness allows             | Touch future sections; commit; delegate writing; cross a ruling floor without an approved brief |
+| MAPPER                  | Read-only agent                | Map code, tests, conventions, lifecycle couplings                                                                            | Write files                                                                                     |
+| REVIEWER                | Read-only agent, one lens each | Review implemented code within one dimension with `file:line` evidence                                                       | Write files; design or approve plans                                                             |
+
+The main-session planner owns structural and visual graph review. Code reviewers may use its
+inspected graph as context for tracing implementation paths; a diagram is not implementation evidence.
 
 Implementation is strictly sequential: only one implementer agent may exist at a time. Mappers and reviewers
 run in parallel within the harness thread cap.
@@ -28,7 +34,7 @@ reference each — read the one for the harness you are running in before the fi
 - Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions, `SendMessage`
   for follow-ups, implementer may spawn read-only helpers).
 - Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, routing
-  attestation, no nested spawns).
+  attestation; ordinary workers do not spawn, with a bounded delegated-orchestrator exception).
 
 Resolve every role during preflight, **before** preparing the plan for approval, and record
 `requested / role-confirmed / model-confirmed` per role in the plan. If the reviewer role cannot be
@@ -36,6 +42,14 @@ dispatched, use a generic read-only agent at the reviewer's effort. Main-session
 orchestrator's own dispatch is a last resort: record it as `review: self (<reason>)` in the ledger
 and as an accepted risk in Graph Findings, and the whole-branch final review must then run with an
 independent agent. If no independent reviewer can be obtained at all, stop and say so.
+
+The planner owns decomposition and resolves ambiguity before dispatch. A bounded brief names the
+allowed files, observed mechanism, existing exemplar, invariants, acceptance checks, exclusions,
+and applicable rulings; use the existing section fields rather than another planning document.
+Include only context needed for that assignment. A detailed brief can still be wrong: workers
+report contradicted premises, and reviewers independently trace the changed behavior. When a
+worker struggles, diagnose the missing fact or narrow the assignment within the approved section
+before considering a different model; follow the harness routing and convergence rules.
 
 ## Ruling floor
 
@@ -96,6 +110,8 @@ risk, owner, **tracking issue or machine-checkable re-entry gate**, milestone it
 - A mock or fake alone does not require a sensitivity check. Add one when there is a concrete
   concern that the double bypasses the changed path, an assertion is vacuous, or fault injection
   misses the intended boundary. Check for the expected behavioral failure, not a setup crash.
+  Inject the relevant defect at the implementation boundary; making a test expectation wrong or
+  adding an unconditional test failure does not demonstrate sensitivity to that defect.
   Use a local temporary edit or disposable fixture; never roll back applied state, revert
   committed work, or rebuild/redeploy a separate candidate solely to manufacture failing output.
 - Run focused checks during implementation and the required broader checks against the final
@@ -184,11 +200,18 @@ Inside the lane:
      **Known blockers** rows: every host/environment condition that has blocked this repository's
      gates before, with its pre-approved handling (runbook, container recipe, inherited
      environment variables, ports).
+     Use a cheap representative command in the actual gate realm with its canonical cwd, mounts,
+     cache paths, dependency outputs, and environment mode. A host-level tool/version check does
+     not establish that a container or another shell can run the gate. Record setup failures
+     separately from behavioral failures and do not count zero collected tests as coverage.
    - **Lifecycle gate budget**: columns `consumes / invalidated by`, `planned runs`
      (assign each run to an executor; no duplicate run solely for another role), `actual runs`
      (filled at completion), `preflight`. Schedule the **cheapest real-client probe** (a browser
      page load, one user-flow step, one live HTTP burst) before the first expensive gate
      (image build, deploy), not after.
+     Name tracked generated artifacts and their canonical refresh/check commands, including
+     graphs that index test imports and inventories affected by file moves. Schedule refresh
+     after their last invalidating edit and before the review and broad gate that consume them.
    - **Rulings**: two tables. _Floor rulings_ the user owns (options + recommendation), including
      any new stable error code by exact string (or "none — reuse `<family>`"), and the **terminal
      action** (commit / push / PR / comment / deploy / none). _Recorded calls_ the orchestrator
@@ -201,6 +224,11 @@ Inside the lane:
      page view, one legitimate request burst), never an arbitrary count. A plan that changes a
      user-facing flow gets one goal whose exit test is a scripted end-to-end walkthrough at the
      final-review gate.
+     For consolidation or reduction work, name what will be retired, which callers adopt the
+     replacement, and what must remain. Measure the same inventory before and after, separating
+     product changes from tests, plans, and generated output. Adding a shared helper is an
+     intermediate result when the requested outcome is removal of duplication. Preserve distinct
+     behavior checks; a shared fixture does not prove that each caller uses it correctly.
    - **Sections**: one S/M vertical slice each. Size by invariant inversion — how many unstated
      assumptions the change falsifies — not by diff size. For any invariant a section changes,
      list its **writers** as well as its readers. TARGET names the owning unit from the
@@ -222,12 +250,25 @@ Inside the lane:
    triggers, allowlists filter a widened column), **rollout window** (old binary × new schema during
    replacement), **plan as evidence** (every anchor resolves — run
    `validate-report.mjs --kind anchors --input <plan-file> --repo-root <repo>` — every named
-   symbol exists and is exported, every `DEPENDS ON` edge is buildable), **known blockers**. For
-   plans over ~8 sections, assign the checklist to one read-only reviewer for an independent review.
+   symbol exists and is exported, every `DEPENDS ON` edge is buildable), **known blockers**.
+   The planner checks this analysis against the rendered graph in step 8.
 6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file>`. Fix errors; never waive
    them in prose.
-7. Present graph-first: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>`
-   (`--no-open` when headless; the raw Mermaid goes in the message if the CDN is unreachable).
+7. Render the generated Mermaid: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>
+   --no-open`. Open the resulting HTML with an available browser tool, wait for Mermaid to finish,
+   and capture readable screenshots of every graph. The script generates HTML, not screenshots.
+   Keep renders and images outside tracked plan files. Follow **Rendered graph inspection** in
+   `references/graph-analysis.md` for capture, the visual checklist, and unavailable-tool handling.
+8. The main-session planner visually inspects the rendered graphs before presenting the plan.
+   Actually open the screenshots with image-viewing tools or supported image input, examine the
+   visible paths and layout, then compare them with the Mermaid and plan. Follow **Rendered graph
+   inspection** in `references/graph-analysis.md`; source review alone cannot complete this step.
+   This is planner work, not a `gdi-reviewer`/`goal-reviewer` dispatch or a new planner child.
+   Fix concrete findings, update Graph Findings, and re-validate, re-render, and re-inspect affected
+   graphs after corrections.
+   Record unavailable visual inspection explicitly; never turn missing images into an approval.
+9. Present the inspected graph and Graph Findings. If rendering is unavailable, show raw Mermaid
+   and the inspection limitation; raw code is not visual evidence.
    Apply the approval rule from **Select a mode**. On approval or auto-start, set `status`,
    record the approval evidence, and re-validate.
 
@@ -241,12 +282,14 @@ Resolve roles per the harness reference and record the evidence. Set `status: ex
 the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
 unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer agent exists.
 
-**1. Aggregate.** Skip when the section's context items already have `file:line` anchors that
-still resolve (`validate-report.mjs --kind anchors` over the section block says so mechanically).
+**1. Aggregate.** Skip when the section's context items have verified anchors and the relevant
+symbols and behavior have not changed since mapping. `validate-report.mjs --kind anchors` checks
+file and line existence only; re-read changed context and its defining search before reusing it.
 Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, apply the
 follow-up rule from the prompts reference, and merge.
 
-**2. Implement.** One implementer, section block verbatim, context brief, global gate, preflight,
+**2. Implement.** Check that the bounded brief above is actionable. Send one implementer the
+section block verbatim, context brief, global gate, preflight,
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
 sections of this plan). Keep its handle; all follow-ups resume the same agent. The implementer's
 report includes a **CLAIMS** block: every prose assertion it added or changed (README, comment,
@@ -273,6 +316,10 @@ finding; approvals cite 2–5 anchors too. Validate each return (`--kind reviewe
 be wrong — refute a finding against the code and record the refutation rather than implementing
 it; a REJECT whose findings are all `evidence: inference` is verified by the orchestrator first
 and reaches the implementer only with an upgraded tag or not at all.
+For section or final reviews where cross-section dependencies, shared-state paths, or integration
+gates matter, include a relevant part of the planner-inspected graph as optional context using the
+review prompt's GRAPH CONTEXT field. Reuse the existing images; do not require a new render or a
+diagram for every review. Findings still need code/test evidence within the assigned lens.
 
 **5. Verify evidence.** Review the section's commands, results, tested worktree state, and relevant
 environment. Run missing or invalidated section checks; do not repeat valid runs because another
@@ -326,8 +373,12 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
    with the ledger. Marks: `✅` accepted · `🔁×n` rounds · `⚠→` a brief reached a human (note the
    ruling) · `⇢` orchestrator-ruled inside the floor · `⚙×n` environment retries · `✎` goal or scope
    amended at completion. Re-render and show it.
-7. **Report** — sections and commits, planned vs actual per gate, tokens per section, Graph
+7. **Report** — sections and commits, planned vs actual per gate, available usage per section, Graph
    Findings confirmed / did not occur / missed, deferrals with issue numbers, exit-test evidence.
+   Attribute available usage to planning/mapping/implementation/review and correction rounds;
+   include main-session overhead. Use `unknown` for unavailable counters or prices. Tokens alone
+   do not establish monetary cost across models; compare total cost per accepted section together
+   with rework and escaped defects before claiming a routing improvement paid off.
 
 ## Resources
 
@@ -341,8 +392,10 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
+- `assets/agents/codex/goal-implementer.toml` — Codex implementation role; model and effort are
+  configuration, independent of its name.
 - `references/agent-prompts.md` — mapper, implementer, reviewer lenses, final-review, rejection,
-  decision relay, correction implementer, topology reviewer templates.
-- `references/graph-analysis.md` — the full analysis checklist with the failure each class
-  prevented.
+  decision relay, and correction implementer templates; optional graph context for code review.
+- `references/graph-analysis.md` — structural and rendered-image inspection checklists, capture
+  and correction procedure, and the failure each class prevented.
 - `references/routing-claude.md`, `references/routing-codex.md` — per-harness role resolution.

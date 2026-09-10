@@ -117,12 +117,16 @@ need this in ~/.codex/config.toml — add it yourself; the installer never edits
 
   [features]
   multi_agent_v2 = true
-  [agents.goal-implementer-terra]
-  config_file = "${join(home, ".codex", "agents", "goal-implementer-terra.toml").replace(/\\/g, "/")}"
+  [agents.goal-implementer]
+  config_file = "${join(home, ".codex", "agents", "goal-implementer.toml").replace(/\\/g, "/")}"
   [agents.goal-reviewer]
   config_file = "${join(home, ".codex", "agents", "goal-reviewer.toml").replace(/\\/g, "/")}"
   [agents.goal-explorer]
   config_file = "${join(home, ".codex", "agents", "goal-explorer.toml").replace(/\\/g, "/")}"
+
+Upgrading from goal-implementer-terra: migrate its config key/path and other references to
+goal-implementer, then retire the old registration and old installed TOML. This installer leaves
+them intact; reload Codex before using the renamed role.
 `);
 }
 if (!only || only === "claude") {

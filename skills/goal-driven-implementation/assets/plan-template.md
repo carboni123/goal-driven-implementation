@@ -10,6 +10,7 @@ harness: <claude | codex>
 
 Sources: <roadmap / PRD / ADR / issue references>
 Written: <YYYY-MM-DD>
+Skill source: <resolved skill root; source revision if available; installed or repository copy>
 Feature map: <path from scout-repo.mjs — n apps / n features / n shared kernels, or "flat repository">
 
 ## Premise corrections
@@ -23,8 +24,8 @@ sections below are written against the corrected premise.
 
 ### Roles
 
-- Main session: orchestrator and reviewer. It plans, dispatches, verifies, updates this ledger,
-  and commits. It never edits product source or product docs.
+- Main session: planner and orchestrator. It prepares bounded briefs, assesses reviews, verifies,
+  updates this ledger, and commits. It never edits product source or product docs.
 - Section implementer: exactly one at a time; writes only inside its active section; never
   commits; never delegates writing.
 - Mappers and reviewers: read-only; run in parallel within the harness thread cap.
@@ -33,11 +34,12 @@ sections below are written against the corrected premise.
 
 Harness: `<claude | codex>` — see `references/routing-<harness>.md`.
 
-| Role        | Requested                  | Role-confirmed | Model/effort-confirmed | Fallback used |
-| ----------- | -------------------------- | -------------- | ---------------------- | ------------- |
-| Implementer | `<agent / model / effort>` | `<pending>`    | `<pending>`            | `<none>`      |
-| Mapper      | `<agent / model / effort>` | `<pending>`    | `<pending>`            | `<none>`      |
-| Reviewer    | `<agent / model / effort>` | `<pending>`    | `<pending>`            | `<none>`      |
+| Role                   | Requested                         | Role-confirmed   | Model/effort-confirmed  | Fallback used |
+| ---------------------- | --------------------------------- | ---------------- | ----------------------- | ------------- |
+| Planner / orchestrator | `<main session / model / effort>` | `<main session>` | `<metadata or unknown>` | `<none>`      |
+| Implementer            | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Mapper                 | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Reviewer               | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
 
 If the reviewer role cannot be dispatched, record `review: self (<reason>)` on every affected
 ledger row and add the accepted risk to Graph Findings; the final review must then be independent.
@@ -57,6 +59,9 @@ Preflight status: pending
 Checked: pending
 Baseline SHA: pending
 Execution realm: pending
+
+Representative gate probe: <cheap command in the actual realm; canonical cwd, tool executable,
+mounts/cache paths, dependency outputs, and environment mode; result or unproven — no secrets>
 
 Use `ready`, `known-baseline-red`, or `invalid-environment` after running the probes. Record
 presence and reachability only; never record secret values.
@@ -272,12 +277,15 @@ Use this block for every S/M vertical slice.
 
 GOAL:
 <Observable outcome.>
+<For consolidation: expected retirements, caller adoption, retained behavior, and a comparable
+before/after inventory. Separate product reduction from tests, plans, and generated output.>
 
 SOURCES:
 <Roadmap, PRD, ADR, or issue clauses.>
 
 TARGET:
 <Owning unit from the feature map (name and path), plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose. Name any shared kernel written.>
+<Allowed file set and exclusions; enough scope to implement this slice without redesigning it.>
 
 DEPENDS ON:
 <Checked section IDs, or "none".>
@@ -290,6 +298,7 @@ CONTEXT TO AGGREGATE:
 1. <File/module/pattern to inspect, with file:line anchors.>
 2. <Existing tests to extend.>
 3. <Relevant runtime path.>
+4. <Observed defect/mechanism, exemplar to reuse, and invariants the worker must preserve.>
 
 WRITERS:
 <Every writer of any state whose invariant this section changes, with file:line. Readers to verify follow.>
@@ -303,6 +312,8 @@ LIFECYCLE / GATE EFFECTS:
 - Binding: <image build input, runtime/container input, or external-state prerequisite>.
 - Consumed by: <gate IDs>.
 - Invalidates prior evidence from: <gate IDs, or "none">.
+- Tracked generated artifacts: <canonical refresh/check commands; invalidating inputs including
+  test imports and file moves; refresh before review and broad gates, or "none">.
 
 IMPLEMENT:
 
@@ -360,10 +371,16 @@ the refutation.
 Record schema for a checked row (one line per rejection round):
 
 ```text
-- [x] A1 <title> — <exit clause> — accepted <YYYY-MM-DD> <sha> — rounds: 2 — review: independent — routing: requested=<...>; role=<...>; model/effort=<...> — cost: ~<n>k tokens / <m> agents — env-retries: 0
+- [x] A1 <title> — <exit clause> — accepted <YYYY-MM-DD> <sha> — rounds: 2 — review: independent — routing: requested=<...>; role=<...>; model/effort=<...> — cost: <observed tokens or unknown> / <m> agents — env-retries: 0
   - R1 failure-mode: <one line — what the reviewer found>
   - R2 doc-truth: <one line>
 ```
+
+Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.
+When available, break usage down by planning, mapping, implementation, review, and correction
+rounds, including main-session overhead. Record monetary cost only when supplied by the runtime
+or calculated from verified rates with the relevant input/cache/output breakdown. Keep quality
+outcomes (correction rounds and later escaped defects) alongside cost comparisons.
 
 ## Phase A — <milestone / subsystem>
 
@@ -385,7 +402,7 @@ Record schema for a checked row (one line per rejection round):
 - [ ] Every budgeted gate records actual runs; overruns named in Graph Findings.
 - [ ] Every deferral has a tracking issue or a machine-checkable re-entry gate.
 - [ ] Topology graph marks match the ledger (validator passes), re-rendered, compared with Graph Findings.
-- [ ] Routing table complete; tokens per section reported.
+- [ ] Routing table complete; usage/cost per section recorded, or explicitly unknown.
 
 ## Deferrals
 

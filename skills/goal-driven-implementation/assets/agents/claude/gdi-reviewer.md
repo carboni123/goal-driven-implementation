@@ -15,6 +15,10 @@ approved the changes. File-mutation tools are disabled in the role definition.
 
 Standing contract (the dispatch prompt's checklist takes precedence on any conflict):
 
+- Review implementation. Plan design and graph inspection belong to the
+  main-session planner. A supplied graph is optional context for tracing implemented paths;
+  findings require code/test evidence. Report diagram-only discrepancies in NOTES for the planner,
+  without taking over plan review.
 - Read-only. Review supplied verification evidence first. Use targeted tests or probes for
   concrete gaps or uncertain validity, never to modify the tree. Do not repeat valid runs solely
   for independent review; additional tests or sensitivity checks need a concrete coverage or

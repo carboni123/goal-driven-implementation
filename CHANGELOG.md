@@ -3,6 +3,95 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## 0.5.0 — 2026-09-10
+
+### Evidence
+
+Reviewed recent Tyxter plan ledgers for #878, #780, #861, #856, completion quality gates,
+and #896, plus the #882 and #936 consolidation follow-ups. This is a selected execution sample,
+not a controlled model comparison. The historical forks remain the September 1 baseline.
+
+- **Economics ruling, 2026-09-10.** The maintainer reports that Astra at low effort proved too
+  expensive after further runs and requests mappers on Luna max, the planner on Astra xhigh,
+  implementers on Luna max, and reviewers on Terra xhigh. This supersedes September 5's
+  favorable Astra-low feedback. The reviewed ledgers do not expose sufficient per-role token or
+  monetary counters to quantify savings or prove equivalent implementation quality.
+- **Consolidation missed the intended reduction.** Tyxter #882's skill-audience plan
+  (`docs/plans/2026-09-06-issue-882-skill-audiences-plan.md` at `bb8519777`) added 1,388 net
+  lines. The user asked for pruning; `a31476b57` then removed 7,904 net lines. After #936's
+  fixture adoption, the user again requested actual reduction; `062811da3` removed 819 net
+  lines by consolidating repeated test bodies while preserving route scenarios. Counts are
+  whole-commit totals, including support artifacts; they establish outcome mismatch, not a
+  universal line-count target or proof that a shared fixture replaces caller tests.
+- **Generated metadata caused late reruns.** #861's archived
+  `2026-09-08-issue-861-credit-retry-hint-plan.md` records R2 dependency-metadata repair
+  (ledger line 277); #856's `2026-09-09-issue-856-meta-health-sync-plan.md` records a stale
+  dependency graph after 257/258 tasks (lines 297–304). #856 ran final CI three times against
+  one planned, and 19 focused invocations against three planned (lines 120–126).
+- **Execution realm mattered.** #856 first lacked its shared Turbo-cache mount; #861 required
+  explicit runner/cache/environment configuration. #878's
+  `docs/plans/2026-09-06-issue-878-outbound-send-split-plan.md` records WSL/native tool and path
+  differences (lines 102–128) and a worker's claimed dead-code pass contradicted by the actual
+  command (lines 355–363). These support precise gate probes and independent evidence review,
+  not automatic reruns of all valid checks.
+- **Provenance and honest completion worked unevenly.** #780, #861, #856 and the quality-gates
+  ledger record unknown runtime model or usage data. #878 and #896 use schema 1 without a
+  skill version; this retrospective session also exposed a backup skill and older runtime roles
+  than the canonical source. #896 correctly leaves `ci:local` blocked despite passing product
+  and browser checks (`docs/plans/2026-09-10-issue-896-dashboard-locales-boundaries-plan.md`,
+  lines 592–641, commit `5cb6e2b07`). Preserve that distinction rather than marking every
+  accepted implementation fully verified.
+
+### Changed
+
+- Make the main session's planner responsibility explicit. Request Astra xhigh there (selected
+  by the user/client), Luna max for mapping and implementation, and Terra xhigh for independent
+  review; record runtime evidence and any deviation. No additional premium planner child is
+  needed. A struggling worker gets diagnosis and a narrower brief, not automatic promotion.
+- **Rendered graph inspection.** On September 10, 2026, the maintainer reported that an agent
+  viewing a Mermaid screenshot had caught an error missed in source review and requested an
+  explicit visual step, then clarified that the goal planner owns graph review. Full PLAN
+  mode now renders and captures the current diagrams before the main-session planner inspects them and
+  checks their agreement with the plan. The checklist covers paths, arrows, edge meanings, gate
+  placement, legibility, and cross-view consistency; corrections invalidate affected images.
+  The former plan-reviewer checklist moves into the planner's graph-analysis reference. Code
+  reviewers may receive a relevant inspected graph as optional context for tracing implementation
+  paths; findings still require code/test evidence. Both harness profiles keep those responsibilities
+  distinct. The bounded-fix exception, model pins, code-review report formats, schemas, and renderer
+  interface are unchanged; screenshots use available browser/Mermaid image tools.
+- **Role naming ruling, 2026-09-10.** The maintainer requests a model-neutral implementation
+  role and removal of model/effort/version suffixes. Rename the canonical Codex file and role
+  from `goal-implementer-terra` to `goal-implementer`. Use stable report labels
+  `gdi-implementer`, `gdi-mapper`, and `gdi-reviewer`, matching Claude's role vocabulary. Model
+  pins remain configuration; schema/release/source provenance remains in the plan. Stable labels
+  no longer serve as profile-revision evidence. The installer prints the new registration and
+  migration instructions, preserving old installed files/config for deliberate migration.
+- Align Codex TOMLs, direct fallbacks, resume guidance, and stable role labels. Keep loaded-role evidence
+  distinct from runtime model evidence; unavailable metadata remains unknown. Reuse unchanged
+  routing receipts and useful bounded read-only probes instead of redundant scratch work.
+- Dispatch concise task boundaries using existing section fields: allowed files, mechanism,
+  exemplar, preserved invariants, acceptance checks, exclusions, and rulings. Workers report
+  contradicted premises; reviewers independently assess those premises and the resulting code.
+  Line existence alone is insufficient to reuse stale mapping. Preserve the existing bounded
+  delegated-orchestrator exception with global writer, ownership, and reviewer independence rules.
+- For reduction work, plan and review actual retirements and caller adoption. Compare consistent
+  before/after inventories, separating product reduction from added tests and support artifacts;
+  preserve distinct regression checks. Add no deletion quota or required mutation-test campaign.
+- Schedule canonical generated-artifact refresh before review and broad gates, including changes
+  from test imports or file moves. Preflight probes use the gate's actual realm, cwd, mounts,
+  cache/dependency outputs, and environment mode; setup failures are not behavioral test evidence.
+- Record resolved skill provenance and available usage by role, including main-session overhead
+  and correction work; missing counters or prices remain unknown. Compare cost per accepted
+  section with rework and escaped defects before claiming the new routing is more efficient.
+- An independent forward test of a resumed controller-test consolidation selected the intended
+  fallback routes, preserved caller coverage, and kept usage unknown, but proposed sensitivity
+  evidence by changing an expected value. Clarify that a needed probe injects the relevant
+  implementation defect; breaking the test itself does not establish defect detection.
+
+Plan/report schemas, validators, install directories, and Claude model pins are unchanged.
+Shared workflow and prompt clarifications apply to both harnesses. The skill release is 0.5.0;
+installation and runtime reload remain separate from the tagged source release.
+
 ## 0.4.0 — 2026-09-05
 
 ### Changed — proportionate verification

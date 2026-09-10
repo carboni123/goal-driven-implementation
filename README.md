@@ -6,6 +6,13 @@ implementer per plan section, parallel read-only reviewers, a whole-branch final
 current `main`, and a plan file that doubles as the progress ledger. Works in Claude Code and
 OpenAI Codex CLI from one `SKILL.md`.
 
+Preferred Codex routing: planner/orchestrator **Astra xhigh** in the main session, mappers and the
+sole implementer **Luna max**, independent reviewers **Terra xhigh**. The user/client selects
+the main model; the skill records its actual route or unknown metadata. The planner supplies bounded,
+anchored assignments; reviewers check both the resulting code and the plan's assumptions. These
+are maintainer-selected cost preferences, with outcomes and available usage recorded per role.
+The Codex implementer is `goal-implementer`; model and effort stay in its configuration.
+
 ## Install
 
 With the [skills CLI](https://skills.sh):
@@ -26,13 +33,19 @@ Targets: `~/.claude/skills/`, `~/.claude/agents/` (four `gdi-*` roles), `~/.code
 `~/.agents/skills/`, `~/.codex/agents/` (three `goal-*` roles). Existing copies are moved to a
 `.bak-<timestamp>` sibling.
 
+For an existing `goal-implementer-terra` installation, migrate its config registration and other
+references to `goal-implementer`, retire the old registration/file, and reload Codex. The installer
+prints the new snippet and leaves legacy config/files intact. See the
+[upgrade instructions](skills/goal-driven-implementation/references/routing-codex.md#installing-the-roles).
+
 ## What a run looks like
 
 1. **PLAN** — scout the repository into a feature map (`assets/scout-repo.mjs`, no LLM call),
    map the code one unit at a time, write the plan from `assets/plan-template.md`, draw the
    topology graph (inputs → sections → goal exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
-   validate, render, and either wait for the user's ruling on floor items or start.
+   validate, render, have the main-session planner inspect screenshots, and either wait
+   for the user's ruling on floor items or start.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
    eight review lenses in parallel, every agent return validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
@@ -75,6 +88,7 @@ skills/goal-driven-implementation/
     validate-report.mjs          structural check of agent returns and anchors (--self-test)
     agents/claude/gdi-*.md       pinned Claude Code roles
     agents/codex/goal-*.toml     Codex custom agents
+      goal-implementer.toml     model-neutral implementation role
   references/
     agent-prompts.md             mapper, implementer, reviewer lenses, final review, relays
     graph-analysis.md            the analysis checklist, each class with the failure it prevents

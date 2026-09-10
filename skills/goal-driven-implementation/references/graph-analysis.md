@@ -7,8 +7,107 @@ the execution record with this list: confirmed, did not occur, missed.
 
 Each class names the failure it prevents and the run that motivated the check.
 
-Contents: structural classes · scope classes · contract classes · data classes · lifecycle
-classes · environment classes · evidence classes.
+Contents: rendered graph inspection · structural classes · scope classes · contract classes ·
+data classes · lifecycle classes · environment classes · evidence classes.
+
+## Rendered graph inspection
+
+For full PLAN mode, the main-session planner inspects actual rendered images after authoring and
+validating the Mermaid, before presenting the plan. It owns this pass and the structural/premise
+checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation code, not plans. Use the
+existing planner session, with no additional agent dispatch. The bounded-fix lane keeps its
+optional rendering rule. _Origin:_ on September 10, 2026, the maintainer reported that an agent
+viewing a rendered graph caught an error missed while reading its Mermaid source, and requested
+an explicit visual pass, then clarified that graph review belongs to the goal planner.
+
+### Prepare the images
+
+1. Render the current plan with `assets/render-plan-graph.mjs <plan-file> --no-open`. Open the
+   returned HTML in a browser available to the harness. Wait until each Mermaid block is a rendered
+   diagram, not a loading placeholder, raw source, or an error panel. HTML creation alone does not
+   prove that the browser loaded Mermaid or rendered every block.
+2. Capture each topology and lifecycle diagram with a browser screenshot tool, or an available
+   Mermaid renderer that produces an image from the same source. Include a whole-graph overview
+   and readable detail captures when the overview makes text or arrowheads too small. Preserve
+   connecting edges, node IDs, and the legend across captures; an unreadable full-page thumbnail
+   is insufficient. Do not substitute an illustrative redraw for the actual Mermaid rendering.
+3. Keep the plan path, render path, and absolute image paths accessible to the planner's image tool,
+   or load the images through the harness's supported image input. Identify each image's diagram
+   and region. Reload after source changes so the images correspond to the current Mermaid blocks;
+   verify that every block has a corresponding readable image.
+   Keep generated HTML and screenshots in temporary or ignored artifact storage, outside tracked
+   plans. Record the inspected plan state and image references in Graph Findings.
+
+### Inspect the images first
+
+The planner opens every image with its image-viewing capability and examines the visible result
+as a separate pass before returning to the source to explain it. Remembering the authored graph,
+reading the HTML, extracting SVG text, or echoing an image filename does not establish visual
+inspection. Start with the overview, then follow branches in the detail captures. Check these
+dimensions:
+
+- **Coverage and complete paths.** Locate each input, section, goal, final-review gate, lifecycle
+  gate, and handoff. Trace input → section → goal and onward through the required gates. Look for
+  isolated nodes, disconnected phases, dropped branches, or a path that bypasses review or an exit
+  test. Compare the visible inventory with the plan and ledger after the initial image pass.
+- **Arrows and junctions.** Follow arrowheads to their actual destination, especially at fan-in,
+  fan-out, long return edges, and subgraph boundaries. Check reversed dependencies, accidental
+  shortcuts, missing joins, and duplicated or hidden edges. Crossing lines do not imply a junction;
+  adjacent nodes do not imply a dependency. If a connection is ambiguous, inspect a closer capture
+  and the source before deciding whether the defect is topology or presentation.
+- **Edge meanings and grouping.** Check the displayed legend against solid hard dependencies,
+  dashed provenance/soft edges, correction loops, and build/deployment invalidation edges. Distinct
+  meanings must remain distinguishable by label, style, or context at the captured scale. Phase
+  boxes and node placement must not imply a sequencing rule the actual edges contradict.
+- **Gate placement and bottlenecks.** Visually follow the critical chain and convergence points.
+  Check that cheap feedback is available when its inputs are ready, expensive or mutating gates
+  follow their last invalidating input and required review, and the layout does not obscure a
+  repeated build/deploy or a missing integration check. Cross-check the lifecycle budget and
+  recommended order; position on the page alone is not execution order.
+- **Legibility and marks.** Check cropped nodes, clipped/wrapped labels that lose meaning,
+  overlapping edges or arrowheads, contrast, and readable IDs. Risk and status marks must remain
+  visible and match the rulings/ledger. Report a layout issue when it hides or misrepresents the
+  plan; cosmetic preferences alone do not justify rejection.
+- **Agreement across views.** Compare topology and lifecycle diagrams, Mermaid source, `DEPENDS
+  ON`, section prose, rulings, and ledger. The same node must have the same identity and meaning.
+  Separate an actual plan contradiction from a render defect or an unresolved visual ambiguity.
+
+### Cross-check the plan
+
+The planner reads the plan's sources, topology, `DEPENDS ON` clauses, goals, rulings tables, gate
+budget, preflight, known blockers, section blocks, and ledger. Apply every class below, including:
+
+- Every `file:line` anchor resolves: run `node <skill-root>/assets/validate-report.mjs --kind
+  anchors --repo-root <repo> --input <plan>` and read the errors. Every named symbol, scope,
+  column, or export exists as claimed.
+- Every `DEPENDS ON` edge is buildable: no workspace cycle or import in an impossible direction.
+- Every input clause reaches a section or the out-of-scope list.
+- Every enforce/gate/block/redact section has a negative-space ruling.
+- Every rejection exit test has a paired admission exit test measured on real client behavior.
+- Every section that writes a new shared value has a reader-sweep entry.
+- The focused baseline has observed evidence; any broader baseline has a concrete risk or host
+  requirement; final gates are explicitly scheduled and not misreported as already passed.
+- No section is L-sized; the invariant-inversion count justifies each section's size.
+
+### Resolve findings and retain evidence
+
+The planner records the inspection in Graph Findings, naming the images actually viewed and the
+node/edge paths inspected. Each finding names the visible region, affected IDs, practical impact,
+and required correction. Record resolved findings too. A completed inspection includes observed
+visual checks, not just a statement that rendering succeeded; no code-review verdict is needed.
+
+Fix structural errors in the plan and Mermaid together. For a presentation defect, adjust layout,
+labels, or split views while preserving dependencies and visible cross-view connections. Re-validate
+after plan changes; re-render and re-inspect affected graphs after changes to their structure,
+labels, styles, or layout. Retain valid evidence for unchanged graphs. The planner repeats the
+affected checks under the skill's convergence rule; recording a finding without resolving it or
+naming an accepted risk does not close the inspection.
+
+If the browser, Mermaid CDN, capture tool, or planner image input is unavailable, try an available
+supported alternative without assuming a tool or dependency exists. If the planner cannot inspect
+the images, record **visual inspection: unperformed**, the cause, and the affected graphs in Graph
+Findings; source checks may continue but cannot complete the visual pass. Present the limitation
+under the existing approval rules; do not invent a new approval floor or route it to a code reviewer.
 
 ## Structural classes
 
@@ -32,6 +131,14 @@ classes · environment classes · evidence classes.
 
 ## Scope classes
 
+- **Consolidation outcome** — a helper, fixture, or new document is introduced but the intended
+  duplicate remains. Name the retirements and adopting callers in existing goals and sections;
+  compare the same before/after inventory, separating product, tests, plans, and generated output.
+  Preserve distinct caller checks; sharing setup alone does not replace their coverage. Apply
+  this to reduction requests, not as a deletion quota for features. _Origin:_ Tyxter #882's
+  September 6 consolidation added 1,388 net lines before a pruning follow-up removed 7,904;
+  #936's fixture adoption needed a separate test-body reduction after the user asked why the
+  codebase had barely shrunk (commit `062811da3`, 819 net lines removed).
 - **Dropped or partially consumed input** — an input node that reaches no section, _or an input
   whose clauses are only partly served_. Every clause reaches a section or is named in the
   out-of-scope list. _Origin:_ a plan folded one clause of a sibling issue, passed the dropped-input
@@ -103,6 +210,11 @@ classes · environment classes · evidence classes.
 
 ## Lifecycle classes
 
+- **Generated artifacts** — source, test-import, or file-placement changes invalidate a tracked
+  graph or inventory that the section did not schedule for refresh. Name its canonical generator
+  and check; run after the last invalidating edit and before review and broad gates. _Origin:_
+  Tyxter #861 required a dependency-metadata correction; #856 repeated the omission and reached
+  257/258 CI tasks before a stale graph forced regeneration, re-review, and a third CI attempt.
 - **Misplaced verification gate** — a cheap check delayed behind unrelated work, or an expensive
   or mutating gate scheduled before a later input invalidates it. Run inexpensive checks early;
   run expensive gates after the last change that can invalidate their inputs.

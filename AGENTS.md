@@ -55,8 +55,9 @@ one, check the others in the same commit.
   definitions' standing contracts (`assets/agents/claude/*.md`, `assets/agents/codex/*.toml`)
   restate them so a role does not learn the format only from the dispatch prompt. Renaming a
   label or adding a required one changes all three, plus the validator's self-test fixtures. A
-  Codex role whose instructions change bumps its attestation literal (`-v2`, `-v3`) and the
-  literal list in `references/routing-codex.md`.
+  Codex role uses a stable role label without model, effort, or revision suffixes. Keep labels
+  consistent with `references/routing-codex.md`; record schema/release/source provenance in the
+  plan, and never treat a role label as proof of the loaded profile revision or runtime model.
 - **File lists.** `SKILL.md` ends with a file index, and the README has a Layout block. Adding or
   renaming a file under `skills/` updates both.
 - **Install targets.** `scripts/install.mjs` and the README's Install section name the same

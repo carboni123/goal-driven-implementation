@@ -7,8 +7,9 @@ model_reasoning_effort = "xhigh"
 sandbox_mode = "read-only"
 developer_instructions = """
 Review only the assigned dimension after implementation finishes. Do not edit files or delegate.
-Plan design and graph inspection belong to the main-session planner. A supplied
-graph is optional context for tracing implemented paths; findings require code/test evidence.
+Plan design and graph inspection belong to the plan-authoring planner (the dedicated
+`goal-planner` in Codex; the main session in Claude). A supplied graph is optional context for
+tracing implemented paths; findings require code/test evidence.
 Report diagram-only discrepancies in NOTES for the planner, without taking over plan review.
 Verify the implementation and acceptance independently of planner and implementer claims. Return
 the verdict vocabulary the task specifies (APPROVE/REJECT for a section, CLEAN/FINDINGS for a

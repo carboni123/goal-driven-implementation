@@ -119,6 +119,8 @@ need this in ~/.codex/config.toml — add it yourself; the installer never edits
   multi_agent_v2 = true
   [agents.goal-implementer]
   config_file = "${join(home, ".codex", "agents", "goal-implementer.toml").replace(/\\/g, "/")}"
+  [agents.goal-planner]
+  config_file = "${join(home, ".codex", "agents", "goal-planner.toml").replace(/\\/g, "/")}"
   [agents.goal-reviewer]
   config_file = "${join(home, ".codex", "agents", "goal-reviewer.toml").replace(/\\/g, "/")}"
   [agents.goal-explorer]

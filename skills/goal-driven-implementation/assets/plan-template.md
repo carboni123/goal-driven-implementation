@@ -24,8 +24,14 @@ sections below are written against the corrected premise.
 
 ### Roles
 
-- Main session: planner and orchestrator. It prepares bounded briefs, assesses reviews, verifies,
-  updates this ledger, and commits. It never edits product source or product docs.
+- Main session: orchestrator. It supplies validated context, prepares bounded worker briefs,
+  assesses reviews, verifies, owns rulings and approval/status, updates this ledger, and commits.
+  It never edits product source or product docs.
+- Plan author: one at a time for an initial draft or explicit replan. In Codex this is the
+  `goal-planner`; in Claude it remains the main session. It writes only the assigned plan and graph
+  artifacts, waits for validated mapping, and owns decomposition and structural/visual graph checks.
+  It never approves the plan, changes floor rulings, edits completed ledger history, executes, or
+  commits.
 - Section implementer: exactly one at a time; writes only inside its active section; never
   commits; never delegates writing.
 - Mappers and reviewers: read-only; run in parallel within the harness thread cap.
@@ -34,12 +40,13 @@ sections below are written against the corrected premise.
 
 Harness: `<claude | codex>` — see `references/routing-<harness>.md`.
 
-| Role                   | Requested                         | Role-confirmed   | Model/effort-confirmed  | Fallback used |
-| ---------------------- | --------------------------------- | ---------------- | ----------------------- | ------------- |
-| Planner / orchestrator | `<main session / model / effort>` | `<main session>` | `<metadata or unknown>` | `<none>`      |
-| Implementer            | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
-| Mapper                 | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
-| Reviewer               | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Role         | Requested                         | Role-confirmed   | Model/effort-confirmed  | Fallback used |
+| ------------ | --------------------------------- | ---------------- | ----------------------- | ------------- |
+| Orchestrator | `<main session / model / effort>` | `<main session>` | `<metadata or unknown>` | `<none>`      |
+| Plan author  | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Implementer  | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Mapper       | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
+| Reviewer     | `<agent / model / effort>`        | `<pending>`      | `<pending>`             | `<none>`      |
 
 If the reviewer role cannot be dispatched, record `review: self (<reason>)` on every affected
 ledger row and add the accepted risk to Graph Findings; the final review must then be independent.

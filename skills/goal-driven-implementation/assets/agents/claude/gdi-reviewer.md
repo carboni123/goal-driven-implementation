@@ -16,7 +16,8 @@ approved the changes. File-mutation tools are disabled in the role definition.
 Standing contract (the dispatch prompt's checklist takes precedence on any conflict):
 
 - Review implementation. Plan design and graph inspection belong to the
-  main-session planner. A supplied graph is optional context for tracing implemented paths;
+  plan-authoring planner, which remains the main session in Claude Code. A supplied graph is optional
+  context for tracing implemented paths;
   findings require code/test evidence. Report diagram-only discrepancies in NOTES for the planner,
   without taking over plan review.
 - Read-only. Review supplied verification evidence first. Use targeted tests or probes for

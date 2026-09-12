@@ -9,6 +9,7 @@ and follow-ups. Where a harness exposes routing metadata, begin the report with 
 
 Contents:
 
+0. [Planner](#0-planner)
 1. [Mapper](#1-mapper)
 2. [Implementer](#2-implementer)
 3. [Section reviewer + lens checklists](#3-section-reviewer)
@@ -16,6 +17,44 @@ Contents:
 5. [Rejection follow-up](#5-rejection-follow-up)
 6. [Decision relay](#6-decision-relay)
 7. [Correction implementer](#7-correction-implementer)
+
+---
+
+## 0. Planner
+
+One plan author may write the assigned plan and graph artifacts at a time. In Codex, dispatch it
+only after the required PLAN-mode mapper returns validate; Claude keeps the main session as the
+plan author. Use a fresh context and do not delegate.
+
+```text
+Author or revise the assigned goal-driven implementation plan and its graph artifacts. Write only
+the named plan and graph paths; read source as needed. Do not edit product source or product docs,
+approve the plan, change floor rulings, update completed ledger history, execute sections, run final
+gates, commit, or delegate.
+
+PLAN ARTIFACT: {plan path}
+GRAPH ARTIFACTS: {render or image paths, or "none"}
+MAPPED CONTEXT: {merged VALIDATED mapper findings, or verified orchestrator anchors under the
+mapping exception}
+OPEN QUESTIONS: {unresolved facts and the owner of each answer}
+SCOPE AND SOURCES: {allowed plan inputs, exclusions, and source paths}
+RULINGS: {existing floor rulings and recorded calls}
+SKILL ROOT AND PROVENANCE: {resolved skill root, source revision/release, installed or repository copy}
+PREFLIGHT AND GATES: {status, baseline SHA, scheduled gates, and valid evidence}
+COMPLETION: {plan validation, structural/visual graph checks, and handoff criteria}
+
+Use SKILL.md's PLAN mode, assets/plan-template.md, and references/graph-analysis.md as the
+workflow. Use mapped facts and read narrowly when needed; report contradictions instead of
+silently expanding scope. Own decomposition and structural/visual graph checks. Inspect supplied
+images only when they are actual captures; if images or image tools are unavailable, report visual
+inspection as unperformed and name the affected graph and cause. Preserve approved scope and
+completed history on a bounded replan. The orchestrator owns probes/capture when needed, rulings,
+approval/status, ledger history, execution, review, gates, and commit.
+
+Return a concise free-form handoff after the ROUTING line. Include the plan path and status,
+commands and decisive check results (or pending), graph inspection evidence and image paths (or
+unperformed/cause), remaining open questions, and the next step for the orchestrator.
+```
 
 ---
 
@@ -192,8 +231,9 @@ auth, limits, resolvers, or hooks are touched. Doc-truth always runs.
 For section and final reviews, graph context is optional: include an existing planner-inspected
 image or relevant crop only when it clarifies cross-section dependencies, shared-state paths, or
 integration gates inside the lens. Label the relevant nodes and matching plan state; use `none`
-for a local review that gains nothing from a diagram. The main-session planner owns graph
-inspection and manages the existing plan-approval flow; missing graph context does not block code review.
+for a local review that gains nothing from a diagram. The plan-authoring planner owns graph
+inspection and the orchestrator manages the existing plan-approval flow; missing graph context does
+not block code review.
 
 ```text
 You are a focused, read-only reviewer for one section of an implementation plan. Do not modify

@@ -1,6 +1,6 @@
 ---
 name: goal-driven-implementation
-description: Author, graph-review, and execute goal-driven implementation plans with a two-tier workflow that works in Claude Code and OpenAI Codex. The main session plans, analyzes the dependency, provenance, and lifecycle-gate topology, orchestrates, reviews, verifies, and commits without editing product code; exactly one implementer builds each plan section while read-only mappers and reviewers run in parallel; sections iterate through correction rounds until they converge; a whole-branch final review against current main runs before any expensive or outward gate. Use when the user asks to create an implementation plan from a roadmap, PRD, ADR, or issue; draw or review a plan topology graph; execute or resume a plan; run a /goal; orchestrate a multi-section build; dispatch the next section; or fix an issue end to end.
+description: Author and execute goal-driven implementation plans. A harness-specific plan author drafts and graph-checks after validated mapping; one implementer builds each section, reviewers check it, and a whole-branch final review runs before expensive or outward gates. Use when creating, reviewing, resuming, or executing a plan, or fixing an issue end to end.
 ---
 
 # Goal-Driven Implementation
@@ -15,14 +15,18 @@ unreleased edits. Follow the harness's routing check before attributing a run to
 
 ## Role contract
 
-| Role                    | Who                            | May                                                                                                                          | Must never                                                                                      |
-| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| PLANNER + ORCHESTRATOR  | Main session                   | Read anything; write the plan and bounded task briefs; direct agents; assess reviews and gate evidence; commit accepted work | Edit product source or product docs — an implementer makes every product change                 |
-| IMPLEMENTER             | Exactly one per section        | Write code inside the active section; run gates and tests; spawn read-only helpers only where the harness allows             | Touch future sections; commit; delegate writing; cross a ruling floor without an approved brief |
-| MAPPER                  | Read-only agent                | Map code, tests, conventions, lifecycle couplings                                                                            | Write files                                                                                     |
-| REVIEWER                | Read-only agent, one lens each | Review implemented code within one dimension with `file:line` evidence                                                       | Write files; design or approve plans                                                             |
+| Role         | Who                    | May                                                                                         | Must never                                                         |
+| ------------ | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ORCHESTRATOR | Main session           | Read; supply context; direct workers; own rulings, status, ledger, reviews, gates, commits | Edit product source/docs; silently replace the plan-authoring route |
+| PLANNER      | Plan-authoring session | Write assigned plan/graph artifacts; decompose; resolve ambiguity; check graphs             | Edit product source/docs; delegate; approve; alter rulings/history; execute; commit |
+| IMPLEMENTER  | One per section        | Write code in its section; run gates/tests; spawn allowed read-only helpers                 | Touch future sections; commit; delegate writing; cross an unruled floor |
+| MAPPER       | Read-only agent        | Map code, tests, conventions, lifecycle couplings                                           | Write files                                                         |
+| REVIEWER     | Read-only, one lens    | Review implemented code with `file:line` evidence                                           | Write files; design or approve plans                               |
 
-The main-session planner owns structural and visual graph review. Code reviewers may use its
+The plan-authoring planner owns decomposition and structural and visual graph review. In Claude Code
+that remains the main session; Codex dispatches `goal-planner` after validated PLAN-mode mapping.
+The orchestrator supplies rulings, preflight/evidence, open questions, and artifact paths, and may
+run probes or captures when the planner lacks those tools. Code reviewers may use the planner's
 inspected graph as context for tracing implementation paths; a diagram is not implementation evidence.
 
 Implementation is strictly sequential: only one implementer agent may exist at a time. Mappers and reviewers
@@ -32,9 +36,10 @@ run in parallel within the harness thread cap.
 reference each — read the one for the harness you are running in before the first dispatch:
 
 - Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions, `SendMessage`
-  for follow-ups, implementer may spawn read-only helpers).
-- Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, routing
-  attestation; ordinary workers do not spawn, with a bounded delegated-orchestrator exception).
+  for follow-ups, main session remains the plan author, and implementer may spawn read-only helpers).
+- Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, a dedicated
+  `goal-planner`, routing attestation; ordinary workers do not spawn, with a bounded
+  delegated-orchestrator exception).
 
 Resolve every role during preflight, **before** preparing the plan for approval, and record
 `requested / role-confirmed / model-confirmed` per role in the plan. If the reviewer role cannot be
@@ -43,7 +48,7 @@ orchestrator's own dispatch is a last resort: record it as `review: self (<reaso
 and as an accepted risk in Graph Findings, and the whole-branch final review must then run with an
 independent agent. If no independent reviewer can be obtained at all, stop and say so.
 
-The planner owns decomposition and resolves ambiguity before dispatch. A bounded brief names the
+The plan-authoring planner owns decomposition and resolves ambiguity before dispatch. A bounded brief names the
 allowed files, observed mechanism, existing exemplar, invariants, acceptance checks, exclusions,
 and applicable rulings; use the existing section fields rather than another planning document.
 Include only context needed for that assignment. A detailed brief can still be wrong: workers
@@ -188,8 +193,14 @@ Inside the lane:
    `validate-report.mjs --kind mapper` before merging. A flat repository (`features: 0`) maps as
    one unit. The map is a working file: list it under baseline exclusions unless host conventions
    keep generated plan artifacts.
-3. Instantiate `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions).
-   Fill every field. In particular:
+3. After the required PLAN-mode mapper returns validate, dispatch the harness's plan-authoring
+   route from its routing reference, using the §0 planner prompt. The orchestrator supplies the
+   validated mapper brief (or verified anchors under the mapping exception), open questions,
+   existing rulings, scope, preflight/evidence, and plan/graph paths. A missing supported route
+   follows the harness's explicit deviation policy; it never silently inherits a weaker model.
+   Claude keeps the main session as the plan author. The planner instantiates
+   `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions) and fills
+   every field. In particular:
    - **Global gate**: name the final verification command: the owning package's _full_ suite
      plus affected dependents, including fail-closed registries in other packages. Establish a
      focused baseline or reproduction, reusing valid evidence when available; run a broader
@@ -235,10 +246,10 @@ Inside the lane:
      feature map; a section that writes into a shared kernel says so there.
    - **Base drift policy**: when to re-baseline on `origin/main` and what happens if a stacked
      predecessor merges.
-4. Draw the topology graph (conventions in the template). Every section sits on a full
+4. The plan-authoring planner draws the topology graph (conventions in the template). Every section sits on a full
    input → section → goal path; every input reaches a section; the graph, `DEPENDS ON`, ledger,
    and linear order agree.
-5. Run the graph analysis pass — the full checklist with worked examples is in
+5. The plan-authoring planner runs the graph analysis pass — the full checklist with worked examples is in
    `references/graph-analysis.md`; read it. Fix what can be fixed by restructuring; record the rest
    under `### Graph Findings` as named accepted risks with mitigations. The classes that most often
    went unchecked in practice: **reader sweep** (a widened shared value, enum, event type, or
@@ -259,11 +270,13 @@ Inside the lane:
    and capture readable screenshots of every graph. The script generates HTML, not screenshots.
    Keep renders and images outside tracked plan files. Follow **Rendered graph inspection** in
    `references/graph-analysis.md` for capture, the visual checklist, and unavailable-tool handling.
-8. The main-session planner visually inspects the rendered graphs before presenting the plan.
+8. The plan-authoring planner visually inspects the rendered graphs before presenting the plan.
    Actually open the screenshots with image-viewing tools or supported image input, examine the
    visible paths and layout, then compare them with the Mermaid and plan. Follow **Rendered graph
    inspection** in `references/graph-analysis.md`; source review alone cannot complete this step.
-   This is planner work, not a `gdi-reviewer`/`goal-reviewer` dispatch or a new planner child.
+   This is planner work, not a reviewer dispatch or a second planner for the same artifact. The
+   orchestrator may run the environment probe or capture and hand actual images back when the
+   planner lacks those tools; unavailable images remain an unperformed inspection.
    Fix concrete findings, update Graph Findings, and re-validate, re-render, and re-inspect affected
    graphs after corrections.
    Record unavailable visual inspection explicitly; never turn missing images into an approval.
@@ -271,6 +284,11 @@ Inside the lane:
    and the inspection limitation; raw code is not visual evidence.
    Apply the approval rule from **Select a mode**. On approval or auto-start, set `status`,
    record the approval evidence, and re-validate.
+
+Plan writes are serialized. On an initial draft, the planner returns the artifact and check results;
+the orchestrator then owns approval, status, ledger history, and execution. A bounded replan uses
+the same handoff after the orchestrator preserves completed sections, approvals, and ledger history.
+Do not dispatch a planner for an EXECUTE resume when no replan is needed.
 
 ## EXECUTE mode — per-section loop
 
@@ -392,6 +410,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
+- `assets/agents/codex/goal-planner.toml` — Codex plan-authoring and graph-checking role; model and
+  effort are configuration, independent of the role label.
 - `assets/agents/codex/goal-implementer.toml` — Codex implementation role; model and effort are
   configuration, independent of its name.
 - `references/agent-prompts.md` — mapper, implementer, reviewer lenses, final-review, rejection,

@@ -2,24 +2,27 @@
 
 ## Policy
 
-Use the existing main session as the PLANNER + ORCHESTRATOR; request `gpt-6-astra` at `xhigh`.
-It decomposes work, directs bounded agents, reviews evidence, and commits; it never edits product
-code, is never a spawned worker, and is not a new installed role or premium peer.
-The user or client selects the active main-session model; this skill cannot change it by prose or
-by spawning a premium peer. Request the Astra xhigh pin, record runtime-confirmed evidence (or
-`unknown`) and any deviation separately, and honor explicit user overrides.
+Use the existing main session as the ORCHESTRATOR. The user or client selects its model and effort
+(for example `gpt-5.6-sol` or `gpt-6-astra`); this skill cannot change that route by prose or by
+spawning a premium peer. The orchestrator owns rulings, approval/status, the ledger, execution,
+review, gates, and commits. In PLAN mode, after the required mapper returns validate, dispatch one
+`goal-planner` at `gpt-6-astra` with `xhigh` to author and check the plan and graph artifacts.
+Record runtime-confirmed evidence (or `unknown`) and any deviation separately, and honor explicit
+user overrides.
 
-| Role                   | Custom agent             | Model · effort            | Notes                             |
-| ---------------------- | ------------------------ | ------------------------- | --------------------------------- |
-| Planner + orchestrator | Existing root session    | `gpt-6-astra` · `xhigh`   | No spawned peer or installed role |
-| Implementer            | `goal-implementer`       | `gpt-5.6-luna` · `max`    | One per section; no nested spawns |
-| Mapper                 | `goal-explorer`          | `gpt-5.6-luna` · `max`    | Read-only                         |
-| Reviewer               | `goal-reviewer`          | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn     |
+| Role         | Custom agent          | Model · effort            | Notes                                      |
+| ------------ | --------------------- | ------------------------- | ------------------------------------------ |
+| Orchestrator | Existing root session | User-selected            | Owns rulings, ledger, gates, and commits   |
+| Plan author  | `goal-planner`        | `gpt-6-astra` · `xhigh`   | One after validated mapping; plan/graph only |
+| Implementer  | `goal-implementer`    | `gpt-5.6-luna` · `max`    | One per section; no nested spawns          |
+| Mapper       | `goal-explorer`       | `gpt-5.6-luna` · `max`    | Read-only                                  |
+| Reviewer     | `goal-reviewer`       | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn              |
 
 Select each role's model and effort explicitly; never let a child inherit the main-session route.
 Do not automatically promote a Luna worker to a costlier model when it struggles. Diagnose the
 missing fact or narrow the instruction within the same approved section, preserving convergence
-and decision boundaries. Do not spawn an additional Astra planner peer merely to plan or review.
+and decision boundaries. Do not spawn a second planner for the same plan artifact merely to plan or
+review.
 The delegated-orchestrator exception is limited to an explicitly assigned bounded multi-section
 subtree with exact section IDs and paths. The root retains the ledger, acceptance, commit, and
 final-gate decisions; one implementer remains active globally, descendants count against thread
@@ -42,6 +45,10 @@ custom agents from `~/.codex/agents/`; copy them there:
 ```bash
 cp <skill-root>/assets/agents/codex/*.toml ~/.codex/agents/
 ```
+
+Adding a TOML to the source tree does not update the current session's role inventory. Install or
+copy the definitions and reload Codex before relying on `goal-planner`; until then use the direct
+bounded Astra xhigh route and record role/model confirmation from runtime metadata (or `unknown`).
 
 Older releases (verified on 0.144.6) require `multi_agent_v2` under `[features]` in
 `~/.codex/config.toml` and an `[agents.<name>]` entry per role whose `config_file` points at the
@@ -71,8 +78,9 @@ Keep three facts distinct and record them separately in the plan's Harness routi
   an attestation, or a self-description does not prove the runtime model. An explicit supported
   pin may still be requested when metadata is hidden, but record model-confirmed as `unknown`.
 
-The existing `attestation` report field carries only a stable role label: `gdi-implementer`,
-`gdi-mapper`, or `gdi-reviewer`, matching the shared responsibilities in Claude Code. It proves
+The existing `attestation` report field carries only a stable role label: `gdi-planner`,
+`gdi-implementer`, `gdi-mapper`, or `gdi-reviewer`, matching the shared responsibilities in Claude
+Code. It proves
 neither profile freshness nor model routing. Keep `gdi_schema` (plan format), `gdi_version` (skill
 release), and source path/revision in the plan's provenance; none alone proves which profile the
 runtime loaded. Verify installed definitions and reload after changes, or use the current direct
@@ -94,6 +102,7 @@ in order:
 (1) `agent_type` naming the current registered role;
 (2) direct `model` + `reasoning_effort` at that role's pins when the schema declares them:
 
+- Planner: `model: "gpt-6-astra"`, `reasoning_effort: "xhigh"`.
 - Implementer: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`.
 - Mapper: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`; a built-in `explorer` is usable
   only when it can select this route. A built-in role name alone does not establish the pin.
@@ -101,7 +110,11 @@ in order:
 
 A generic child receives the role's scope, write restrictions, and report contract from the
 dispatch template; report `attestation=none` unless a profile actually supplies one. Do not put
-attestation literals in a fallback prompt. If neither Luna route is available for the
+attestation literals in a fallback prompt. If neither the registered `goal-planner` nor the direct
+Astra xhigh route is supported, do not silently inherit the orchestrator's weaker route or treat a
+deviation record as permission to downgrade. Continue independent mapping and preparation, then
+pause plan authorship until the user supplies and the orchestrator records an explicit route
+override. If neither Luna route is available for the
 **implementer**, stop before product edits. If neither Luna route is available for a **mapper**,
 the orchestrator may gather the same anchored context itself and record the fallback. For the
 **reviewer**, use a generic read-only child at Terra `xhigh` before falling back to main-session
@@ -115,6 +128,10 @@ For initial dispatches, corrections, and follow-ups, prepend this wrapper to the
 body in `references/agent-prompts.md`. The installed implementer repeats its core guidance so it
 also applies when that role is dispatched directly. Keep routing evidence separate from the body;
 let an installed profile supply its own role label.
+
+For PLAN mode, use the §0 planner body only after the required mapper returns validate. The planner
+receives a fresh merged context and writes only the named plan/graph artifacts. A bounded replan
+preserves completed history; an EXECUTE resume without a replan does not dispatch it again.
 
 For a generic correction implementer, also include the RULES from template §2; a fresh child
 does not inherit them. Apply those rules to the listed findings, with template §7 defining the
@@ -146,8 +163,11 @@ Do not spawn subagents from an ordinary worker. Any delegated orchestrator may d
 roles and subtree expressly assigned to it under the routing policy.
 ```
 
-The root dispatches mappers and reviewers under `SKILL.md`'s counts and eligibility rules; a
-Luna implementer stays the sole writer. Apply the wrapper's authorization guidance when
+The root dispatches the plan author, mappers, and reviewers under `SKILL.md`'s counts and eligibility
+rules; the plan author is the sole writer of the plan and Mermaid source during its active authoring
+window. The root may write temporary render/capture artifacts when the planner lacks those tools and
+resumes ledger/status writes after handoff. A Luna implementer stays the sole product writer.
+Apply the wrapper's authorization guidance when
 orchestrating too: request only unresolved rulings, with the exact instruction and evidence.
 This adapts the [Astra prompting guidance](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra.md#prompting-best-practices)
 (read 2026-09-05) to GDI's existing role boundaries and verification gates.
@@ -159,6 +179,8 @@ This adapts the [Astra prompting guidance](https://developers.openai.com/api/doc
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.
 - Before resuming an older plan, update unchecked implementer assignments targeting the former
-  role name or Astra-low, Sol, or Terra routes to `goal-implementer` / Luna max; future mapper
-  assignments stay on Luna max and reviewer assignments use Terra xhigh. Re-run routing preflight
-  and record the new evidence; preserve completed history and any explicit plan-specific user override.
+  role name or Astra-low, Sol, or Terra routes to `goal-implementer` / Luna max; future planner
+  assignments use `goal-planner` / Astra xhigh, mapper assignments stay on Luna max, and reviewer
+  assignments use Terra xhigh. Re-run routing preflight and record the new evidence; preserve
+  completed history and any explicit plan-specific user override. Do not add a planner dispatch to
+  an EXECUTE-only resume unless a bounded replan is required.

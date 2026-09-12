@@ -4,6 +4,7 @@
 
 | Role                                                                                                                | `subagent_type`           | Pinned model · effort | Notes                                                                     |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------- | ------------------------------------------------------------------------- |
+| Plan author                                                                                                         | Existing main session    | User-selected         | PLAN mode; no new Claude role or pin                                      |
 | Implementer                                                                                                         | `gdi-implementer`         | opus · high           | One writer per section; may spawn ≤5 read-only helpers via the Agent tool |
 | Mapper                                                                                                              | `gdi-mapper`              | sonnet · medium       | Read-only; verifies anchors before reporting                              |
 | Verify-class reviewer (security, data, contract, failure-mode, doc-truth, capacity, evaluator, final-review lenses) | `gdi-reviewer`            | opus · high           | Read-only; may run tests and probes to verify                             |
@@ -12,6 +13,10 @@
 Model and effort pins are set in the agent definitions' frontmatter. **Never pass a per-call
 `model`** to these types: it overrides the pinned model. Effort has no
 per-call override.
+
+Claude Code keeps plan authorship and graph inspection in the existing main session. Do not create
+a Claude planner child or change its model pin; the dedicated planner role is a Codex routing
+choice.
 
 ## Installing the roles
 

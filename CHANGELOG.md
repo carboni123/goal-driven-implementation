@@ -3,6 +3,17 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed
+
+- **Maintainer request, 2026-09-12.** Add a dedicated Codex `goal-planner` at Astra xhigh after
+  validated mapper context, with plan/graph-only writes and an explicit handoff to the
+  user-selected orchestrator. The supplied Astra prompting notes motivate the concise, progressive
+  planner prompt, honest unavailable-image handling, and completion through existing plan and graph
+  checks. Existing schema, Claude main-session planning, worker/reviewer pins, and EXECUTE resume
+  behavior remain compatible (`docs/plans/2026-09-12-goal-planner-plan.md`).
+
 ## 0.5.0 — 2026-09-10
 
 ### Evidence

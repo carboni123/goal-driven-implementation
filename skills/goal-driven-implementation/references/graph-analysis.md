@@ -12,10 +12,13 @@ data classes · lifecycle classes · environment classes · evidence classes.
 
 ## Rendered graph inspection
 
-For full PLAN mode, the main-session planner inspects actual rendered images after authoring and
-validating the Mermaid, before presenting the plan. It owns this pass and the structural/premise
-checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation code, not plans. Use the
-existing planner session, with no additional agent dispatch. The bounded-fix lane keeps its
+For full PLAN mode, the plan-authoring planner inspects actual rendered images after authoring and
+validating the Mermaid, before presenting the plan. In Claude Code this remains the main session;
+Codex uses the dedicated `goal-planner` after validated mapper context. The planner owns this pass
+and the structural/premise checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation
+code, not plans. Do not dispatch a second planner for the same artifact. The orchestrator may run
+the environment probe or capture and hand actual images to the planner; if the planner cannot
+inspect supplied images, record the visual pass as unperformed. The bounded-fix lane keeps its
 optional rendering rule. _Origin:_ on September 10, 2026, the maintainer reported that an agent
 viewing a rendered graph caught an error missed while reading its Mermaid source, and requested
 an explicit visual pass, then clarified that graph review belongs to the goal planner.

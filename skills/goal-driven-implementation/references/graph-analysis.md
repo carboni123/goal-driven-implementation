@@ -13,8 +13,8 @@ data classes · lifecycle classes · environment classes · evidence classes.
 ## Rendered graph inspection
 
 For full PLAN mode, the plan-authoring planner inspects actual rendered images after authoring and
-validating the Mermaid, before presenting the plan. In Claude Code this remains the main session;
-Codex uses the dedicated `goal-planner` after validated mapper context. The planner owns this pass
+validating the Mermaid, before presenting the plan. Claude Code dispatches `gdi-planner` and Codex
+`goal-planner`, both after validated mapper context. The planner owns this pass
 and the structural/premise checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation
 code, not plans. Do not dispatch a second planner for the same artifact. The orchestrator may run
 the environment probe or capture and hand actual images to the planner; if the planner cannot

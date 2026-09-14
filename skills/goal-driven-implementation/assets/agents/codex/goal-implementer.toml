@@ -3,8 +3,8 @@
 # Model and effort are configuration, independent of the role name.
 name = "goal-implementer"
 description = "Implementation worker for one approved goal-driven plan section."
-model = "gpt-5.6-luna"
-model_reasoning_effort = "max"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
 developer_instructions = """
 Implement exactly one approved plan section. You may edit product code within that section, but
 must not commit, edit the progress ledger, work on future sections, or spawn subagents. Follow

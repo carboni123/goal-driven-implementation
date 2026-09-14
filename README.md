@@ -6,15 +6,22 @@ plan author for the initial draft or an explicit replan, one implementer per pla
 read-only reviewers, a whole-branch final review against current `main`, and a plan file that
 doubles as the progress ledger. Works in Claude Code and OpenAI Codex CLI from one `SKILL.md`.
 
-Preferred Codex routing: the user/client-selected main-session orchestrator, a dedicated plan author
-**Astra xhigh** after validated mapping, mappers and the sole implementer **Luna max**, and
-independent reviewers **Terra xhigh**. The skill records the orchestrator's actual route or unknown
-metadata. The plan author supplies bounded, anchored assignments; reviewers check both the resulting
-code and the plan's assumptions. These are maintainer-selected cost preferences, with outcomes and
-available usage recorded per role.
+Preferred Codex routing: the user/client-selected main-session orchestrator, a dedicated plan
+author **Astra xhigh** after validated mapping, mappers **Luna max**, the sole implementer
+**Terra high**, and independent reviewers **Terra xhigh**. The skill records the orchestrator's
+actual route or unknown metadata. The plan author supplies bounded, anchored assignments;
+reviewers check both the resulting code and the plan's assumptions. These are maintainer-selected
+cost preferences, with outcomes and available usage recorded per role.
 The Codex planner is `goal-planner`; model and effort stay in its configuration. The orchestrator's
 model remains user-selected.
 The Codex implementer is `goal-implementer`; model and effort stay in its configuration.
+
+Claude Code routing: the user-selected main session orchestrates; `gdi-planner`, which inherits
+the session's model, authors the plan in a fresh context after validated mapping;
+`gdi-implementer` (Opus high) builds; `gdi-mapper` (Sonnet medium) maps; `gdi-reviewer` (Opus
+high) and `gdi-convention-reviewer` (Opus medium) review. Preflight diffs the installed agent
+definitions against the skill's copies before the first dispatch, because a stale definition runs
+an older contract while the plan records the current release.
 
 ## Install
 
@@ -32,7 +39,7 @@ node goal-driven-implementation/scripts/install.mjs        # both harnesses
 node goal-driven-implementation/scripts/install.mjs --only codex
 ```
 
-Targets: `~/.claude/skills/`, `~/.claude/agents/` (four `gdi-*` roles), `~/.codex/skills/`,
+Targets: `~/.claude/skills/`, `~/.claude/agents/` (five `gdi-*` roles), `~/.codex/skills/`,
 `~/.agents/skills/`, `~/.codex/agents/` (four `goal-*` roles). Existing copies are moved to a
 `.bak-<timestamp>` sibling.
 
@@ -44,13 +51,14 @@ prints the new snippet and leaves legacy config/files intact. See the
 ## What a run looks like
 
 1. **PLAN** — scout the repository into a feature map (`assets/scout-repo.mjs`, no LLM call),
-   map the code one unit at a time, dispatch the Codex plan author after mapper returns validate (or
+   map the code one unit at a time, dispatch the plan author after mapper returns validate (or
    use the existing mapping exception when the orchestrator has verified every context anchor),
    write the plan from `assets/plan-template.md`, draw the topology graph (inputs → sections → goal
    exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
    validate, render, have the plan author inspect supplied screenshots, and either wait for the
-   user's ruling on floor items or start. Claude keeps the main session as plan author.
+   user's ruling on floor items or start. The plan author is a dedicated role in both harnesses
+   (`gdi-planner`, `goal-planner`); the orchestrator checks its write boundary and re-validates.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
    eight review lenses in parallel, every agent return validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
@@ -91,7 +99,7 @@ skills/goal-driven-implementation/
     render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
     scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
     validate-report.mjs          structural check of agent returns and anchors (--self-test)
-    agents/claude/gdi-*.md       pinned Claude Code roles
+    agents/claude/gdi-*.md       pinned Claude Code roles (planner, implementer, mapper, two reviewers)
     agents/codex/goal-*.toml     Codex custom agents
       goal-planner.toml         Astra plan-authoring role
       goal-implementer.toml     model-neutral implementation role

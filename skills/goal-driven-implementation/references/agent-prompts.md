@@ -22,9 +22,10 @@ Contents:
 
 ## 0. Planner
 
-One plan author may write the assigned plan and graph artifacts at a time. In Codex, dispatch it
-only after the required PLAN-mode mapper returns validate; Claude keeps the main session as the
-plan author. Use a fresh context and do not delegate.
+One plan author may write the assigned plan and graph artifacts at a time. Dispatch it only after
+the required PLAN-mode mapper returns validate (`gdi-planner` in Claude Code, `goal-planner` in
+Codex; a harness fallback is recorded, never silent). It runs in a fresh context and does not
+delegate.
 
 ```text
 Author or revise the assigned goal-driven implementation plan and its graph artifacts. Write only
@@ -51,9 +52,10 @@ inspection as unperformed and name the affected graph and cause. Preserve approv
 completed history on a bounded replan. The orchestrator owns probes/capture when needed, rulings,
 approval/status, ledger history, execution, review, gates, and commit.
 
-Return a concise free-form handoff after the ROUTING line. Include the plan path and status,
-commands and decisive check results (or pending), graph inspection evidence and image paths (or
-unperformed/cause), remaining open questions, and the next step for the orchestrator.
+Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
+Include the plan path and status, commands and decisive check results (or pending), graph
+inspection evidence and image paths (or unperformed/cause), remaining open questions, and the
+next step for the orchestrator.
 ```
 
 ---

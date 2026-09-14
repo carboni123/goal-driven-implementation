@@ -42,8 +42,9 @@ one, check the others in the same commit.
 
 - **Model and effort pins.** The Claude agent frontmatter (`assets/agents/claude/*.md`), the
   role table in `references/routing-claude.md`, and any pin mentioned in `SKILL.md` must agree.
-  Same for the Codex TOMLs and `references/routing-codex.md`. Current Claude pins: implementer
-  opus·high, mapper sonnet·medium, verify-class reviewer opus·high, convention reviewer opus·medium.
+  Same for the Codex TOMLs and `references/routing-codex.md`. Current Claude pins: planner
+  inherit (session model and effort), implementer opus·high, mapper sonnet·medium, verify-class
+  reviewer opus·high, convention reviewer opus·medium.
 - **Plan schema.** `assets/plan-template.md`, `validate-plan.mjs`, and the schema description in
   `SKILL.md` describe one contract. A new required surface goes into all three. The validator must
   keep accepting `gdi_schema: 1` plans under the legacy rules and every plan a previous release

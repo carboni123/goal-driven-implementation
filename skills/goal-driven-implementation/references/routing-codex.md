@@ -14,12 +14,12 @@ user overrides.
 | ------------ | --------------------- | ------------------------- | ------------------------------------------ |
 | Orchestrator | Existing root session | User-selected            | Owns rulings, ledger, gates, and commits   |
 | Plan author  | `goal-planner`        | `gpt-6-astra` · `xhigh`   | One after validated mapping; plan/graph only |
-| Implementer  | `goal-implementer`    | `gpt-5.6-luna` · `max`    | One per section; no nested spawns          |
+| Implementer  | `goal-implementer`    | `gpt-5.6-terra` · `high`  | One per section; no nested spawns          |
 | Mapper       | `goal-explorer`       | `gpt-5.6-luna` · `max`    | Read-only                                  |
 | Reviewer     | `goal-reviewer`       | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn              |
 
 Select each role's model and effort explicitly; never let a child inherit the main-session route.
-Do not automatically promote a Luna worker to a costlier model when it struggles. Diagnose the
+Do not automatically promote a worker to a costlier model or effort when it struggles. Diagnose the
 missing fact or narrow the instruction within the same approved section, preserving convergence
 and decision boundaries. Do not spawn a second planner for the same plan artifact merely to plan or
 review.
@@ -34,8 +34,10 @@ Role names identify responsibilities. Model and effort belong in the TOML and ro
 changing them does not rename the role. Codex's `goal-implementer` corresponds to Claude Code's
 `gdi-implementer` through the harness routing, with the same shared task and report contract.
 
-Economics note: the user observed a cost regression on Astra-low; expected Luna savings remain
-unmeasured. Do not state prices or claim proven quality equivalence from this routing change.
+Economics note: the user observed a cost regression on Astra-low, and on 2026-09-13 reported that
+the Luna implementer trial (0.5.0 to 0.5.1) did not go well; the implementer returns to Terra at
+`high`. Mapping stays on Luna `max`. Neither trial produced per-role usage counters. Do not state
+prices or claim proven quality equivalence from this routing change.
 
 ## Installing the roles
 
@@ -103,7 +105,7 @@ in order:
 (2) direct `model` + `reasoning_effort` at that role's pins when the schema declares them:
 
 - Planner: `model: "gpt-6-astra"`, `reasoning_effort: "xhigh"`.
-- Implementer: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`.
+- Implementer: `model: "gpt-5.6-terra"`, `reasoning_effort: "high"`.
 - Mapper: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`; a built-in `explorer` is usable
   only when it can select this route. A built-in role name alone does not establish the pin.
 - Reviewer: `model: "gpt-5.6-terra"`, `reasoning_effort: "xhigh"`.
@@ -114,8 +116,8 @@ attestation literals in a fallback prompt. If neither the registered `goal-plann
 Astra xhigh route is supported, do not silently inherit the orchestrator's weaker route or treat a
 deviation record as permission to downgrade. Continue independent mapping and preparation, then
 pause plan authorship until the user supplies and the orchestrator records an explicit route
-override. If neither Luna route is available for the
-**implementer**, stop before product edits. If neither Luna route is available for a **mapper**,
+override. If neither route (registered role or direct pin) is available for the **implementer**,
+stop before product edits. If neither route is available for a **mapper**,
 the orchestrator may gather the same anchored context itself and record the fallback. For the
 **reviewer**, use a generic read-only child at Terra `xhigh` before falling back to main-session
 review; main-session review requires `review: self (<reason>)` on the ledger row and an accepted
@@ -166,7 +168,7 @@ roles and subtree expressly assigned to it under the routing policy.
 The root dispatches the plan author, mappers, and reviewers under `SKILL.md`'s counts and eligibility
 rules; the plan author is the sole writer of the plan and Mermaid source during its active authoring
 window. The root may write temporary render/capture artifacts when the planner lacks those tools and
-resumes ledger/status writes after handoff. A Luna implementer stays the sole product writer.
+resumes ledger/status writes after handoff. The implementer stays the sole product writer.
 Apply the wrapper's authorization guidance when
 orchestrating too: request only unresolved rulings, with the exact instruction and evidence.
 This adapts the [Astra prompting guidance](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra.md#prompting-best-practices)
@@ -179,8 +181,9 @@ This adapts the [Astra prompting guidance](https://developers.openai.com/api/doc
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.
 - Before resuming an older plan, update unchecked implementer assignments targeting the former
-  role name or Astra-low, Sol, or Terra routes to `goal-implementer` / Luna max; future planner
-  assignments use `goal-planner` / Astra xhigh, mapper assignments stay on Luna max, and reviewer
-  assignments use Terra xhigh. Re-run routing preflight and record the new evidence; preserve
+  role name or Astra-low, Sol, Luna, or Terra-xhigh routes to `goal-implementer` / Terra high;
+  future planner assignments use `goal-planner` / Astra xhigh, mapper assignments stay on Luna
+  max, and reviewer assignments use Terra xhigh. Re-run routing preflight and record the new
+  evidence; preserve
   completed history and any explicit plan-specific user override. Do not add a planner dispatch to
   an EXECUTE-only resume unless a bounded replan is required.

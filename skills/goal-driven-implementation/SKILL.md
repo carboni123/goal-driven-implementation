@@ -23,8 +23,9 @@ unreleased edits. Follow the harness's routing check before attributing a run to
 | MAPPER       | Read-only agent        | Map code, tests, conventions, lifecycle couplings                                           | Write files                                                         |
 | REVIEWER     | Read-only, one lens    | Review implemented code with `file:line` evidence                                           | Write files; design or approve plans                               |
 
-The plan-authoring planner owns decomposition and structural and visual graph review. In Claude Code
-that remains the main session; Codex dispatches `goal-planner` after validated PLAN-mode mapping.
+The plan-authoring planner owns decomposition and structural and visual graph review. Both
+harnesses dispatch it after validated PLAN-mode mapping: `gdi-planner` in Claude Code,
+`goal-planner` in Codex.
 The orchestrator supplies rulings, preflight/evidence, open questions, and artifact paths, and may
 run probes or captures when the planner lacks those tools. Code reviewers may use the planner's
 inspected graph as context for tracing implementation paths; a diagram is not implementation evidence.
@@ -35,8 +36,9 @@ run in parallel within the harness thread cap.
 **Harness routing.** Model, effort, and dispatch mechanics differ per harness and are defined in one
 reference each — read the one for the harness you are running in before the first dispatch:
 
-- Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions, `SendMessage`
-  for follow-ups, main session remains the plan author, and implementer may spawn read-only helpers).
+- Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions including a
+  `gdi-planner` that inherits the session model, a definition-currency check in preflight,
+  `SendMessage` for follow-ups, and an implementer that may spawn read-only helpers).
 - Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, a dedicated
   `goal-planner`, routing attestation; ordinary workers do not spawn, with a bounded
   delegated-orchestrator exception).
@@ -198,7 +200,8 @@ Inside the lane:
    validated mapper brief (or verified anchors under the mapping exception), open questions,
    existing rulings, scope, preflight/evidence, and plan/graph paths. A missing supported route
    follows the harness's explicit deviation policy; it never silently inherits a weaker model.
-   Claude keeps the main session as the plan author. The planner instantiates
+   When the planner returns, the orchestrator confirms that only the plan and graph artifacts
+   changed and runs the validation itself. The planner instantiates
    `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions) and fills
    every field. In particular:
    - **Global gate**: name the final verification command: the owning package's _full_ suite
@@ -410,6 +413,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
+- `assets/agents/claude/gdi-planner.md` — Claude Code plan-authoring and graph-checking role;
+  inherits the session model and effort and writes only plan and graph artifacts.
 - `assets/agents/codex/goal-planner.toml` — Codex plan-authoring and graph-checking role; model and
   effort are configuration, independent of the role label.
 - `assets/agents/codex/goal-implementer.toml` — Codex implementation role; model and effort are

@@ -27,8 +27,8 @@ sections below are written against the corrected premise.
 - Main session: orchestrator. It supplies validated context, prepares bounded worker briefs,
   assesses reviews, verifies, owns rulings and approval/status, updates this ledger, and commits.
   It never edits product source or product docs.
-- Plan author: one at a time for an initial draft or explicit replan. In Codex this is the
-  `goal-planner`; in Claude it remains the main session. It writes only the assigned plan and graph
+- Plan author: one at a time for an initial draft or explicit replan (`gdi-planner` in Claude Code,
+  `goal-planner` in Codex; a recorded fallback otherwise). It writes only the assigned plan and graph
   artifacts, waits for validated mapping, and owns decomposition and structural/visual graph checks.
   It never approves the plan, changes floor rulings, edits completed ledger history, executes, or
   commits.

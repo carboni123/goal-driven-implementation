@@ -3,6 +3,59 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — Claude Code routing reviewed against the 0.5.x Codex changes
+
+**Maintainer request, 2026-09-13.** Review the Claude routing against the 0.5.0 and 0.5.1 Codex
+changes and improve it; both releases had left Claude unchanged by scope. Findings and changes:
+
+- **Dedicated Claude planner.** New `assets/agents/claude/gdi-planner.md`, dispatched with the
+  shared §0 planner prompt after PLAN-mode mapping validates, as Codex dispatches `goal-planner`.
+  It pins `model: inherit` and no effort: plan quality tracks the session the user selected, no
+  new economics pin is introduced, and the role's value is a fresh context holding only the
+  validated brief, rulings, and open questions, plus an author distinct from the session that
+  approves, reviews, and commits. The orchestrator checks the write boundary with `git status`
+  when the planner returns and re-runs plan validation itself. Fallback when the type is not
+  installed: the main session authors the plan under the same contract, recorded as
+  `fallback: main-session planner`. `SKILL.md`, the planner prompt, `graph-analysis.md`, the plan
+  template, both harnesses' reviewer definitions, README, and AGENTS.md no longer describe
+  Claude planning as main-session only.
+- **Definition currency in preflight.** On 2026-09-13 the installed `~/.claude/agents/gdi-*.md`
+  on the maintainer's machine dated from September 2 and 3: `gdi-implementer.md` lacked the 0.4.0
+  RETIRES, sensitivity, and evidence-reuse rules, and the installed skill was 0.5.0. Every Claude
+  run since had dispatched to older contracts while its plan recorded the current release.
+  `routing-claude.md` gains a verification protocol with the same three facts as Codex
+  (requested / role-confirmed / model-confirmed): role-confirmed requires a `diff` of the loaded
+  definition against the skill's copy, with project scope taking precedence over user scope;
+  model-confirmed is `unknown` unless the user reads the agent's row in `/tasks`, because the
+  Agent tool result reports neither model nor effort. It also records that
+  `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` overrides every frontmatter pin.
+- **Standing contracts aligned with the Codex TOMLs.** `gdi-implementer` gains the task-boundary
+  and premise-mismatch rule, permitted independent preparation before a decision brief, routine
+  choices under CALLS with existing rulings honored, citation of the exact blocking clause, the
+  defect-injection rule for sensitivity probes, and no second summary. `gdi-mapper` gains the
+  area boundary and the rule that line existence is not semantic proof. `gdi-reviewer` verifies
+  planner premises independently and checks consolidation outcomes; `gdi-convention-reviewer`
+  checks consolidation outcomes and tracked generated artifacts. Mapper, both reviewers, and the
+  planner disable the Agent tool in their definitions instead of relying on the prompt alone.
+- **Dispatch mechanics.** Never pass `isolation` to a `gdi-*` dispatch: a worktree child branches
+  from the default branch and its edits land in another checkout, so the orchestrator's diff,
+  the reviewers, and the section commit would miss the work. Claude reports carry no ROUTING
+  line; routing evidence lives in the plan's table.
+
+### Changed — Codex implementer returns to Terra
+
+- **Maintainer ruling, 2026-09-13.** The Luna implementer trial (0.5.0 to 0.5.1) did not go
+  well; `goal-implementer` moves to `gpt-5.6-terra` at `high`. TOML, routing table, direct
+  fallback pins, resume guidance, and README agree. Mapping stays on Luna max, the planner on
+  Astra xhigh, and reviewers on Terra xhigh. Neither trial produced per-role usage counters, so
+  this records the ruling, not a measured comparison. The role name is unchanged; installed
+  copies need a reinstall and a reload.
+
+Plan/report schemas, validators, and install directories are unchanged. The Claude installer
+copies the new planner definition through its existing wildcard.
+
 ## 0.5.1 — 2026-09-12
 
 ### Changed

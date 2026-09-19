@@ -63,8 +63,8 @@ prints the new snippet and leaves legacy config/files intact. See the
    eight review lenses in parallel, every agent return validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
-   (commit section + ledger together) or sends exact gaps back to the same implementer until it
-   converges.
+   (commit section + ledger together) or sends exact gaps back until it converges: to the same
+   implementer, or in Claude Code to a fresh one when the first returned with a large context.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from

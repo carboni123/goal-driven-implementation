@@ -38,7 +38,8 @@ reference each — read the one for the harness you are running in before the fi
 
 - Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions including a
   `gdi-planner` that inherits the session model, a definition-currency check in preflight,
-  `SendMessage` for follow-ups, and an implementer that may spawn read-only helpers).
+  `SendMessage` for follow-ups, a correction-carrier rule keyed to the implementer's reported
+  context size, and an implementer that may spawn read-only helpers).
 - Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, a dedicated
   `goal-planner`, routing attestation; ordinary workers do not spawn, with a bounded
   delegated-orchestrator exception).
@@ -312,7 +313,8 @@ follow-up rule from the prompts reference, and merge.
 **2. Implement.** Check that the bounded brief above is actionable. Send one implementer the
 section block verbatim, context brief, global gate, preflight,
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
-sections of this plan). Keep its handle; all follow-ups resume the same agent. The implementer's
+sections of this plan). Keep its handle: decision relays and report-validation errors resume the
+same agent, and a rejection goes to the correction carrier chosen in step 6. The implementer's
 report includes a **CLAIMS** block: every prose assertion it added or changed (README, comment,
 docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_, and
 a **RETIRES** block that names artifacts removed or explains why none was retired, such as
@@ -322,8 +324,10 @@ a hard error goes back to the same agent once.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →
-rule it yourself, record `⇢` with rationale, relay. Never respawn an implementer mid-section; if
-the agent is lost, record it and resume with a new one given the full prior report.
+rule it yourself, record `⇢` with rationale, relay. Never replace an implementer before it returns
+a report that validates: until then its context is the only record of the section's work, so a
+decision relay always resumes the same agent. If the agent is lost, record it and resume with a
+new one given the full prior report.
 
 **4. Review.** Launch the applicable lenses in one message (templates in the prompts reference):
 security/authz · data/migration · contract/API · failure-mode/reliability · convention/scope ·
@@ -354,13 +358,18 @@ pattern elsewhere in the repository and record hits under RISKS or as a filed is
 **6. Accept or reject.** All seven checks: section gate evidence valid and passing · required section
 DB / integration / e2e tests actually ran · no floor crossed without a ruling · acceptance maps to an
 exit test · scope stayed inside the section · conventions followed · deferrals explicit, safe, and
-tracked. Reject → resume the same implementer with exact gaps. **Convergence rule:** in-contract
-rounds continue while unresolved findings decrease; stop and report when a round identifies a
-floor item, repeats a class the previous round was told to fix, or breaks the section boundary.
-Record environment retries separately (`⚙×n`); they never count as rounds. Accept → append the
-ledger record (schema in the template: sha, `rounds: n` with one `R<n> <class>: <reason>` line
-per round, `review:`, `routing:`, `cost:`), stage the section diff **and** the ledger change
-together, commit with the section's message. Add any accepted factual correction to
+tracked. Reject → send the exact gaps to the **correction carrier**: the same implementer by
+default, or a fresh section-correction implementer (prompts reference §5) when the harness routing
+reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
+uncommitted section diff. Never message the first handle again once a fresh agent takes over: one
+implementer exists at a time. Count rounds the same way for either carrier. **Convergence rule:**
+in-contract rounds continue while unresolved findings decrease; stop and report when a round
+identifies a floor item, repeats a class the previous round was told to fix, or breaks the section
+boundary. Record environment retries separately (`⚙×n`); they never count as rounds. Accept →
+append the ledger record (schema in the template: sha, `rounds: n` with one
+`R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
+return exposed, per the harness reference, never an estimate), stage the section diff **and** the
+ledger change together, commit with the section's message. Add any accepted factual correction to
 **Corrections in force**. Loop to step 0.
 
 ## Complete the plan

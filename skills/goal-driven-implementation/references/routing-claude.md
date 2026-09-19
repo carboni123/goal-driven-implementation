@@ -23,6 +23,23 @@ rulings, and open questions, and an author that is not the session which approve
 commits. A stronger planner pin is a role-economics change under the repository's ruling floor;
 make it in the frontmatter, never per call.
 
+## Tool allowlists
+
+A definition with no `tools` key inherits every tool in the session, MCP servers included, and
+the role re-reads those tool definitions on every turn. Four roles pin an allowlist:
+
+| Role                                                     | `tools`                                                                                               |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `gdi-implementer`                                        | `Read, Edit, Write, NotebookEdit, Bash, PowerShell, Grep, Glob, Agent, ToolSearch, Monitor, TaskStop` |
+| `gdi-mapper`, `gdi-reviewer`, `gdi-convention-reviewer`  | `Read, Grep, Glob, Bash, PowerShell`; `disallowedTools` also names the writers and `Agent`            |
+| `gdi-planner`                                            | none: it inherits every tool, because the rendered-graph pass needs browser and image tools           |
+
+When a gate needs a tool a role lacks, such as a browser MCP server for a live-flow probe, the
+host repository adds it in a project-scope copy of the definition (`mcp__<server>` grants a whole
+server). Record that copy under role-confirmed as `host override: tools (<what was added>)`; it
+is not a stale role. _Origin:_ `gdi-*` roles with no `tools` key started their first turn at 47k
+to 50k tokens; a role on the same machine with a six-tool allowlist started at 7.8k.
+
 ## Installing the roles
 
 The definitions are included at `assets/agents/claude/gdi-*.md`. Claude Code loads agents
@@ -46,9 +63,10 @@ Keep three facts distinct and record them per role in the plan's Harness routing
 - **Role-confirmed** — the type is listed in the session's available agents, the dispatch names
   it, **and** the loaded definition is current. Listing alone is not enough: `diff` the installed
   file (`.claude/agents/` in the project when present, else `~/.claude/agents/`) against the
-  skill's copy. A differing file is a stale role: reinstall and start a new session, or record
-  `role-confirmed: stale (<what differs>)` and treat the standing contract as absent, so the
-  dispatch prompt must carry every rule. _Origin:_ on 2026-09-13 the installed
+  skill's copy. A project copy that differs only by a recorded `tools` host override (Tool
+  allowlists above) is current. Any other differing file is a stale role: reinstall and start a
+  new session, or record `role-confirmed: stale (<what differs>)` and treat the standing contract
+  as absent, so the dispatch prompt must carry every rule. _Origin:_ on 2026-09-13 the installed
   `gdi-implementer.md` on the maintainer's machine predated 0.4.0 and lacked the RETIRES,
   sensitivity, and evidence-reuse rules the source definition carries; every Claude run since had
   dispatched to the older contract while its plan recorded the current release.
@@ -79,7 +97,8 @@ Reuse the routing record while the definition files and environment are unchange
 ## Dispatch mechanics
 
 - Parallel dispatch = multiple `Agent` calls in one message. Sequential implementer = one call,
-  `run_in_background: false`, wait for the report.
+  then wait for its report before any other implementer dispatch. The harness chooses foreground
+  or background; a background agent's report arrives in a completion notification.
 - Never pass `isolation` to a `gdi-*` dispatch. A worktree child branches from the default branch,
   not the current HEAD, and its edits land in another checkout: the orchestrator's `git diff`,
   the reviewers, and the section commit would all miss the work.
@@ -91,12 +110,33 @@ Reuse the routing record while the definition files and environment are unchange
   the anchors check yourself; the planner's report is a claim, not the evidence. If the planner
   reports missing browser or image tools, capture the rendered graphs with the orchestrator's
   tools and send the image paths to the **same** planner for the visual pass.
-- Follow-ups (rejection, decision relay, planner captures) go to the **same** agent via
-  `SendMessage` (load it with `ToolSearch select:SendMessage`). Never respawn mid-section; if the
-  agent is lost, record it and resume with a new one given the full prior report.
+- Follow-ups go to the **same** agent via `SendMessage` (load it with
+  `ToolSearch select:SendMessage`): decision relays, report-validation errors, planner captures,
+  and a rejection unless the correction-carrier rule below sends it to a fresh agent. Never
+  replace an implementer whose section work is in progress; if the agent is lost, record it and
+  resume with a new one given the full prior report.
 - Reports carry no `ROUTING` line in Claude Code: the harness exposes no routing metadata to the
   child, and the type named at dispatch identifies the definition. Routing evidence lives in the
   plan's table under the protocol above.
+
+## Correction carrier
+
+A background implementer's completion notification carries a `<usage>` block: `subagent_tokens`
+(the agent's context size when it stopped, not a billed total), `tool_uses`, and `duration_ms`.
+The field names are undocumented: when the block or `subagent_tokens` is missing, apply the
+no-usage-block branch. On a rejection, read `subagent_tokens` from the notification of the report
+being rejected:
+
+- **150k or less, or no usage block** → resume the same implementer with `SendMessage` and the
+  first body of prompts reference §5.
+- **Above 150k** → dispatch a fresh `gdi-implementer` with the second body of §5. Never message
+  the first handle again in this section. Later rounds apply the same test to the fresh agent.
+
+Decision relays and report-validation errors always resume the same agent, whatever its size.
+
+_Origin:_ in 16 measured implementer runs, work after the first report was 43% of implementer
+spend. Every later turn re-read a context of 183k to 543k tokens, and 22 of 28 follow-ups arrived
+after the five-minute subagent prompt cache had expired, so the whole context was written again.
 
 ## Economics
 
@@ -104,6 +144,10 @@ Keep the pinned effort tiers and models. In the retrospective, verify-class revi
 that less thorough reviews missed; do not reduce its model or effort. The mapper uses Sonnet
 because it locates relevant code and its anchors are checked before implementation and review.
 When a worker struggles, diagnose the missing fact or narrow the brief inside the approved section;
-do not promote it to a costlier model or effort mid-run. The Agent tool result does not expose
-per-role token counts; record `cost: unknown` unless the user supplies numbers from `/tasks` or
-usage reporting.
+do not promote it to a costlier model or effort mid-run.
+
+The Agent tool result exposes no token counts. A background agent's completion notification
+carries the `<usage>` block described under Correction carrier. Record it per return in the
+ledger `cost:` field as observed, for example `ctx 212k / 135 tools`, and write `cost: unknown`
+when the block is absent. `subagent_tokens` is a context size, not billed usage; billed usage
+comes only from `/tasks` or usage reporting.

@@ -3,6 +3,93 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — Claude Code context economy
+
+**Maintainer request, 2026-09-18, after a spend measurement.** 201 local Claude Code transcripts
+(57 main sessions) were weighted per token as input 1, cache write 1.25, cache read 0.1, output 5.
+Cache reads were 62% of weighted spend, cache writes 28%, output 10%, uncached input 0.1%: a role
+costs its context size times its turns. Sixteen `gdi-implementer` runs were 32% of all spend
+(median 141 turns, 1.07 tool calls per turn, context 53k at the first turn and 270k at the last).
+The measured definitions were the installed 0.5.0-era copies, not 0.6.0. The measurement scripts
+are in the maintainer's checkout under `spend/` (gitignored), not in the installed skill. The
+numbers below come from one machine and mostly one host repository.
+
+- **Tool allowlists on four roles.** `gdi-*` roles with no `tools` key started their first turn
+  at 47k to 50k tokens; a custom role on the same machine with a six-tool allowlist started at
+  7.8k. That base is re-read on every turn (4,700 `gdi-*` turns in the sample): about a sixth of
+  implementer spend and roughly half of a reviewer's context. `gdi-implementer` now pins `Read,
+  Edit, Write, NotebookEdit, Bash, PowerShell, Grep, Glob, Agent, ToolSearch, Monitor, TaskStop`;
+  `gdi-mapper`, `gdi-reviewer`, and `gdi-convention-reviewer` pin `Read, Grep, Glob, Bash,
+  PowerShell` and keep their `disallowedTools`. The lists cover 5,536 of the 5,537 tool calls
+  those roles made across 106 measured runs (the exception: one implementer `SendMessage`).
+  `gdi-planner` keeps every tool for the rendered-graph pass. A host that needs an MCP server in
+  a role adds it in a project-scope copy, recorded as a host override and not as a stale role.
+  Documented harness behavior relied on: an unavailable listed tool (`PowerShell` outside
+  Windows) is dropped without an error, `disallowedTools` applies before `tools`, and MCP tools
+  are inherited unless an allowlist omits them. Not yet verified: that the allowlist shrinks the
+  first-turn context and does not only block calls. That is inferred from the measurement above
+  and from the documented rule that a subagent builds its tool set before its first request; to
+  verify, compare a role's first-turn context after installing. Role names, models, and efforts
+  are unchanged; installed copies need a reinstall and a new session.
+- **Stale dispatch mechanic removed.** `routing-claude.md` told the orchestrator to pass
+  `run_in_background: false` for the implementer. The `Agent` tool documents no such argument,
+  and all 16 measured implementer dispatches ran in the background and reported through a
+  completion notification.
+- **Why resumes missed the prompt cache.** A resumed subagent can read the cache entries its
+  first run wrote, but a subagent's prompt cache expires after five minutes by default, even on a
+  subscription, and a review round takes longer. The one-hour option (`subagentPromptCacheTtl` in
+  settings, or `experimental.cacheTtl: 1h` in a definition) is not set: the key is experimental,
+  a one-hour cache write costs more than a five-minute one on the API, no run here has measured
+  the trade, and it would not reduce the larger cost, which is re-reading a large context on
+  every later turn.
+- **Correction carrier (re-scopes "never respawn mid-section").** Work after an implementer's
+  first report was 43% of implementer spend in 24% of its turns, at 2.2 to 3.1 times the first
+  dispatch's cost per turn. 22 of 28 orchestrator follow-ups arrived after the prompt cache had
+  expired and re-wrote the whole context (12.5% of implementer spend), and every later turn
+  re-read a context that was 183k to 543k tokens when the agent stopped. A rejection now goes to
+  a fresh section-correction implementer when the rejected report's completion notification
+  shows `subagent_tokens` above 150k; otherwise, and always for decision relays and
+  report-validation errors, the same agent is resumed. The part of the old rule that remains: an
+  implementer is never replaced before it returns a validated report, because until then its
+  context is the only record of the section's work. After a validated report, the report plus
+  the uncommitted diff is a complete handoff. `SKILL.md` steps 2, 3, and 6, prompts reference §2
+  and §5 (new fresh-carrier body, validated with `--kind implementer`), `routing-claude.md`
+  (Correction carrier), the plan template, and the README agree. Codex keeps resume-only: no
+  Codex run has produced per-role usage to measure. The 150k threshold was calculated and has
+  not been tested in a run. At about 19 turns per round, resuming costs roughly 2.9 times the
+  context; a fresh agent costs roughly 4 times a 90k working context (base, section, prior
+  report, a re-read of the touched files, some orientation turns). The two are equal near 120k,
+  and 150k leaves margin for a fresh agent that needs an extra round. No measured stop was under
+  183k, so no measurement covers the same-implementer branch. Fresh rounds are marked
+  `(carrier: fresh)` in the ledger so a retrospective can compare rounds-to-converge and escaped
+  defects for both carriers.
+- **Usage is observable.** `routing-claude.md` said the Agent tool exposes no token counts. The
+  completion notification of a background agent carries `<usage>` with `subagent_tokens`,
+  `tool_uses`, and `duration_ms` (40 of 43 implementer notifications in the sample), and
+  `subagent_tokens` matched the agent's context size at that stop. The field names are observed,
+  not documented: the harness docs state only that a metadata trailer carries token counts and
+  duration. The ledger `cost:` field records the block per return; it is a context size, not a
+  billed total.
+- **Implementer tool calls.** 94% of implementer turns made one tool call, 214 of 2,240 turns
+  were in runs of three or more read-only calls of one kind, and 443 turns read code with
+  `cat`/`sed`/`grep` in the shell. Six waits on a helper subagent each outlasted the prompt cache
+  (2.1% of implementer spend). The `gdi-implementer` standing contract now batches independent
+  read-only calls, reads a file once with Read, and dispatches helpers in the first turns or not
+  at all.
+- **Considered and not changed.** Capping test and build output: together they were 4.6% of
+  implementer spend. The `effort` pin: output tokens were 2.2% of spend. Model and effort pins
+  are unchanged.
+- **Prose audience rules (AGENTS.md).** Maintainer review, 2026-09-19, of the first draft of the
+  changes above. That draft put installer guidance and a skill-root path in the
+  `gdi-implementer` definition, where the role can act on neither, and put sample sizes, the
+  threshold derivation, and a rejected cache option in `routing-claude.md`, which the
+  orchestrator re-reads before dispatch. Those moved into this entry. "Editing the prose" in
+  AGENTS.md now names the reader of each file under `skills/`, limits an agent definition to
+  what its role can act on, sends evidence and rejected options to the changelog, and requires
+  literal phrasing.
+
 ## 0.6.0 — 2026-09-13
 
 ### Changed — Claude Code routing reviewed against the 0.5.x Codex changes

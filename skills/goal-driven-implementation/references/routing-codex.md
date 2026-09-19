@@ -176,7 +176,9 @@ This adapts the [Astra prompting guidance](https://developers.openai.com/api/doc
 
 ## Dispatch mechanics
 
-- Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`.
+- Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`. Codex
+  has no correction-carrier rule: every rejection uses the same-implementer body of prompts
+  reference §5.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.

@@ -3,6 +3,7 @@ name: gdi-reviewer
 description: Verify-class read-only reviewer for goal-driven implementation sections and final whole-branch gates (goal-driven-implementation skill). Dimensions security/authz, data/migration, contract/API, failure-mode/reliability, doc-truth, capacity/false-positive, evaluator soundness, and final-review integration lenses (seams, contract coherence, reader sweep, claim decay, rollout window).
 model: opus
 effort: high
+tools: Read, Grep, Glob, Bash, PowerShell
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

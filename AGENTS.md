@@ -45,6 +45,13 @@ one, check the others in the same commit.
   Same for the Codex TOMLs and `references/routing-codex.md`. Current Claude pins: planner
   inherit (session model and effort), implementer opus·high, mapper sonnet·medium, verify-class
   reviewer opus·high, convention reviewer opus·medium.
+- **Tool allowlists.** The `tools` line in each Claude agent frontmatter and the Tool allowlists
+  table in `references/routing-claude.md` must agree. A tool a role's contract relies on (the
+  implementer's helpers need `Agent`, its background commands need `TaskStop`) stays listed.
+- **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts reference §2 and §5, the
+  acceptance protocol in `assets/plan-template.md`, the README's run description, and the carrier
+  rule in `references/routing-claude.md` describe one rule. Codex stays resume-only in
+  `references/routing-codex.md` until a Codex run yields per-role usage.
 - **Plan schema.** `assets/plan-template.md`, `validate-plan.mjs`, and the schema description in
   `SKILL.md` describe one contract. A new required surface goes into all three. The validator must
   keep accepting `gdi_schema: 1` plans under the legacy rules and every plan a previous release
@@ -91,8 +98,26 @@ node scripts/install.mjs --dry-run
 
 ## Editing the prose
 
-`SKILL.md` is read under a context budget by an agent that has to act on it. Keep it that way:
+Every file under `skills/` is read by Claude or Codex while it runs the skill, under a context
+budget, and the reader acts on what it reads. No human is the audience there: the README is for
+users, and this file and `CHANGELOG.md` are for maintainers.
 
+- **Name the reader before you write.** The orchestrator reads `SKILL.md`, `references/`, and the
+  plan template. A role reads its own agent definition and its dispatch prompt, and nothing else.
+  Keep a sentence only if it changes what that reader does or settles a case the rule leaves
+  open. A reason qualifies when it fits in one clause and helps the reader apply the rule.
+- **An agent definition holds only what its role can act on.** A role cannot change its own
+  tools, model, effort, or install location, and a path relative to the skill root does not
+  resolve where the role runs. Installer and host guidance goes in the routing reference.
+- **Do not write for the person who requested the change.** Sample sizes, measurement dates, how
+  a threshold was derived, options considered and rejected, what is still unverified, and what
+  the file used to say show that the change was careful; they do not tell the reader what to do.
+  They go in the changelog entry. An `_Origin:_` note names the failure the rule prevents in
+  about three lines.
+- **Use the literal phrase.** No metaphor, aphorism, or contrast written for effect. Write "the
+  threshold was calculated and has not been tested in a run", not "the threshold is arithmetic,
+  not a trial". A figure of speech carries connotations the writer did not choose, the reading
+  agent may act on them, and the extra words are re-read on every load.
 - Every rule earns its place with a failure it prevents. `CHANGELOG.md` and
   `references/graph-analysis.md` cite the retrospective evidence per rule. A new rule without
   evidence, or a removed rule without an argument that the failure can no longer happen, will be

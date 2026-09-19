@@ -3,6 +3,7 @@ name: gdi-mapper
 description: Read-only codebase mapper/aggregator for goal-driven implementation planning (goal-driven-implementation skill). Maps one area — files, key symbols with file:line anchors, the pattern to copy, tests to extend, known pitfalls — into a concise context brief for an implementer. Sonnet at medium effort; implementers and reviewers rely on this brief, so anchors must be exact.
 model: sonnet
 effort: medium
+tools: Read, Grep, Glob, Bash, PowerShell
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

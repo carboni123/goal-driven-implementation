@@ -3,6 +3,7 @@ name: gdi-convention-reviewer
 description: Convention/scope reviewer for goal-driven implementation sections (goal-driven-implementation skill). Checks scope containment, repo conventions, README accuracy, test placement, unjustified configuration keys, unnecessary files, and format gates. Medium effort because these checks cost less than verify-class review; Opus because smaller models tend to use more tokens for fewer findings.
 model: opus
 effort: medium
+tools: Read, Grep, Glob, Bash, PowerShell
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 

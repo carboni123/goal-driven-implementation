@@ -112,7 +112,8 @@ Merge returns into one deduplicated brief. Record any correction to the plan's p
 
 ## 2. Implementer
 
-Only one implementer agent may exist at a time. Keep its handle; every follow-up resumes that agent.
+Only one implementer agent may exist at a time. Keep its handle: decision relays (§6) and
+report-validation errors resume that agent; a rejection goes to the correction carrier (§5).
 
 ```text
 You are the sole implementation agent for ONE section of a goal-driven implementation plan. No
@@ -408,7 +409,22 @@ Lenses:
 
 ## 5. Rejection follow-up
 
-Resume the same implementer. Record `R<n> <class>: <one line>` in the ledger before sending.
+Record `R<n> <class>: <one line>` in the ledger before sending. Pick the **correction carrier**
+first, using the carrier rule in the harness routing reference; a harness whose reference states no
+rule always uses the same implementer.
+
+- **Same implementer (default).** Resume it with the first body below.
+- **Fresh section-correction implementer.** When the carrier rule applies, dispatch a new
+  implementer with the second body and never message the first handle again in this section:
+  one implementer exists at a time. Append `(carrier: fresh)` to the round line. The validated
+  prior report and the uncommitted section diff are the whole handoff, so send the report
+  verbatim; a paraphrase drops the CALLS and CLAIMS the new agent must honor.
+
+Decision relays (§6) and report-validation errors always resume the same agent. They arrive
+before a validated report exists, when that agent's context is the only record of the section's
+work.
+
+Same implementer:
 
 ```text
 REVIEW RESULT: rejected. Fix exactly these gaps — nothing else — then send the full report again
@@ -426,9 +442,64 @@ Return the full report with RETIRES; explain any `none` entry, including additiv
 obsolete artifact where applicable.
 ```
 
+Fresh section-correction implementer:
+
+```text
+You are the sole implementation agent for ONE section of a goal-driven implementation plan, taking
+over at a correction round. The section's first implementer has returned and will not be resumed.
+Its work is in the working tree, uncommitted. No other agent writes code for this section. Do not
+delegate writing.
+
+=== SECTION (verbatim from the plan) ===
+{full section block}
+
+=== TASK BOUNDARY ===
+{as sent to the first implementer}
+
+=== CORRECTIONS IN FORCE ===
+{every factual correction accepted in earlier sections of this plan, or "none yet"}
+
+=== WORKING-TREE BASELINE ===
+{pre-existing changed/untracked files to preserve and exclude. Every other uncommitted change is
+this section's work in progress: keep it}
+
+=== PRIOR REPORT (validated, verbatim) ===
+{the first implementer's full report, or the latest full report if this is a later round}
+
+=== REVIEW RESULT: rejected ===
+Fix exactly these gaps — nothing else:
+
+1. {file:line — gap — required fix}
+2. {...}
+
+=== GATES ===
+{global gate and scheduled stage; evidence in the prior report that stays valid; preflight status
+and known blockers with pre-approved handling}
+
+RULES
+- The section implementer RULES apply in full: ruling floor, claims true at this commit, related
+  unhandled cases, focused reproduction and targeted sensitivity checks, real gate output, no
+  commit, no ledger edits. {generic fallback child: paste the RULES block of template §2 here}
+- Orient from the PRIOR REPORT's DIFF and `git diff` over those paths, then the lines each gap
+  cites. Do not re-map the area. A decision recorded under CALLS stands unless a gap contradicts it.
+- The earlier work is accepted except for the listed gaps. Do not restyle, reorder, or rewrite it.
+- Identify which check inputs this correction changes. Run missing or invalidated checks and any
+  targeted probe needed for the findings; retain valid results with their evidence references.
+  Do not rerun the global gate solely because this is a rejection; keep broader gates at their
+  scheduled stage unless a concrete risk or host rule requires them now.
+- Your final message is the FULL section report with exactly the PRIOR REPORT's labels, in the
+  same order, describing the section as it now stands. Start from the PRIOR REPORT, update every
+  entry your correction changes, and keep an unchanged entry only after confirming its anchor
+  still resolves. Reviewers see one report.
+  Explain any `RETIRES: none`, including additive work with no obsolete artifact where applicable.
+```
+
+Validate the fresh agent's return with `--kind implementer`, as for any section report.
+
 Convergence rule: rounds continue while unresolved findings decrease. Stop and report to the user when a
 round identifies a floor item, repeats a class the previous round was told to fix, or breaks the
-section boundary. Never stop over a round count or token threshold.
+section boundary. Never stop over a round count or token threshold. The carrier rule's token
+threshold only selects which agent receives a round; it is not a stop condition.
 
 ---
 

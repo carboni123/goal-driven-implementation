@@ -369,7 +369,8 @@ results, tested state, and environment; rerun only missing or invalidated checks
 probe for a finding. Final gates not yet due remain pending, never reported as passed.
 
 On acceptance, append the ledger record and commit the section diff and this ledger change
-together. On rejection, resume the same implementer with exact `file:line` gaps and continue
+together. On rejection, send exact `file:line` gaps to the correction carrier (the same
+implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
 under the convergence rule. Refute a reviewer finding against the code when it is wrong; record
 the refutation.
 
@@ -384,6 +385,9 @@ Record schema for a checked row (one line per rejection round):
 ```
 
 Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.
+Where the harness reports a context size and tool-use count per agent return, record them per
+return (first report and each correction round); mark a round a fresh agent carried with
+`(carrier: fresh)` at the end of its `R<n>` line.
 When available, break usage down by planning, mapping, implementation, review, and correction
 rounds, including main-session overhead. Record monetary cost only when supplied by the runtime
 or calculated from verified rates with the relevant input/cache/output breakdown. Keep quality

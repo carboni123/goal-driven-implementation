@@ -146,14 +146,14 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
 - No unrun gate may be reported as successful; an unexecuted test due at this section blocks
   section acceptance. Later milestone tests stay pending and block milestone acceptance.
 - Preserve and exclude unrelated pre-existing working-tree changes.
-- In-contract rounds continue while unresolved findings decrease. Pause the loop for an unruled
-  floor item, a repeated defect mechanism assigned to the previous round, or an invalidated commit
-  boundary. The orchestrator resolves floor items with the user, diagnoses repeated mechanisms,
-  and requests a bounded replan for oversized work. Preserve findings/history through splits;
-  report a blocker if no safe in-scope correction or decomposition exists. Round count and token
-  use are never decision boundaries.
+- In-contract rounds continue while unresolved findings decrease. An unruled floor item goes to
+  the user. A repeated defect mechanism, findings that stop decreasing, or an invalidated commit
+  boundary go through the stall ladder: supply the missing fact, split an oversized section with a
+  bounded replan, escalate a commit-sized section's implementer once to the harness escalation
+  route, then report a blocker. Preserve findings/history through splits and escalations. Round
+  count and token use are never decision boundaries.
 - Between sections the orchestrator continues without pausing; it stops only for a floor ruling,
-  the approval rule, a convergence-rule blocker, or a terminal action that needs the user.
+  the approval rule, a stall-ladder blocker, or a terminal action that needs the user.
 - Environment retries (`⚙`) follow the Known blockers table and never count as rounds.
 - Do not work on future sections.
 
@@ -165,10 +165,10 @@ flowchart LR
   GATE -- "reject (converging)" --> IMPL
   GATE -- accept --> COMMIT["commit section + evidence<br>record SHA / verify Git"]
   GATE -- "unruled floor item" --> USER["user ruling"]
-  GATE -- "repeated mechanism / boundary growth" --> REPLAN["diagnose / bounded replan<br>preserve findings and history"]
+  GATE -- "repeated mechanism / boundary growth" --> LADDER["stall ladder<br>fact → split → escalate once<br>preserve findings and history"]
   USER --> IMPL
-  REPLAN -- "safe scope established" --> IMPL
-  REPLAN -- "no safe in-scope path" --> STOP["report blocker"]
+  LADDER -- "fact supplied / split / escalated route" --> IMPL
+  LADDER -- "escalated round repeats / no step applies" --> STOP["report blocker"]
 ```
 
 ## 1. Goals — observable definition of done
@@ -401,9 +401,9 @@ at milestone closure. This avoids requiring a commit to contain its own SHA. Git
 checks identity and ancestry; the orchestrator still verifies diff ownership and test evidence.
 On rejection, send exact `file:line` gaps to the correction carrier (the same
 implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
-under the convergence rule. Refute a reviewer finding against the code when it is wrong,
-including a finding whose trigger no existing client, caller, writer, or deployment failure
-produces (`unreachable`); record the refutation.
+under the convergence rule and its stall ladder. Refute a reviewer finding against the code when it
+is wrong, including a finding whose trigger no existing client, caller, writer, or deployment
+failure produces (`unreachable`); record the refutation.
 
 ## 5. Progress ledger
 
@@ -418,7 +418,8 @@ Record schema for a checked row (one line per rejection round):
 Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.
 Where the harness reports a context size and tool-use count per agent return, record them per
 return (first report and each correction round); mark a round a fresh agent carried with
-`(carrier: fresh)` at the end of its `R<n>` line.
+`(carrier: fresh)` at the end of its `R<n>` line, or `(carrier: fresh, escalated)` for a
+stall-ladder escalation, which also appends `; escalated <from> → <to> at R<n>` to `routing:`.
 When available, break usage down by planning, mapping, implementation, review, and correction
 rounds, including main-session overhead. Record monetary cost only when supplied by the runtime
 or calculated from verified rates with the relevant input/cache/output breakdown. Keep quality

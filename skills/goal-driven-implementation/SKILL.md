@@ -67,10 +67,11 @@ reference each — read the one for the harness you are running in before the fi
 - Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions including a
   `gdi-planner` that inherits the session model, a definition-currency check in preflight,
   `SendMessage` for follow-ups, a correction-carrier rule keyed to the implementer's reported
-  context size, and an implementer that may spawn read-only helpers).
+  context size, an implementer that may spawn read-only helpers, and the implementer's escalation
+  route).
 - Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, a dedicated
-  `goal-planner`, routing attestation; ordinary workers do not spawn, with a bounded
-  delegated-orchestrator exception).
+  `goal-planner`, routing attestation, the implementer's escalation route; ordinary workers do not
+  spawn, with a bounded delegated-orchestrator exception).
 
 Resolve every role during preflight, **before** preparing the plan for approval, and record
 `requested / role-confirmed / model-confirmed` per role in the plan. If the reviewer role cannot be
@@ -83,9 +84,9 @@ The plan-authoring planner owns decomposition and resolves ambiguity before disp
 allowed files, observed mechanism, existing exemplar, invariants, acceptance checks, exclusions,
 and applicable rulings; use the existing section fields rather than another planning document.
 Include only context needed for that assignment. A detailed brief can still be wrong: workers
-report contradicted premises, and reviewers independently trace the changed behavior. When a
-worker struggles, diagnose the missing fact or narrow the assignment within the approved section
-before considering a different model; follow the harness routing and convergence rules.
+report contradicted premises, and reviewers independently trace the changed behavior. When an
+implementer struggles, follow the stall ladder in EXECUTE step 6: supply the missing fact, then
+split the section, and only then escalate the implementer's model.
 
 ## Ruling floor
 
@@ -334,9 +335,9 @@ Read `references/agent-prompts.md` before the first dispatch; use its templates 
 Run the loop without pausing between steps or sections. Accept a section and dispatch the next
 one in the same turn, and put status notes in the message that carries the next action. Stop
 only where this skill names a stop: a floor ruling, the approval rule in **Select a mode**, a
-blocker under the convergence rule (step 6), or a terminal action that needs the user. Do not end
-a turn with a summary that names the next step without taking it, an offer to continue, or
-options that do not block the work.
+blocker from the stall ladder (step 6), or a terminal action that needs the user. Do not end a
+turn with a summary that names the next step without taking it, an offer to continue, or options
+that do not block the work.
 
 **0. Preflight.** Validate the plan. Re-run affected environment probes when their worktree,
 realm, service, credential, or toolchain inputs changed; record presence, never secret values.
@@ -416,13 +417,26 @@ default, or a fresh section-correction implementer (prompts reference §5) when 
 reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: one
 implementer exists at a time. Count rounds the same way for either carrier. **Convergence rule:**
-in-contract rounds continue while unresolved findings decrease. Pause the correction loop when a
-round identifies an unruled floor item, repeats a defect mechanism it was assigned to fix, or
-invalidates the commit boundary. Resolve floor items with the user; diagnose repeated mechanisms
-and use a bounded replan for oversized work within approved scope. Do not erase unresolved
-findings or reset their history by splitting. Report a blocker when no safe in-scope correction
-or decomposition is available. Record environment retries separately (`⚙×n`); they never count
-as rounds. Accept →
+in-contract rounds continue while unresolved findings decrease. An unruled floor item goes to the
+user. When a round repeats a defect mechanism it was assigned to fix, stops reducing unresolved
+findings, or invalidates the commit boundary, take the first **stall ladder** step that applies:
+
+1. **Missing fact.** The gap traces to a wrong premise, a stale anchor, or context the brief
+   lacked → supply it with the next round (one targeted mapper follow-up or verified anchors).
+2. **Oversized section.** Writers, lifecycle states, or independent mechanisms exceed the commit
+   boundary → bounded replan into smaller sections; the next round covers the first of them.
+3. **Capability.** The section is commit-sized, its facts are supplied, and the implementer
+   still repeats the mechanism → escalate once per section: a fresh correction carrier (prompts
+   reference §5) on the harness routing reference's escalation route. Append
+   `; escalated <from> → <to> at R<n>` to the ledger row's `routing:` field. The next section
+   returns to the pinned route.
+4. **Blocker.** The escalated implementer repeats the mechanism, the escalation route is
+   unavailable, or no step applies → report a blocker to the user with the diagnosis from each
+   step taken.
+
+Steps 1–3 need no user approval. Do not erase unresolved findings or reset their history by
+splitting or escalating. Record environment retries separately (`⚙×n`); they never count as
+rounds. Accept →
 append the ledger record (schema in the template: sha, `rounds: n` with one
 `R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
 return exposed, per the harness reference, never an estimate). Stage only the reviewed section

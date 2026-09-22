@@ -287,11 +287,6 @@ before running checks. Run a targeted probe for a concrete gap or uncertain vali
 repeat valid runs solely for independent review. Never modify the tree. A finding must be concrete
 and anchored; default to APPROVE when no concrete issue is found. Approvals cite anchors too.
 
-Final message:
-VERDICT: APPROVE | REJECT
-EVIDENCE: 2–5 file:line anchors — what each establishes
-FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
-NOTES: non-blocking observations
 Report a finding only when a trigger that exists at this commit reaches it: a request any client
 can send (for security, a hostile client too), a caller in the repository, a state some writer in
 the repository produces, or a failure the deployment can produce (a dependency timeout or error,
@@ -301,6 +296,11 @@ repository code breaking a contract that no code breaks goes under NOTES, with t
 precondition. For a convention, scope, doc-claim, or generated-artifact finding, the trigger is
 `static` followed by the rule or claim it breaks.
 
+Final message:
+VERDICT: APPROVE | REJECT
+EVIDENCE: 2–5 file:line anchors — what each establishes
+FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
+NOTES: non-blocking observations
 ```
 
 Evidence tags, strongest first: `test` a test asserts the behavior or its absence; `code`
@@ -452,6 +452,9 @@ rule always uses the same implementer.
   one implementer exists at a time. Append `(carrier: fresh)` to the round line. The validated
   prior report and the uncommitted section diff are the whole handoff, so send the report
   verbatim; a paraphrase drops the CALLS and CLAIMS the new agent must honor.
+- **Escalated implementer.** Stall-ladder step 3 (`SKILL.md` step 6) always uses the second body,
+  dispatched on the harness routing reference's escalation route, whatever carrier the size rule
+  would pick. Append `(carrier: fresh, escalated)` to the round line.
 
 Decision relays (§6) and report-validation errors always resume the same agent. They arrive
 before a validated report exists, when that agent's context is the only record of the section's
@@ -529,13 +532,13 @@ RULES
 
 Validate the fresh agent's return with `--kind implementer`, as for any section report.
 
-Convergence rule: rounds continue while unresolved findings decrease. Pause the correction loop
-for an unruled floor item, a repeated defect mechanism assigned to the previous round, or an
-invalidated commit boundary. The orchestrator resolves floor items with the user, diagnoses
-repeated mechanisms, and requests a bounded replan for oversized work within approved scope.
-Preserve unresolved findings and their history through a split. Report a blocker if no safe
-in-scope correction or decomposition is available. Never stop over a round count or token
-threshold; the carrier threshold only selects which agent receives a round.
+Convergence rule: rounds continue while unresolved findings decrease. An unruled floor item goes
+to the user. A repeated defect mechanism, findings that stop decreasing, or an invalidated commit
+boundary sends the orchestrator through the stall ladder in `SKILL.md` step 6: supply the missing
+fact, split an oversized section with a bounded replan, escalate a commit-sized section's
+implementer once, and report a blocker only after those steps. Preserve unresolved findings and
+their history through a split or an escalation. Never stop over a round count or token threshold;
+the carrier threshold only selects which agent receives a round.
 
 ---
 

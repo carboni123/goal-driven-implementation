@@ -6,12 +6,14 @@
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
 | Plan author                                                                                                         | `gdi-planner`             | inherit · session     | Fresh context after validated PLAN-mode mapping; writes only plan/graph artifacts; no delegation |
 | Implementer                                                                                                         | `gdi-implementer`         | opus · high           | One writer per section; may spawn ≤5 read-only helpers via the Agent tool                        |
+| Implementer, escalated                                                                                              | `gdi-implementer`         | fable · high          | Stall-ladder step 3 only: per-call `model: "fable"`, fresh carrier, once per section             |
 | Mapper                                                                                                              | `gdi-mapper`              | sonnet · medium       | Read-only; verifies anchors before reporting; no delegation                                      |
 | Verify-class reviewer (security, data, contract, failure-mode, doc-truth, capacity, evaluator, final-review lenses) | `gdi-reviewer`            | opus · high           | Read-only; may run tests and probes to verify; no delegation                                     |
 | Convention/scope reviewer                                                                                           | `gdi-convention-reviewer` | opus · medium         | Read-only; no delegation                                                                         |
 
 Model and effort pins are set in the agent definitions' frontmatter. **Never pass a per-call
-`model`** to these types: it overrides the pinned model. Effort has no per-call override. If
+`model`** to these types: it overrides the pinned model. The one exception is the implementer
+escalation under Economics. Effort has no per-call override. If
 `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set in the environment, the harness ignores every
 definition's `model`; check it in preflight and, when set, record its value as the effective model
 of every role.
@@ -133,6 +135,7 @@ being rejected:
   the first handle again in this section. Later rounds apply the same test to the fresh agent.
 
 Decision relays and report-validation errors always resume the same agent, whatever its size.
+An escalation (Economics) always goes to a fresh agent, whatever the first agent's size.
 
 _Origin:_ in 16 measured implementer runs, work after the first report was 43% of implementer
 spend. Every later turn re-read a context of 183k to 543k tokens, and 22 of 28 follow-ups arrived
@@ -143,8 +146,21 @@ after the five-minute subagent prompt cache had expired, so the whole context wa
 Keep the pinned effort tiers and models. In the retrospective, verify-class review found defects
 that less thorough reviews missed; do not reduce its model or effort. The mapper uses Sonnet
 because it locates relevant code and its anchors are checked before implementation and review.
-When a worker struggles, diagnose the missing fact or narrow the brief inside the approved section;
-do not promote it to a costlier model or effort mid-run.
+Do not promote a role to a costlier model or effort mid-run, except for this implementer
+escalation:
+
+- **When.** Only at stall-ladder step 3 (`SKILL.md` step 6): the section is commit-sized, its
+  facts are supplied, and the implementer repeats a defect mechanism. At most once per section;
+  the next section dispatches the pinned `gdi-implementer` again.
+- **How.** One `Agent` call with `subagent_type: "gdi-implementer"`, `model: "fable"`, and the
+  fresh-carrier body of prompts reference §5. The definition still supplies the effort, tool
+  allowlist, and standing contract. Never message the previous implementer's handle again.
+- **Record.** Requested `fable · high` in the routing table,
+  `; escalated opus·high → fable·high at R<n>` on the ledger row's `routing:` field, and
+  `(carrier: fresh, escalated)` on the round line.
+- **Unavailable.** If the dispatch is refused because the session cannot use Fable, record
+  `escalation: unavailable (<error>)` and report the blocker (stall-ladder step 4). Do not
+  substitute a `general-purpose` agent or another model.
 
 The Agent tool result exposes no token counts. A background agent's completion notification
 carries the `<usage>` block described under Correction carrier. Record it per return in the

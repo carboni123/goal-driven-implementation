@@ -44,7 +44,9 @@ one, check the others in the same commit.
   role table in `references/routing-claude.md`, and any pin mentioned in `SKILL.md` must agree.
   Same for the Codex TOMLs and `references/routing-codex.md`. Current Claude pins: planner
   inherit (session model and effort), implementer opus·high, mapper sonnet·medium, verify-class
-  reviewer opus·high, convention reviewer opus·medium.
+  reviewer opus·high, convention reviewer opus·medium. The implementer's stall-ladder escalation
+  route (Claude fable·high per call, Codex `gpt-6-astra`·xhigh) is a pin too: `SKILL.md` step 6,
+  both routing references, and the README's run description name it.
 - **Tool allowlists.** The `tools` line in each Claude agent frontmatter and the Tool allowlists
   table in `references/routing-claude.md` must agree. A tool a role's contract relies on (the
   implementer's helpers need `Agent`, its background commands need `TaskStop`) stays listed.

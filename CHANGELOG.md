@@ -19,18 +19,32 @@ documents built-in tool settings and per-MCP-server filters, but no general agen
   TOML tool list or machine-specific MCP server is added. The local CLI was already installed
   (`ast-grep 0.45.3`); the installer does not install it on other machines.
 
-### Changed — keep going, reachable review findings
+### Changed — stall ladder, implementer escalation, reachable review findings
 
-**Maintainer report, 2026-09-22.** Reviewers raised defects that needed states or callers the
+**Maintainer report, 2026-09-22.** Orchestrators running the skill stopped at the convergence
+pause many times. The maintainer's usual fix was to tell the orchestrator to use a stronger model
+for the implementer, which the routing references prohibited ("do not promote it to a costlier
+model or effort mid-run"). Reviewers also raised defects that needed states or callers the
 repository never produces; each one cost a correction round. Anthropic's Opus 5.5 guide
 (2026-09-22) says the model sometimes stops to report or to offer to continue on long runs, and
 that it follows instructions that name which stops are wanted.
 
+- **Stall ladder** (`SKILL.md` step 6, prompts §5, template rules and diagram). When a round
+  repeats a defect mechanism, stops reducing findings, or invalidates the commit boundary, the
+  orchestrator takes the first step that applies: supply the missing fact, split an oversized
+  section with a bounded replan, escalate a commit-sized section's implementer once, and report a
+  blocker only after that. Steps 1–3 need no user approval. Floor items still go to the user.
+- **Implementer escalation route.** This is a role-economics change the maintainer ruled on for
+  this entry. Claude Code: a fresh `gdi-implementer` with a per-call `model: "fable"`, which
+  keeps the definition's effort, tools, and contract. Codex: a fresh implementer on the direct
+  route at `gpt-6-astra` · `xhigh`. At most once per section, always via the fresh-carrier body,
+  recorded on the ledger's `routing:` field and the round line. If the route is unavailable, the
+  orchestrator reports a blocker and does not substitute another route. Base pins are unchanged.
+  Not yet measured: the escalation's cost per accepted section or its effect on round counts.
 - **Keep going.** The EXECUTE loop says to accept a section and dispatch the next one in the same
   turn, and lists the stops that exist. The implementer contract (template §2, both harness
   definitions) says `STATUS: blocked` means no in-scope progress is possible, and that a
   difficult in-section defect is not a blocker.
-
 - **Reachable findings.** Every section and final-review finding carries a `trigger:` segment:
   the client request, caller, state a writer produces, or deployment failure that reaches it at
   this commit, or `static` with the rule or claim it breaks. For security, a hostile client

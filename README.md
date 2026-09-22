@@ -67,8 +67,10 @@ prints the new snippet and leaves legacy config/files intact. See the
    back until it converges: to the same implementer, or in Claude Code to a fresh one when the
    first returned with a large context. Reviewer findings name the trigger that reaches them;
    one that no existing caller, writer, client, or deployment failure produces is refuted as
-   unreachable. The orchestrator does not pause between sections except for a floor ruling,
-   approval, a blocker, or the terminal action.
+   unreachable. A correction loop that stalls supplies the missing fact, splits an oversized
+   section, and escalates a commit-sized section's implementer once (Fable in Claude Code,
+   Astra `xhigh` in Codex) before reporting a blocker. The orchestrator does not pause between
+   sections except for a floor ruling, approval, a blocker, or the terminal action.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from

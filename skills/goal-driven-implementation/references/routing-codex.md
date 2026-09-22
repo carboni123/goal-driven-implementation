@@ -10,19 +10,26 @@ review, gates, and commits. In PLAN mode, after the required mapper returns vali
 Record runtime-confirmed evidence (or `unknown`) and any deviation separately, and honor explicit
 user overrides.
 
-| Role         | Custom agent          | Model · effort            | Notes                                      |
-| ------------ | --------------------- | ------------------------- | ------------------------------------------ |
-| Orchestrator | Existing root session | User-selected            | Owns rulings, ledger, gates, and commits   |
-| Plan author  | `goal-planner`        | `gpt-6-astra` · `xhigh`   | One after validated mapping; plan/graph only |
-| Implementer  | `goal-implementer`    | `gpt-5.6-terra` · `high`  | One per section; no nested spawns          |
-| Mapper       | `goal-explorer`       | `gpt-5.6-luna` · `max`    | Read-only                                  |
-| Reviewer     | `goal-reviewer`       | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn              |
+| Role                   | Custom agent          | Model · effort            | Notes                                             |
+| ---------------------- | --------------------- | ------------------------- | ------------------------------------------------- |
+| Orchestrator           | Existing root session | User-selected             | Owns rulings, ledger, gates, and commits          |
+| Plan author            | `goal-planner`        | `gpt-6-astra` · `xhigh`   | One after validated mapping; plan/graph only      |
+| Implementer            | `goal-implementer`    | `gpt-5.6-terra` · `high`  | One per section; no nested spawns                 |
+| Implementer, escalated | direct route          | `gpt-6-astra` · `xhigh`   | Stall-ladder step 3 only; fresh; once per section |
+| Mapper                 | `goal-explorer`       | `gpt-5.6-luna` · `max`    | Read-only                                         |
+| Reviewer               | `goal-reviewer`       | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn                     |
 
 Select each role's model and effort explicitly; never let a child inherit the main-session route.
-Do not automatically promote a worker to a costlier model or effort when it struggles. Diagnose the
-missing fact or narrow the instruction within the same approved section, preserving convergence
-and decision boundaries. Do not spawn a second planner for the same plan artifact merely to plan or
-review.
+Do not promote a worker to a costlier model or effort when it struggles, except for the implementer
+escalation at stall-ladder step 3 (`SKILL.md` step 6): the section is commit-sized, its facts are
+supplied, and the implementer repeats a defect mechanism. Then spawn one fresh implementer on
+direct route (2) at `gpt-6-astra` · `xhigh` with the fresh-carrier body of prompts reference §5
+and the §2 RULES pasted into it, at most once per section; never send the previous implementer
+another task. Append `; escalated terra·high → astra·xhigh at R<n>` to the ledger row's
+`routing:` field. The next section returns to `goal-implementer` at Terra `high`. If the spawn
+schema does not declare `model` and `reasoning_effort`, record `escalation: unavailable` and
+report the blocker (stall-ladder step 4). Do not spawn a second planner for the same plan artifact
+merely to plan or review.
 The delegated-orchestrator exception is limited to an explicitly assigned bounded multi-section
 subtree with exact section IDs and paths. The root retains the ledger, acceptance, commit, and
 final-gate decisions; one implementer remains active globally, descendants count against thread
@@ -122,6 +129,8 @@ in order:
 - Mapper: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`; a built-in `explorer` is usable
   only when it can select this route. A built-in role name alone does not establish the pin.
 - Reviewer: `model: "gpt-5.6-terra"`, `reasoning_effort: "xhigh"`.
+- Escalated implementer (stall-ladder step 3 only): `model: "gpt-6-astra"`,
+  `reasoning_effort: "xhigh"`; route (2) only, with `attestation=none`.
 
 A generic child receives the role's scope, write restrictions, and report contract from the
 dispatch template; report `attestation=none` unless a profile actually supplies one. Do not put
@@ -196,7 +205,7 @@ This adapts the [Astra prompting guidance](https://developers.openai.com/api/doc
 
 - Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`. Codex
   has no correction-carrier rule: every rejection uses the same-implementer body of prompts
-  reference §5.
+  reference §5, except the stall-ladder escalation under Policy, which spawns a fresh one.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.

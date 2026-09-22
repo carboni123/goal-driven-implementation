@@ -63,8 +63,9 @@ prints the new snippet and leaves legacy config/files intact. See the
    eight review lenses in parallel, every agent return validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
-   (commit section + ledger together) or sends exact gaps back until it converges: to the same
-   implementer, or in Claude Code to a fresh one when the first returned with a large context.
+   (commit section and acceptance evidence, then record and verify its SHA) or sends exact gaps
+   back until it converges: to the same implementer, or in Claude Code to a fresh one when the
+   first returned with a large context.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
@@ -87,6 +88,12 @@ When discovery invalidates the boundary, the orchestrator requests a bounded rep
 work, retaining accepted commits and assigning every unresolved finding. Atomic invariants stay
 together; independent behaviors get separate sections.
 
+The orchestrator verifies accepted SHAs against Git before dispatching the next section and
+checks that no completed section's product changes remain uncommitted. The SHA-only ledger
+update can accompany the next section commit; final ledger updates are committed at milestone
+closure. Git validation checks commit identity and dependency ancestry, while diff ownership
+and behavioral correctness still require review.
+
 The **ruling floor** defaults to commercial terms, the public integration contract, and
 irreversible outward actions. Everything else the orchestrator decides and records. A host
 repository declares its own floor in its AGENTS.md or an ADR and the skill uses that instead; the
@@ -102,7 +109,7 @@ skills/goal-driven-implementation/
   assets/
     VERSION                      release stamped into every plan as gdi_version
     plan-template.md             gdi_schema: 2 plan skeleton
-    validate-plan.mjs            strict structural validator (--self-test)
+    validate-plan.mjs            structural/boundary checks + Git commit verification (--self-test)
     render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
     scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
     validate-report.mjs          structural check of agent returns and anchors (--self-test)
@@ -137,6 +144,8 @@ node skills/goal-driven-implementation/assets/validate-plan.mjs --self-test
 node skills/goal-driven-implementation/assets/scout-repo.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md
+node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --commit-boundaries
+node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo
 node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md --no-open
 node skills/goal-driven-implementation/assets/scout-repo.mjs path/to/repo --out feature-map.yml
 ```

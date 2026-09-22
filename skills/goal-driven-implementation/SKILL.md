@@ -299,8 +299,9 @@ Inside the lane:
    `validate-report.mjs --kind anchors --input <plan-file> --repo-root <repo>` — every named
    symbol exists and is exported, every `DEPENDS ON` edge is buildable), **known blockers**.
    The planner checks this analysis against the rendered graph in step 8.
-6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file>`. Fix errors; never waive
-   them in prose.
+6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file> --commit-boundaries`.
+   This checks populated stopping-point fields; the planner still judges their coherence.
+   Fix errors; never waive them in prose.
 7. Render the generated Mermaid: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>
    --no-open`. Open the resulting HTML with an available browser tool, wait for Mermaid to finish,
    and capture readable screenshots of every graph. The script generates HTML, not screenshots.
@@ -335,6 +336,11 @@ realm, service, credential, or toolchain inputs changed; record presence, never 
 Resolve roles per the harness reference and record the evidence. Set `status: executing` before
 the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
 unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer agent exists.
+Before dispatch, verify recorded accepted commits with
+`node <skill-root>/assets/validate-plan.mjs <plan-file> --repo-root <repo>`.
+Compare `git status --short` with the preserved baseline: no completed section's product changes
+may remain staged, unstaged, or untracked. Account for unrelated user changes separately; never
+stage them or hide unfinished section work by adding it to the baseline exclusions.
 
 **1. Aggregate.** Skip when the section's context items have verified anchors and the relevant
 symbols and behavior have not changed since mapping. `validate-report.mjs --kind anchors` checks
@@ -408,9 +414,14 @@ or decomposition is available. Record environment retries separately (`⚙×n`);
 as rounds. Accept →
 append the ledger record (schema in the template: sha, `rounds: n` with one
 `R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
-return exposed, per the harness reference, never an estimate), stage the section diff **and** the
-ledger change together, commit with the section's message. Add any accepted factual correction to
-**Corrections in force**. Loop to step 0.
+return exposed, per the harness reference, never an estimate). Stage only the reviewed section
+diff and its acceptance evidence, then commit with the section's message before further product
+work. Read the committed diff against the section baseline; verify it matches the reviewed and
+tested candidate. Record the resulting SHA in the ledger and run the Git-aware validation above.
+The SHA-only ledger update may accompany the next section commit; commit final ledger updates at
+milestone closure. A commit cannot contain its own SHA. Add accepted factual corrections to
+**Corrections in force**. If committing or verification fails, resolve that before dispatching
+the next section. Later milestone gates remain pending. Loop to step 0.
 
 ## Complete the plan
 
@@ -418,6 +429,9 @@ When every section is checked:
 
 1. **Re-baseline.** Merge or rebase onto current `origin/main` per the plan's base-drift policy.
    The final review reads the merged tree, not `base...HEAD` alone.
+   If rebasing changes section SHAs, reconcile their ledger records against the rewritten diffs
+   and rerun Git-aware validation; do not discard still-valid behavioral evidence solely for a
+   new SHA. Preserve section commits rather than squashing them during execution.
 2. **Final review** — 2–3 read-only reviewers in one message over the full branch, integration
    lenses: (a) cross-section seams and late obligations — for every seam a later section
    introduced, enumerate all call sites and prove each satisfies it; (b) whole-surface contract and
@@ -453,7 +467,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 ## Resources
 
 - `assets/plan-template.md` — plan skeleton (`gdi_schema: 2`).
-- `assets/validate-plan.mjs` — strict structural validation; `--self-test`.
+- `assets/validate-plan.mjs` — structural validation; `--commit-boundaries` checks stopping-point
+  fields; `--repo-root <repo>` verifies accepted SHAs and dependency ancestry; `--self-test`.
 - `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.

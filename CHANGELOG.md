@@ -27,6 +27,20 @@ The evidence supports better decomposition rather than merely repeating the inst
   the authorized workflow adjustment retains floor escalation and reports genuine blockers.
 - Upstream merges are completed separately from section commits. Role/model pins, acceptance
   checks, installed paths, plan schema, and release version are unchanged.
+- Added explicit validator modes: `--commit-boundaries` checks populated milestone/stopping-point
+  fields; `--repo-root` resolves accepted SHAs, branch reachability, distinct section commits,
+  and dependency ancestry using read-only Git commands. Existing structural invocation is
+  unchanged. Neither mode claims to prove behavioral correctness or ownership of a diff.
+- Acceptance now records the actual SHA after committing and verifies it before further product
+  work. The orchestrator inspects residual staged/unstaged/untracked changes against its baseline.
+  SHA-only ledger receipts can join the next section commit, avoiding self-referential hashes.
+- Independent scenario evaluation found two stale template rules: all authored tests blocked
+  acceptance regardless of scheduled stage, and its convergence diagram still escalated broad
+  repeated classes. Aligned the rules and diagram with section/milestone gates and bounded replans.
+- Validator review caught multiline template placeholders passing the boundary check; added a
+  regression fixture. Self-tests cover real Git identity, ancestry, distinct commits, CLI parsing,
+  and preservation of Git state. These checks and scenario evaluation do not establish outcomes
+  from a full feature implementation under the revised workflow.
 
 ## 0.6.1 — 2026-09-19
 

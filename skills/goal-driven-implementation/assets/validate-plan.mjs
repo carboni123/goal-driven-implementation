@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 // Validates a goal-driven implementation plan file.
 //   node validate-plan.mjs <plan.md>      validate one plan
+//   node validate-plan.mjs <plan.md> --commit-boundaries --repo-root <repo>
+//     also check stopping-point fields and accepted commits against Git
 //   node validate-plan.mjs --self-test    run the built-in fixtures
 // gdi_schema 2 is the current contract; gdi_schema 1 plans are validated with the legacy rules.
 
-import { readFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const LIFECYCLE = new Set([
   "draft",
@@ -215,6 +220,93 @@ function checkLedgerMembership(rows, ids, idSet, errors) {
   for (const id of new Set(ledgerIds)) {
     if (!idSet.has(id)) errors.push(`ledger contains unknown section ${id}`);
   }
+}
+
+function checkCommitBoundaries(md, errors) {
+  for (const m of md.matchAll(/^## ([A-Z][0-9]+) — (.+)$/gm)) {
+    const rest = md.slice(m.index + m[0].length);
+    const next = rest.search(/^## /m);
+    const block = next === -1 ? rest : rest.slice(0, next);
+    for (const name of ["MILESTONE", "COMMIT BOUNDARY"]) {
+      if (isPlaceholder(field(block, name).replace(/\s+/g, " "))) {
+        errors.push(`${m[1]} needs a concrete ${name} for commit-boundary review`);
+      }
+    }
+  }
+}
+
+// Use the explicitly selected worktree, not an inherited Git process context.
+function gitEnv() {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
+  );
+}
+
+function git(repoRoot, args) {
+  return execFileSync("git", ["-C", repoRoot, ...args], {
+    encoding: "utf8",
+    env: gitEnv(),
+    stdio: ["ignore", "pipe", "pipe"],
+    timeout: 10_000,
+  }).trim();
+}
+
+function checkAcceptedCommits(md, repoRoot, errors) {
+  const acceptedRows = ledgerRows(md).filter((row) => row.done);
+  try {
+    git(repoRoot, ["rev-parse", "--show-toplevel"]);
+    if (acceptedRows.length) git(repoRoot, ["rev-parse", "--verify", "HEAD^{commit}"]);
+  } catch {
+    errors.push(`commit verification needs a Git worktree (and committed HEAD for accepted rows): ${repoRoot}`);
+    return 0;
+  }
+  const commits = new Map();
+  const owners = new Map();
+  for (const row of acceptedRows) {
+    const sha = row.text.match(/\baccepted\s+\d{4}-\d{2}-\d{2}\s+`?([a-f0-9]{7,64})`?(?=\s|$|[;,])/i)?.[1];
+    if (!sha) {
+      errors.push(`${row.id} needs an accepted date and commit SHA for Git verification`);
+      continue;
+    }
+    let commit;
+    try {
+      commit = git(repoRoot, ["rev-parse", "--verify", "--end-of-options", `${sha}^{commit}`]);
+      if (!commit.toLowerCase().startsWith(sha.toLowerCase())) throw new Error("not a commit object ID");
+    } catch {
+      errors.push(`${row.id} accepted SHA ${sha} does not resolve to a commit`);
+      continue;
+    }
+    try {
+      git(repoRoot, ["merge-base", "--is-ancestor", commit, "HEAD"]);
+    } catch {
+      errors.push(`${row.id} accepted commit ${sha} is not reachable from HEAD`);
+      continue;
+    }
+    if (owners.has(commit)) {
+      errors.push(`${row.id} shares its accepted commit with ${owners.get(commit)}; sections need separate commits`);
+    }
+    owners.set(commit, row.id);
+    commits.set(row.id, commit);
+  }
+  for (const m of md.matchAll(/^## ([A-Z][0-9]+) — (.+)$/gm)) {
+    const commit = commits.get(m[1]);
+    if (!commit) continue;
+    const rest = md.slice(m.index + m[0].length);
+    const next = rest.search(/^## /m);
+    const block = next === -1 ? rest : rest.slice(0, next);
+    for (const dep of new Set(field(block, "DEPENDS ON").match(/\b[A-Z][0-9]+\b/g) ?? [])) {
+      if (!commits.has(dep)) {
+        errors.push(`${m[1]} is accepted without a verified dependency commit for ${dep}`);
+        continue;
+      }
+      try {
+        git(repoRoot, ["merge-base", "--is-ancestor", commits.get(dep), commit]);
+      } catch {
+        errors.push(`${m[1]} accepted commit does not contain dependency ${dep}`);
+      }
+    }
+  }
+  return commits.size;
 }
 
 function checkPreflight(md, status, errors) {
@@ -542,7 +634,7 @@ function validateSchema2(md, fm, errors) {
 
 // ---------- entry ----------
 
-export function validatePlan(md) {
+export function validatePlan(md, { commitBoundaries = false, repoRoot } = {}) {
   const errors = [];
   const fm = parseFrontmatter(md, errors);
   const schema = fm.gdi_schema;
@@ -563,6 +655,8 @@ export function validatePlan(md) {
   if (schema === "2") extra = validateSchema2(md, fm, errors);
   else if (schema === "1") extra = validateSchema1(md, fm, errors);
   else errors.push("frontmatter gdi_schema must be 2 (current) or 1 (legacy)");
+  if (commitBoundaries) checkCommitBoundaries(md, errors);
+  if (repoRoot) extra.commits = checkAcceptedCommits(md, repoRoot, errors);
   return {
     errors,
     summary: {
@@ -776,6 +870,93 @@ function expectError(result, needle, label) {
   }
 }
 
+function commitSelfTest() {
+  const repo = mkdtempSync(join(tmpdir(), "gdi-commit-check-"));
+  try {
+    git(repo, ["init", "-q", "-b", "main"]);
+    const unborn = validatePlan(S2_FIXTURE, { repoRoot: repo });
+    if (unborn.errors.length || unborn.summary.commits !== 0) throw new Error("new worktree rejected before any section was accepted");
+    const commitFile = (name) => {
+      writeFileSync(join(repo, name), `${name}\n`);
+      git(repo, ["add", "--", name]);
+      git(repo, ["-c", "user.name=GDI test", "-c", "user.email=gdi@example.test",
+        "-c", "commit.gpgsign=false", "-c", `core.hooksPath=${join(repo, "no-hooks")}`,
+        "commit", "-qm", name]);
+      return git(repo, ["rev-parse", "HEAD"]);
+    };
+    const first = commitFile("first.txt");
+    git(repo, ["checkout", "-qb", "other"]);
+    const unreachable = commitFile("other.txt");
+    git(repo, ["checkout", "-q", "main"]);
+    const second = commitFile("second.txt");
+    const record = (id, sha) => `- [x] ${id} slice — accepted 2026-09-22 ${sha} — rounds: 0 — review: independent — routing: test — cost: unknown`;
+    const one = (sha) => S2_FIXTURE.replace("- [ ] A1 slice", record("A1", sha));
+    const checked = validatePlan(one(first), { repoRoot: repo });
+    if (checked.errors.length || checked.summary.commits !== 1) {
+      throw new Error(`reachable commit failed: ${checked.errors.join("\n")}`);
+    }
+    expectError(validatePlan(one("f".repeat(40)), { repoRoot: repo }), "does not resolve", "missing commit");
+    expectError(validatePlan(one(unreachable), { repoRoot: repo }), "not reachable", "other branch commit");
+    expectError(validatePlan(one("pending"), { repoRoot: repo }), "date and commit SHA", "unrecorded commit");
+    const blob = git(repo, ["rev-parse", `${first}:first.txt`]);
+    expectError(validatePlan(one(blob), { repoRoot: repo }), "does not resolve", "blob is not a commit");
+    git(repo, ["tag", "deadbee", first]);
+    expectError(validatePlan(one("deadbee"), { repoRoot: repo }), "does not resolve", "tag is not SHA evidence");
+
+    const pair = (a, b) => `## A1 — first\nDEPENDS ON:\nnone\n## A2 — second\nDEPENDS ON:\nA1\n## 5. Progress ledger\n${record("A1", a)}\n${record("A2", b)}\n## Completion\n`;
+    const pairResult = (a, b) => {
+      const errors = [];
+      checkAcceptedCommits(pair(a, b), repo, errors);
+      return { errors };
+    };
+    if (pairResult(first, second).errors.length) throw new Error("ordered dependency commits rejected");
+    expectError(pairResult(second, first), "does not contain dependency", "reversed commit order");
+    expectError(pairResult(first, first), "shares its accepted commit", "combined section commit");
+    const missingDependency = pair(first, second).replace(record("A1", first), "- [ ] A1 pending");
+    const errors = [];
+    checkAcceptedCommits(missingDependency, repo, errors);
+    expectError({ errors }, "without a verified dependency", "unchecked dependency");
+
+    const planPath = join(repo, "plan with spaces.md");
+    writeFileSync(planPath, one(first).replace("TARGET:\nPackage.",
+      "MILESTONE:\nStandalone delivery.\nCOMMIT BOUNDARY:\nOne complete behavior; nothing else needed.\nTARGET:\nPackage."));
+    const scriptPath = fileURLToPath(import.meta.url);
+    const cli = execFileSync(process.execPath, [scriptPath, planPath, "--commit-boundaries", "--repo-root", repo],
+      { encoding: "utf8", env: gitEnv(), stdio: ["ignore", "pipe", "pipe"] });
+    if (!cli.includes("commits=1") || !cli.includes("commit-boundaries=checked")) throw new Error("CLI did not run requested checks");
+    for (const args of [[planPath, "--repo-root"], [planPath, "--unknown"], [planPath, "--commit-boundaries", "--commit-boundaries"]]) {
+      let status;
+      try {
+        execFileSync(process.execPath, [scriptPath, ...args], { stdio: "pipe" });
+      } catch (error) {
+        status = error.status;
+      }
+      if (status !== 2) throw new Error(`invalid CLI arguments did not fail with usage error: ${args.join(" ")}`);
+    }
+
+    // Neither accepted-record validation nor its Git calls should change the worktree.
+    writeFileSync(join(repo, "user.txt"), "unrelated local work\n");
+    const before = git(repo, ["status", "--porcelain=v1", "-uall"]);
+    const indexBefore = git(repo, ["write-tree"]);
+    const previousDir = process.env.GIT_DIR;
+    try {
+      process.env.GIT_DIR = join(repo, "missing-git-dir");
+      const isolated = validatePlan(one(second), { repoRoot: repo });
+      if (isolated.errors.length) throw new Error("inherited GIT_DIR overrode selected repository");
+    } finally {
+      if (previousDir === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = previousDir;
+    }
+    if (git(repo, ["status", "--porcelain=v1", "-uall"]) !== before ||
+        git(repo, ["write-tree"]) !== indexBefore || git(repo, ["rev-parse", "HEAD"]) !== second) {
+      throw new Error("commit verification mutated Git state");
+    }
+    expectError(validatePlan(one(first), { repoRoot: join(repo, "missing") }), "committed HEAD", "invalid repo");
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+}
+
 function selfTest() {
   const ok = validatePlan(S2_FIXTURE);
   if (ok.errors.length)
@@ -872,7 +1053,22 @@ function selfTest() {
     "depends on itself",
     "legacy dependency",
   );
-  console.log("validate-plan self-test passed (schema 2 + legacy schema 1)");
+  expectError(validatePlan(S2_FIXTURE, { commitBoundaries: true }), "MILESTONE", "missing boundary fields");
+  const bounded = S2_FIXTURE.replace("TARGET:\nPackage.",
+    "MILESTONE:\nMessaging admission PR.\nCOMMIT BOUNDARY:\nOne supported sender is fenced; other effect families remain.\nTARGET:\nPackage.");
+  const boundedResult = validatePlan(bounded, { commitBoundaries: true });
+  if (boundedResult.errors.length) throw new Error(`commit boundary rejected: ${boundedResult.errors.join("\n")}`);
+  expectError(validatePlan(bounded.replace("One supported sender is fenced; other effect families remain.", "<explain>"),
+    { commitBoundaries: true }), "COMMIT BOUNDARY", "placeholder boundary");
+  expectError(validatePlan(bounded.replace("One supported sender is fenced; other effect families remain.",
+    "<Why this behavior or usable internal capability is coherent without the next section; what\n" +
+    "remains for the milestone. Reference the checks below. If several mechanisms must change\n" +
+    "together, explain the invariant that makes them atomic.>"),
+    { commitBoundaries: true }), "COMMIT BOUNDARY", "multiline template boundary");
+  expectError(validatePlan(bounded.replace("Messaging admission PR.", ""),
+    { commitBoundaries: true }), "MILESTONE", "empty milestone");
+  commitSelfTest();
+  console.log("validate-plan self-test passed (schemas, commit boundaries, real Git commits)");
 }
 
 const args = process.argv.slice(2);
@@ -880,11 +1076,25 @@ if (args.length === 1 && args[0] === "--self-test") {
   selfTest();
   process.exit(0);
 }
-if (args.length !== 1 || args[0].startsWith("--")) {
-  console.error("Usage: node validate-plan.mjs <plan.md> | --self-test");
+const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo>] | --self-test";
+let planPath;
+const options = {};
+for (let i = 0; i < args.length; i += 1) {
+  if (args[i] === "--commit-boundaries" && !options.commitBoundaries) {
+    options.commitBoundaries = true;
+  } else if (args[i] === "--repo-root" && !options.repoRoot && args[i + 1] && !args[i + 1].startsWith("-")) {
+    options.repoRoot = resolve(args[++i]);
+  } else if (!args[i].startsWith("-") && !planPath) {
+    planPath = resolve(args[i]);
+  } else {
+    console.error(usage);
+    process.exit(2);
+  }
+}
+if (!planPath) {
+  console.error(usage);
   process.exit(2);
 }
-const planPath = resolve(args[0]);
 let markdown;
 try {
   markdown = readFileSync(planPath, "utf8");
@@ -892,7 +1102,7 @@ try {
   console.error(`Could not read ${planPath}: ${error.message}`);
   process.exit(2);
 }
-const result = validatePlan(markdown);
+const result = validatePlan(markdown, options);
 if (result.errors.length) {
   console.error(`Plan validation failed: ${basename(planPath)}`);
   for (const e of result.errors) console.error(`- ${e}`);
@@ -900,5 +1110,5 @@ if (result.errors.length) {
 }
 const s = result.summary;
 console.log(
-  `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections})`,
+  `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
 );

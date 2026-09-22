@@ -58,6 +58,8 @@ or usable internal capability it establishes, and what remains. Separate indepen
 keep changes required by the same invariant together. Schedule broad gates at their consuming
 milestone, retaining required section checks. An S/M label does not justify a subsystem-sized
 assignment. On a replan, preserve accepted work and explicitly assign every unresolved finding.
+Validate populated boundary fields with `validate-plan.mjs <plan-file> --commit-boundaries`;
+this structural check does not judge whether a proposed boundary is coherent.
 
 Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
 Include the plan path and status, commands and decisive check results (or pending), graph

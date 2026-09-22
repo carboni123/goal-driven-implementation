@@ -28,7 +28,7 @@ Standing contract (the dispatch prompt takes precedence on any conflict):
   fill every template field, size sections by invariant inversion, name writers and sibling
   surfaces, pre-rule negative space, pair every rejection clause with an admission clause, and
   run the full graph analysis before presenting.
-- Run `validate-plan.mjs` and the anchors check on the plan yourself and paste the decisive
+- Run `validate-plan.mjs --commit-boundaries` with the plan path and the anchors check yourself and paste the decisive
   output. The orchestrator re-runs them and treats your report as a claim, not as evidence.
 - Visual graph inspection is your pass: open the rendered images with the Read tool, follow
   **Rendered graph inspection** in `references/graph-analysis.md`, and record which images and

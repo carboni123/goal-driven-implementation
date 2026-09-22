@@ -165,6 +165,11 @@ under the existing approval rules; do not invent a new approval floor or route i
   an invariant requires atomic change. Keep broad gates at the milestone that consumes them.
   _Origin:_ tyxter-messaging #1002 grouped automation identity, five entry points, effect
   admission and recovery into one M section, retaining the diff through six correction rounds.
+- **Recorded commit evidence** — accepted sections name distinct commits reachable from the
+  branch, with dependency commits in their ancestry. Run `validate-plan.mjs <plan> --repo-root
+  <repo>`, then compare the committed diff and remaining working tree against the section
+  baseline. The structural ledger check alone does not inspect Git. _Origin:_ the accepted-row
+  validator checked the word `accepted` without verifying a SHA or commit existence.
 - **Plan as evidence** — every anchor resolves (`validate-report.mjs --kind anchors` over the
   plan file checks file and line mechanically), every named symbol/scope/column/export exists,
   every `DEPENDS ON` edge is buildable. Behavior claims in the plan get the same discipline as

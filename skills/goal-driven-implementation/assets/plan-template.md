@@ -137,15 +137,21 @@ plan approves exactly these; anything broader is a new brief.
 Re-baseline on `origin/main` <when: before final review / after every phase / when a stacked
 predecessor merges>. If a predecessor squash-merges, <rebase only this plan's range onto the
 squash commit; no history rewrite of pushed commits without an explicit ruling>.
+Complete upstream merges separately from section commits. Reconcile ledger SHAs after a rebase
+by inspecting the rewritten section diffs; retain evidence whose behavioral inputs are unchanged.
 
 ### Rules
 
 - Implementation is sequential; never run two implementers concurrently.
-- No unrun gate may be reported as successful; a test authored but not executed blocks acceptance.
+- No unrun gate may be reported as successful; an unexecuted test due at this section blocks
+  section acceptance. Later milestone tests stay pending and block milestone acceptance.
 - Preserve and exclude unrelated pre-existing working-tree changes.
-- In-contract correction rounds continue until the section converges. Stop only when a round
-  identifies a floor item, repeats a class the previous round was told to fix, or breaks the section
-  boundary. Round count and token use are never decision boundaries.
+- In-contract rounds continue while unresolved findings decrease. Pause the loop for an unruled
+  floor item, a repeated defect mechanism assigned to the previous round, or an invalidated commit
+  boundary. The orchestrator resolves floor items with the user, diagnoses repeated mechanisms,
+  and requests a bounded replan for oversized work. Preserve findings/history through splits;
+  report a blocker if no safe in-scope correction or decomposition exists. Round count and token
+  use are never decision boundaries.
 - Environment retries (`⚙`) follow the Known blockers table and never count as rounds.
 - Do not work on future sections.
 
@@ -155,8 +161,12 @@ flowchart LR
   IMPL --> REV["REVIEW<br>≥3 lenses in parallel"]
   REV --> GATE{"full-diff read + gates pass +<br>seven checks pass?"}
   GATE -- "reject (converging)" --> IMPL
-  GATE -- accept --> COMMIT["commit section + ledger<br>+ corrections in force"]
-  GATE -- "floor item / repeated class / boundary" --> STOP["stop for a decision"]
+  GATE -- accept --> COMMIT["commit section + evidence<br>record SHA / verify Git"]
+  GATE -- "unruled floor item" --> USER["user ruling"]
+  GATE -- "repeated mechanism / boundary growth" --> REPLAN["diagnose / bounded replan<br>preserve findings and history"]
+  USER --> IMPL
+  REPLAN -- "safe scope established" --> IMPL
+  REPLAN -- "no safe in-scope path" --> STOP["report blocker"]
 ```
 
 ## 1. Goals — observable definition of done
@@ -379,8 +389,15 @@ the code. Review commands,
 results, tested state, and environment; rerun only missing or invalidated checks or a targeted
 probe for a finding. Final gates not yet due remain pending, never reported as passed.
 
-On acceptance, append the ledger record and commit the section diff and this ledger change
-together. On rejection, send exact `file:line` gaps to the correction carrier (the same
+On acceptance, commit the reviewed section diff and acceptance evidence, inspect the committed
+diff against its baseline, then record its resulting SHA below. Run
+`node <skill-root>/assets/validate-plan.mjs <plan-file> --repo-root <repo>` before dispatching the
+next section. Compare staged, unstaged, and untracked files with the preserved baseline; no
+completed section's product work may remain uncommitted, and unrelated user changes stay excluded.
+The SHA-only ledger update may accompany the next section commit; commit final ledger updates
+at milestone closure. This avoids requiring a commit to contain its own SHA. Git validation
+checks identity and ancestry; the orchestrator still verifies diff ownership and test evidence.
+On rejection, send exact `file:line` gaps to the correction carrier (the same
 implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
 under the convergence rule. Refute a reviewer finding against the code when it is wrong; record
 the refutation.
@@ -415,7 +432,8 @@ outcomes (correction rounds and later escaped defects) alongside cost comparison
 
 ## Completion
 
-- [ ] Every section is committed with its ledger record.
+- [ ] Every section is committed; all ledger records are committed.
+- [ ] Accepted SHAs resolve on this branch in dependency order; no section-owned product changes remain uncommitted.
 - [ ] Branch re-baselined on `origin/main` before final review.
 - [ ] Whole-branch final review (seams, contract, conformance, reader sweep, claim decay, rollout window) is clean; corrections committed.
 - [ ] Goal 1 exit tests pass with evidence.

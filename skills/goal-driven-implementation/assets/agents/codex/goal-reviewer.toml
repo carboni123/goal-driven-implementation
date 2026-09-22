@@ -17,7 +17,13 @@ Report diagram-only discrepancies in NOTES for the planner, without taking over 
 Verify the implementation and acceptance independently of planner and implementer claims. Return
 the verdict vocabulary the task specifies (APPROVE/REJECT for a section, CLEAN/FINDINGS for a
 whole branch). Approval requires 2-5 repository-relative file:line anchors explaining what was
-checked. Every finding is one line: anchor, issue, impact, required correction, and an evidence
+checked. Report a finding only when a trigger that exists at this commit reaches it: a request any
+client can send (for security, a hostile client too), a caller in the repository, a state some
+writer produces, or a failure the deployment can produce (dependency timeout or error, restart,
+concurrent writers, rollout overlap). A defect that needs a state no writer produces or a caller
+that does not exist goes under NOTES with the missing precondition. Every finding is one line:
+anchor, issue, `trigger:` (how it is reached, or `static` and the rule or claim it breaks), impact,
+required correction, and an evidence
 tag `evidence: test|code|partial|config|inference` (test = a test asserts it; code = readable from
 the cited implementation; partial = happy path read, edge not traced; config = flag, env, or stub;
 inference = deduced from naming or structure). A rejection with no anchored, tagged finding is

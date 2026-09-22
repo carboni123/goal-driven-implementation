@@ -15,7 +15,8 @@
 //                labels present; SYMBOLS carries at least one anchor. Warns "thin" under three
 //                anchors and "soft" when UNCERTAINTIES bullets outnumber anchors.
 //   reviewer     VERDICT: APPROVE|REJECT; EVIDENCE with 2–5 anchors; FINDINGS none or one
-//                anchored line each carrying an evidence tag (test|code|partial|config|inference).
+//                anchored line each carrying a `trigger:` segment and an evidence tag
+//                (test|code|partial|config|inference).
 //                REJECT with FINDINGS: none is an error. All-inference findings are a warning the
 //                orchestrator verifies before relaying.
 //   final        as reviewer with VERDICT: CLEAN|FINDINGS and 2–8 evidence anchors.
@@ -38,6 +39,7 @@ const ANCHOR_RE =
   /(?<![\w.])`?((?:[A-Za-z]:)?[\\/]?(?:[\w.@+-]+[\\/])*[\w.@+-]+\.[A-Za-z0-9]{1,12}):(\d+)(?:-(\d+))?`?(?![\w:])/g;
 const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/\S+/gi;
 const EVIDENCE_TAG_RE = /\bevidence:\s*(test|code|partial|config|inference)\b/i;
+const TRIGGER_RE = /\btrigger:\s*\S/i;
 const LABEL_RE = /^([A-Z][A-Z0-9 /_-]{1,40}):[ \t]*(.*)$/;
 
 const MAPPER_LABELS = ["SYMBOLS", "PATTERN", "TESTS", "WRITERS", "COUPLINGS", "LIFECYCLE", "SIBLINGS", "UNCERTAINTIES"];
@@ -150,6 +152,7 @@ function checkReview(sec, errors, warnings, { verdicts, minEvidence, maxEvidence
     const tag = EVIDENCE_TAG_RE.exec(f);
     if (!tag) errors.push(`finding without an evidence tag (evidence: test|code|partial|config|inference): ${short(f)}`);
     else if (tag[1].toLowerCase() === "inference") inference += 1;
+    if (!TRIGGER_RE.test(f)) errors.push(`finding without a trigger (trigger: <how it is reached> or trigger: static — <rule>): ${short(f)}`);
   }
   if (findings.length && inference === findings.length)
     warnings.push("every finding is evidence: inference — verify against the code before relaying to the implementer");
@@ -279,7 +282,7 @@ function selfTest() {
     assert(mapperBad.warnings.some((w) => w.startsWith("thin")), "mapper thin warning");
 
     const reviewerGood = validate(
-      "VERDICT: REJECT\nEVIDENCE: a.ts:1 — checked; a.ts:2 — checked\nFINDINGS:\n- a.ts:3 — off by one — wrong count — fix loop bound — evidence: code\nNOTES: none",
+      "VERDICT: REJECT\nEVIDENCE: a.ts:1 — checked; a.ts:2 — checked\nFINDINGS:\n- a.ts:3 — off by one — trigger: any list with one item — wrong count — fix loop bound — evidence: code\nNOTES: none",
       "reviewer", dir);
     assert(reviewerGood.ok, `reviewer good failed: ${reviewerGood.errors}`);
     const reviewerBad = validate("VERDICT: REJECT\nEVIDENCE: a.ts:1\nFINDINGS: none", "reviewer", dir);
@@ -289,8 +292,14 @@ function selfTest() {
       "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — impact — fix", "reviewer", dir);
     assert(reviewerUntagged.errors.some((e) => e.includes("evidence tag")), "finding without evidence tag");
     const reviewerInference = validate(
-      "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — impact — fix — evidence: inference", "reviewer", dir);
+      "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — trigger: static — rule — impact — fix — evidence: inference", "reviewer", dir);
     assert(reviewerInference.ok && reviewerInference.warnings.some((w) => w.includes("inference")), "all-inference warning");
+    const reviewerNoTrigger = validate(
+      "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — impact — fix — evidence: code", "reviewer", dir);
+    assert(reviewerNoTrigger.errors.some((e) => e.includes("without a trigger")), "finding without trigger");
+    const finalNoTrigger = validate(
+      "VERDICT: FINDINGS\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — seam — impact — fix — evidence: code", "final", dir);
+    assert(finalNoTrigger.errors.some((e) => e.includes("without a trigger")), "final finding without trigger");
     const finalGood = validate("VERDICT: CLEAN\nEVIDENCE: a.ts:1, a.ts:2, b.md:1\nFINDINGS: none\nNOTES: -", "final", dir);
     assert(finalGood.ok, `final good failed: ${finalGood.errors}`);
     const finalBadVerdict = validate("VERDICT: APPROVE\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS: none", "final", dir);

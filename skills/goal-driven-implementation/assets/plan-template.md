@@ -399,8 +399,9 @@ at milestone closure. This avoids requiring a commit to contain its own SHA. Git
 checks identity and ancestry; the orchestrator still verifies diff ownership and test evidence.
 On rejection, send exact `file:line` gaps to the correction carrier (the same
 implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
-under the convergence rule. Refute a reviewer finding against the code when it is wrong; record
-the refutation.
+under the convergence rule. Refute a reviewer finding against the code when it is wrong,
+including a finding whose trigger no existing client, caller, writer, or deployment failure
+produces (`unreachable`); record the refutation.
 
 ## 5. Progress ledger
 

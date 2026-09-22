@@ -19,6 +19,20 @@ documents built-in tool settings and per-MCP-server filters, but no general agen
   TOML tool list or machine-specific MCP server is added. The local CLI was already installed
   (`ast-grep 0.45.3`); the installer does not install it on other machines.
 
+### Changed — reachable review findings
+
+**Maintainer report, 2026-09-22.** Reviewers raised defects that needed states or callers the
+repository never produces; each one cost a correction round.
+
+- **Reachable findings.** Every section and final-review finding carries a `trigger:` segment:
+  the client request, caller, state a writer produces, or deployment failure that reaches it at
+  this commit, or `static` with the rule or claim it breaks. For security, a hostile client
+  counts as a client. A defect that has no existing trigger goes under NOTES, and the orchestrator
+  refutes a finding whose named trigger does not exist as `unreachable`. `validate-report.mjs`
+  rejects a finding without `trigger:` (new fixtures for reviewer and final). Reviewers whose
+  installed definitions predate this change get the format from the dispatch prompt and are
+  re-prompted once on a missing trigger. No lens checklist item was removed.
+
 ### Changed — commit-sized implementation sections
 
 **Maintainer request, 2026-09-22, following tyxter-messaging #968/#1002.** The workflow committed

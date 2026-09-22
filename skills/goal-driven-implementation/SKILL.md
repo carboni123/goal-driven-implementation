@@ -382,7 +382,11 @@ touched; doc-truth always. Each returns APPROVE or REJECT with anchors and an ev
 finding; approvals cite 2–5 anchors too. Validate each return (`--kind reviewer`). A reviewer can
 be wrong — refute a finding against the code and record the refutation rather than implementing
 it; a REJECT whose findings are all `evidence: inference` is verified by the orchestrator first
-and reaches the implementer only with an upgraded tag or not at all.
+and reaches the implementer only with an upgraded tag or not at all. Every finding names its
+`trigger:`, meaning the input, caller, stored state, or deployment failure that reaches the defect
+at this commit, or `static` with the rule or claim it breaks. A finding whose trigger no existing
+client, caller, writer, or deployment failure produces is refuted on the record as `unreachable`
+and does not reach the implementer.
 For section or final reviews where cross-section dependencies, shared-state paths, or integration
 gates matter, include a relevant part of the planner-inspected graph as optional context using the
 review prompt's GRAPH CONTEXT field. Reuse the existing images; do not require a new render or a

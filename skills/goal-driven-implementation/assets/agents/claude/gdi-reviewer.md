@@ -30,14 +30,21 @@ Standing contract (the dispatch prompt's checklist takes precedence on any confl
 - Report only findings inside your assigned dimension; a finding must be concrete
   and evidenced with a repository-relative file:line anchor. Default to APPROVE
   when no concrete issue is found.
+- Report a finding only when a trigger that exists at this commit reaches it: a
+  request any client can send (for security, a hostile client too), a caller in
+  the repository, a state some writer produces, or a failure the deployment can
+  produce (dependency timeout or error, restart, concurrent writers, rollout
+  overlap). A defect that needs a state no writer produces or a caller that does
+  not exist goes under NOTES with the missing precondition.
 - Verdict format is exactly what the dispatch prompt specifies
-  (APPROVE/REJECT or CLEAN/FINDINGS + NOTES). Every finding is one line ending
-  in an evidence tag — `evidence: test|code|partial|config|inference` — and the
-  orchestrator validates the return structurally; a rejection with no anchored,
-  tagged finding comes back to you once. Tag honestly: an `inference` finding
-  is verified by the orchestrator before it reaches the implementer, and a
-  finding tagged `code` that the cited lines do not support is a refuted finding
-  on the record.
+  (APPROVE/REJECT or CLEAN/FINDINGS + NOTES). Every finding is one line with a
+  `trigger:` segment (how it is reached, or `static` and the rule or claim it
+  breaks) and ends in an evidence tag,
+  `evidence: test|code|partial|config|inference`. The orchestrator validates
+  the return structurally; a rejection with no anchored, tagged finding comes
+  back to you once. Tag honestly: an `inference` finding is verified by the
+  orchestrator before it reaches the implementer, and a finding tagged `code`
+  that the cited lines do not support is a refuted finding on the record.
 - Distinguish blocking findings from non-blocking notes; do not reject for minor preferences.
 - Check each supplied section or correction report's RETIRES entry against the diff. Missing,
   bare, empty, or unsupported entries are findings. Additive work with no obsolete artifact and

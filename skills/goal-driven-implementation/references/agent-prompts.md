@@ -285,8 +285,17 @@ and anchored; default to APPROVE when no concrete issue is found. Approvals cite
 Final message:
 VERDICT: APPROVE | REJECT
 EVIDENCE: 2–5 file:line anchors — what each establishes
-FINDINGS: none | one line each: file:line — issue — impact — required correction — evidence: test|code|partial|config|inference
+FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
 NOTES: non-blocking observations
+Report a finding only when a trigger that exists at this commit reaches it: a request any client
+can send (for security, a hostile client too), a caller in the repository, a state some writer in
+the repository produces, or a failure the deployment can produce (a dependency timeout or error,
+a process restart, concurrent writers, old and new binaries during a rollout). Name that trigger
+in the finding. A defect that needs a state no writer produces, a caller that does not exist, or
+repository code breaking a contract that no code breaks goes under NOTES, with the missing
+precondition. For a convention, scope, doc-claim, or generated-artifact finding, the trigger is
+`static` followed by the rule or claim it breaks.
+
 ```
 
 Evidence tags, strongest first: `test` a test asserts the behavior or its absence; `code`
@@ -298,10 +307,12 @@ deduced from naming, structure, or pattern. Validate each return:
 node <skill-root>/assets/validate-report.mjs --kind reviewer --repo-root <repo> --input <return.md>
 ```
 
-A hard error (REJECT with no findings, a finding without an anchor or tag, a dead anchor) goes
-back to the same reviewer once. A REJECT whose findings are all `evidence: inference` does not
-reach the implementer as-is: the orchestrator verifies each against the code and either upgrades
-the tag with its own anchor or refutes it on the record.
+A hard error (REJECT with no findings, a finding without an anchor, tag, or `trigger:`, a dead
+anchor) goes back to the same reviewer once. A REJECT whose findings are all `evidence: inference`
+does not reach the implementer as-is: the orchestrator verifies each against the code and either
+upgrades the tag with its own anchor or refutes it on the record. A finding whose named trigger
+does not exist in the repository or deployment (no such caller, writer, or client request) is
+refuted on the record as `unreachable` and is not relayed.
 
 Lens checklists:
 
@@ -382,20 +393,23 @@ Read the correction reports, whole branch, and enough of the repository to judge
 For each correction report, accept a concrete no-retirement reason when additive work leaves no
 obsolete artifact or a compatibility facade remains; do not require deletion merely to fill the
 field. Reject a missing, bare, empty, or unsupported RETIRES entry. The validator checks its shape
-only, not whether the rationale is true. Findings must be concrete and anchored. Approvals cite
-anchors. Review supplied verification evidence first; run targeted checks for concrete gaps or
+only, not whether the rationale is true. Findings must be concrete and anchored, and each names
+the trigger that reaches it at this commit: a client request, a caller, a state a writer produces,
+or a deployment failure, or `static` with the rule or claim it breaks. A defect with no existing
+trigger goes under NOTES with the missing precondition. Approvals cite anchors. Review supplied
+verification evidence first; run targeted checks for concrete gaps or
 uncertain validity, not to repeat valid evidence solely for independent review. Final gates
 scheduled after this review remain pending; they must pass before plan completion.
 
 Final message:
 VERDICT: CLEAN | FINDINGS
 EVIDENCE: 2–8 anchors — what each establishes
-FINDINGS: none | one line each: file:line — issue — impact — required correction — evidence: test|code|partial|config|inference
+FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
 NOTES: non-blocking observations
 ```
 
 Validate each return with `validate-report.mjs --kind final --repo-root <repo>`; the same
-re-prompt-once and all-inference rules as the section reviewer apply.
+re-prompt-once, all-inference, and unreachable-trigger rules as the section reviewer apply.
 
 Lenses:
 

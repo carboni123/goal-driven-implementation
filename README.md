@@ -65,7 +65,9 @@ prints the new snippet and leaves legacy config/files intact. See the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
    (commit section and acceptance evidence, then record and verify its SHA) or sends exact gaps
    back until it converges: to the same implementer, or in Claude Code to a fresh one when the
-   first returned with a large context.
+   first returned with a large context. Reviewer findings name the trigger that reaches them;
+   one that no existing caller, writer, client, or deployment failure produces is refuted as
+   unreachable.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from

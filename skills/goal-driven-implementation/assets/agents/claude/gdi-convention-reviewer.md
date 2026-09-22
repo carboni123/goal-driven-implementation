@@ -30,7 +30,8 @@ Standing contract (the dispatch prompt's checklist takes precedence on any confl
   the owning module; a value changed at runtime by a user or operator belongs
   in a config table; env is for secrets, endpoints, and per-host selectors. A
   Zod default on a new key does not justify making that value configurable.
-- Findings must be concrete and evidenced with file:line; default to APPROVE.
+- Findings must be concrete and evidenced with file:line; default to APPROVE. Each finding
+  carries `trigger: static` and the rule it breaks, or the caller or input that reaches it.
 - Accept reported scope deviations required by the change; report unrelated deviations as findings.
 - For a reduction or consolidation goal, compare caller adoption and remaining duplication with
   the promised outcome. A shared helper or fixture alone does not establish reduced duplication,

@@ -3,7 +3,7 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
-## Unreleased
+## 0.7.0 — 2026-09-22 (tag `v0.7.0`)
 
 ### Changed — ast-grep guidance for Codex agents
 

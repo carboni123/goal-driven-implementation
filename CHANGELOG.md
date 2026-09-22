@@ -3,6 +3,31 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — commit-sized implementation sections
+
+**Maintainer request, 2026-09-22, following tyxter-messaging #968/#1002.** The workflow committed
+accepted D1, D2, and D3 separately, but each section accumulated substantial work before that
+boundary. D3 combined five automation entry points, phone provenance, effect ownership, and
+cancellation/recovery, then required PR-level acceptance before its first commit. Its six
+correction rounds ended in merge commit `4e6ba4fac`; 245 first-parent changed files included
+incoming main changes, while Git's remerge diff showed 48 files, 4,712 additions and 199 deletions.
+The evidence supports better decomposition rather than merely repeating the instruction to commit.
+
+- Sections now justify their commit boundary and name the milestone that consumes them.
+  Independent behaviors are split while atomic invariants stay together. No arbitrary file,
+  line, time, or correction-count limit is introduced.
+- Planner prompts and both harness profiles separate milestone gates from section checks.
+  Implementers report discoveries that invalidate a boundary; the orchestrator requests a
+  bounded replan within approved scope, preserving evidence and unresolved findings.
+- Repeated concrete defects pause the correction loop for diagnosis; growth triggers an
+  internal bounded replan. These do not automatically become user approval requests. The
+  previous class-wide escalation also stopped #1002 over successive generated-artifact misses;
+  the authorized workflow adjustment retains floor escalation and reports genuine blockers.
+- Upstream merges are completed separately from section commits. Role/model pins, acceptance
+  checks, installed paths, plan schema, and release version are unchanged.
+
 ## 0.6.1 — 2026-09-19
 
 ### Changed — Claude Code context economy

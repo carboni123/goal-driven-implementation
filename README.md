@@ -80,6 +80,13 @@ checks for concrete risks, and evidence shared across roles while its inputs rem
 Broader gates run against the final reviewed candidate; explicit user and host checks still apply
 at their required stage. A rejection invalidates affected evidence, not every previous result.
 
+Sections are commit-sized increments; milestones group them into PR or delivery checkpoints.
+Each section explains why its result is coherent without the next section. Broad milestone gates
+do not automatically block constituent commits, and a commit does not claim milestone completion.
+When discovery invalidates the boundary, the orchestrator requests a bounded replan of remaining
+work, retaining accepted commits and assigning every unresolved finding. Atomic invariants stay
+together; independent behaviors get separate sections.
+
 The **ruling floor** defaults to commercial terms, the public integration contract, and
 irreversible outward actions. Everything else the orchestrator decides and records. A host
 repository declares its own floor in its AGENTS.md or an ADR and the skill uses that instead; the

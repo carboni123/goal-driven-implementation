@@ -277,7 +277,7 @@ and prepends this block to every later implementer prompt.
 
 ## 3. Sections
 
-Use this block for every S/M vertical slice.
+Use this block for every commit-sized vertical slice. Several sections may share a milestone.
 
 ```md
 ## <ID> — <section title>
@@ -289,6 +289,14 @@ before/after inventory. Separate product reduction from tests, plans, and genera
 
 SOURCES:
 <Roadmap, PRD, ADR, or issue clauses.>
+
+MILESTONE:
+<PR or delivery checkpoint that consumes this section; "standalone" for a single-section task.>
+
+COMMIT BOUNDARY:
+<Why this behavior or usable internal capability is coherent without the next section; what
+remains for the milestone. Reference the checks below. If several mechanisms must change
+together, explain the invariant that makes them atomic.>
 
 TARGET:
 <Owning unit from the feature map (name and path), plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose. Name any shared kernel written.>
@@ -344,6 +352,8 @@ VERIFY:
 - Defect reproduction: <before/after evidence, or obstacle and alternative evidence>; use targeted
   sensitivity checks per SKILL.md's proportionate-verification policy.
 - Global gate: <command and scheduled stage; run here only for a concrete risk or host rule>.
+- Milestone gates: <whole-candidate review, broad checks, and assembled journeys due after the
+  named constituent sections; do not copy these onto each section automatically>.
 - Live/end-to-end flow: <required steps, expected result, and scheduled stage, or not required>;
   running stack includes tested changes and matching relevant inputs.
 - Evidence reuse: <valid results and tested state; inputs that invalidate them>.
@@ -352,7 +362,8 @@ REVIEW:
 <Lenses: security, data, contract, reliability, convention/scope, doc-truth; + capacity when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
 
 ACCEPTANCE:
-<Exact Goal exit-test clause satisfied.>
+<Exact Goal exit-test clause or usable internal capability established by this commit. Name
+remaining milestone clauses separately; required section checks must already pass.>
 
 COMMIT:
 <type(scope): concise message (reference)>

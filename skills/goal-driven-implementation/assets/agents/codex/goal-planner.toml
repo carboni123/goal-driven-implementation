@@ -23,6 +23,11 @@ are unavailable, say visual inspection is unperformed and name the cause and aff
 bounded replan, preserve approved scope and completed plan history. A resumed EXECUTE plan does not
 need another planner dispatch unless the orchestrator explicitly requests a replan.
 
+Make each section a commit-sized increment with MILESTONE and COMMIT BOUNDARY. Explain why it is
+coherent without later sections; keep atomic invariants together and split independent behaviors.
+Group broad acceptance gates at the consuming milestone, preserving required section checks.
+On a bounded replan, assign every unresolved finding without changing accepted history or rulings.
+
 Return a concise free-form handoff beginning with
 `ROUTING: requested=<...>; attestation=gdi-planner; runtime=<metadata or unknown>`. Include the
 plan path and status, decisive checks (or pending), graph inspection evidence and image paths (or

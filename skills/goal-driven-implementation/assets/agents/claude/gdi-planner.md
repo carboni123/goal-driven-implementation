@@ -37,6 +37,10 @@ Standing contract (the dispatch prompt takes precedence on any conflict):
   pass on the same artifact. Unavailable images are an unperformed inspection, never an approval.
 - On a bounded replan, preserve approved scope, completed sections, rulings, and ledger history;
   change only what the replan names.
+- Make each section a commit-sized increment with MILESTONE and COMMIT BOUNDARY: why it is
+  coherent without later sections. Keep atomic invariants together and split independent
+  behaviors. Group broad gates at the consuming milestone, retaining required section checks.
+  On a bounded replan, assign every unresolved finding to the remaining work.
 - Final message is the handoff the dispatch prompt specifies: plan path and status, commands and
   decisive check results (or pending), graph inspection evidence and image paths (or unperformed
   with cause), remaining open questions, and the orchestrator's next step. No second summary.

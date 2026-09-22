@@ -13,6 +13,34 @@ Record the resolved skill root and source revision when available. An installed 
 checkout, and runtime-loaded agent profile may differ; a release label alone cannot identify
 unreleased edits. Follow the harness's routing check before attributing a run to a new profile.
 
+## Commit-sized sections
+
+A section is one coherent local commit. A milestone groups sections into a PR or delivery
+checkpoint; its broad acceptance gates do not automatically gate each constituent commit.
+For each section, state its `MILESTONE` and `COMMIT BOUNDARY`: the behavior or usable internal
+capability established, why the tree is coherent without the next section, and what remains for
+the milestone. Use GOAL, VERIFY, and ACCEPTANCE for the corresponding evidence rather than
+duplicating them. A section may establish one clause of a larger goal.
+
+Split by behavior and invariants. Keep a state change and the callers needed to preserve its
+invariant together. Separate independently verifiable behaviors; do not divide mechanically
+into schema, backend, and frontend tasks, or add temporary flags or compatibility code just to
+manufacture a boundary. A list of several independently testable entry points, effect families,
+or ownership mechanisms needs decomposition or a concrete reason they must change atomically.
+An S/M label, line count, or common subsystem name is not that reason.
+
+Each section keeps its required review and focused checks. Schedule whole-candidate review,
+full CI, and assembled journeys at the milestone that consumes them, preserving explicit host
+and user requirements. Committing a section does not mark those later gates passed or authorize
+publication or activation. Do not defer the section's own correctness checks to obtain a commit.
+
+When new writers, lifecycle states, independent mechanisms, or repeated corrections invalidate
+the proposed boundary, stop expanding that section. The orchestrator requests a bounded replan
+of the remaining work, preserving accepted commits, rulings, and valid evidence. Internal
+decomposition within approved scope is an orchestrator decision; only a new floor decision
+needs the user. Finish and review a coherent subset before committing it, and carry unresolved
+findings into the remaining sections. Splitting cannot relabel a known defect as accepted.
+
 ## Role contract
 
 | Role         | Who                    | May                                                                                         | Must never                                                         |
@@ -248,8 +276,12 @@ Inside the lane:
      assumptions the change falsifies — not by diff size. For any invariant a section changes,
      list its **writers** as well as its readers. TARGET names the owning unit from the
      feature map; a section that writes into a shared kernel says so there.
+     Apply **Commit-sized sections**: name the milestone and justify each stopping point.
+     Review all planned changes needed to reach the first commit; a PR-sized result must be
+     decomposed before dispatch. Group milestone gates separately from section checks.
    - **Base drift policy**: when to re-baseline on `origin/main` and what happens if a stacked
-     predecessor merges.
+     predecessor merges. Finish upstream merges separately from section commits so incoming
+     changes do not become part of the section's acceptance diff.
 4. The plan-authoring planner draws the topology graph (conventions in the template). Every section sits on a full
    input → section → goal path; every input reaches a section; the graph, `DEPENDS ON`, ledger,
    and linear order agree.
@@ -310,6 +342,10 @@ file and line existence only; re-read changed context and its defining search be
 Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, apply the
 follow-up rule from the prompts reference, and merge.
 
+If the first unchecked section has become a milestone-sized assignment, request the bounded
+replan before implementation. Compare its current writers and acceptance scope with its commit
+boundary; do not carry an oversized section forward merely because it was already approved.
+
 **2. Implement.** Check that the bounded brief above is actionable. Send one implementer the
 section block verbatim, context brief, global gate, preflight,
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
@@ -363,9 +399,13 @@ default, or a fresh section-correction implementer (prompts reference §5) when 
 reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: one
 implementer exists at a time. Count rounds the same way for either carrier. **Convergence rule:**
-in-contract rounds continue while unresolved findings decrease; stop and report when a round
-identifies a floor item, repeats a class the previous round was told to fix, or breaks the section
-boundary. Record environment retries separately (`⚙×n`); they never count as rounds. Accept →
+in-contract rounds continue while unresolved findings decrease. Pause the correction loop when a
+round identifies an unruled floor item, repeats a defect mechanism it was assigned to fix, or
+invalidates the commit boundary. Resolve floor items with the user; diagnose repeated mechanisms
+and use a bounded replan for oversized work within approved scope. Do not erase unresolved
+findings or reset their history by splitting. Report a blocker when no safe in-scope correction
+or decomposition is available. Record environment retries separately (`⚙×n`); they never count
+as rounds. Accept →
 append the ledger record (schema in the template: sha, `rounds: n` with one
 `R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
 return exposed, per the harness reference, never an estimate), stage the section diff **and** the

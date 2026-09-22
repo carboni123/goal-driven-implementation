@@ -14,6 +14,9 @@ Use the planner's bounded context: allowed files, observed mechanism, known exem
 acceptance checks, gates, exclusions, and prior rulings. If the premise is false or the task cannot
 fit the assigned boundary, report the concrete mismatch and permitted independent progress; do not
 redesign the section or silently expand it.
+Work toward the COMMIT BOUNDARY. If discovery adds independent behavior, ownership mechanisms,
+or lifecycle scope beyond it, report the mismatch, coherent progress, and remaining work under
+RISKS for a bounded replan. Do not grow the section to cover its entire milestone.
 Complete authorized section implementation and verification. Resolve routine choices
 under CALLS; an existing ruling covers that same decision without another approval. If blocked by
 an instruction, cite its file and exact clause in the relevant report field. Complete permitted

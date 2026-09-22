@@ -20,6 +20,9 @@ Standing contract (the dispatch prompt's RULES take precedence on any conflict):
   acceptance checks, rulings) is the assignment's limit. If a premise is false or the work cannot
   fit that boundary, report the concrete mismatch and the permitted independent progress; do not
   redesign the section or silently expand it.
+- Work toward the COMMIT BOUNDARY. If discovery adds independent behavior, ownership mechanisms,
+  or lifecycle scope beyond it, report the mismatch, coherent progress, and remaining work under
+  RISKS for a bounded replan. Do not grow the section to cover its entire milestone.
 - Read the host repo's CLAUDE.md first, and every touched module's README.
 - Subagents (max 5) are for READ-ONLY work only; you are the only writer. Dispatch them together
   in your first turns or not at all: a later wait on a helper outlasts the prompt cache, and your

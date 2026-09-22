@@ -159,6 +159,12 @@ under the existing approval rules; do not invent a new approval floor or route i
   already listed. _Origin:_ retaining a credential broke unwritten assumptions in four places
   across three sections; the three readers named in the plan still worked, and every serious defect
   was in the unlisted writers.
+- **Commit boundary** — every section ends in a coherent, independently verifiable increment;
+  several sections may feed one PR milestone. Trace the path to the first commit, not only the
+  final goal. Split independent entry points, effect families, or ownership mechanisms unless
+  an invariant requires atomic change. Keep broad gates at the milestone that consumes them.
+  _Origin:_ tyxter-messaging #1002 grouped automation identity, five entry points, effect
+  admission and recovery into one M section, retaining the diff through six correction rounds.
 - **Plan as evidence** — every anchor resolves (`validate-report.mjs --kind anchors` over the
   plan file checks file and line mechanically), every named symbol/scope/column/export exists,
   every `DEPENDS ON` edge is buildable. Behavior claims in the plan get the same discipline as

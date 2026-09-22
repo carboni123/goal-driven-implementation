@@ -52,6 +52,13 @@ inspection as unperformed and name the affected graph and cause. Preserve approv
 completed history on a bounded replan. The orchestrator owns probes/capture when needed, rulings,
 approval/status, ledger history, execution, review, gates, and commit.
 
+Make each section one coherent local commit and group related sections into milestones. Fill
+MILESTONE and COMMIT BOUNDARY: why the result stands without the next section, which goal clause
+or usable internal capability it establishes, and what remains. Separate independent behaviors;
+keep changes required by the same invariant together. Schedule broad gates at their consuming
+milestone, retaining required section checks. An S/M label does not justify a subsystem-sized
+assignment. On a replan, preserve accepted work and explicitly assign every unresolved finding.
+
 Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
 Include the plan path and status, commands and decisive check results (or pending), graph
 inspection evidence and image paths (or unperformed/cause), remaining open questions, and the
@@ -151,6 +158,11 @@ RULES
   correction instead of implementing the wording. If the assignment cannot fit the allowed
   boundary, return the concrete mismatch and permitted independent progress; do not redesign
   the section or silently expand it.
+- Work toward the section's COMMIT BOUNDARY. If discovery adds an independent behavior,
+  ownership mechanism, or lifecycle beyond that boundary, report it under RISKS and return the
+  coherent progress and remaining work for a bounded replan. Do not grow the IMPLEMENT list or
+  substitute future milestone gates for the assigned section checks. The orchestrator owns
+  acceptance and commits; do not commit incomplete work yourself.
 - RULING FLOOR: if the work requires an unruled change on the floor named in CONTRACT DECISION —
   ESCALATE, stop before writing that code and return STATUS: decision-needed with a brief. Do not
   implement a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
@@ -496,10 +508,13 @@ RULES
 
 Validate the fresh agent's return with `--kind implementer`, as for any section report.
 
-Convergence rule: rounds continue while unresolved findings decrease. Stop and report to the user when a
-round identifies a floor item, repeats a class the previous round was told to fix, or breaks the
-section boundary. Never stop over a round count or token threshold. The carrier rule's token
-threshold only selects which agent receives a round; it is not a stop condition.
+Convergence rule: rounds continue while unresolved findings decrease. Pause the correction loop
+for an unruled floor item, a repeated defect mechanism assigned to the previous round, or an
+invalidated commit boundary. The orchestrator resolves floor items with the user, diagnoses
+repeated mechanisms, and requests a bounded replan for oversized work within approved scope.
+Preserve unresolved findings and their history through a split. Report a blocker if no safe
+in-scope correction or decomposition is available. Never stop over a round count or token
+threshold; the carrier threshold only selects which agent receives a round.
 
 ---
 

@@ -25,6 +25,9 @@ Complete authorized section implementation and verification. Resolve routine cho
 under CALLS; an existing ruling covers that same decision without another approval. If blocked by
 an instruction, cite its file and exact clause in the relevant report field. Complete permitted
 independent preparation before returning, without writing code that depends on an unruled choice.
+Work until the section's checks pass or a stop in these rules applies. Report blocked only when no
+further in-scope progress is possible; a difficult defect inside the section is not a blocker. Do
+not return a progress-only report, an offer to continue, or options that do not block the work.
 Extend existing tests and fixtures first. Use focused before/after evidence per defect mechanism
 when practical; add sensitivity checks for concrete risks of vacuous assertions or bypassed paths,
 not merely because a test uses a mock. Record obstacles and alternative evidence honestly.

@@ -152,6 +152,8 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
   and requests a bounded replan for oversized work. Preserve findings/history through splits;
   report a blocker if no safe in-scope correction or decomposition exists. Round count and token
   use are never decision boundaries.
+- Between sections the orchestrator continues without pausing; it stops only for a floor ruling,
+  the approval rule, a convergence-rule blocker, or a terminal action that needs the user.
 - Environment retries (`⚙`) follow the Known blockers table and never count as rounds.
 - Do not work on future sections.
 

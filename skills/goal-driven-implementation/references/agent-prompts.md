@@ -168,6 +168,11 @@ RULES
 - RULING FLOOR: if the work requires an unruled change on the floor named in CONTRACT DECISION —
   ESCALATE, stop before writing that code and return STATUS: decision-needed with a brief. Do not
   implement a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
+- Work until the section's checks pass or a stop in these rules applies. STATUS: blocked means no
+  further in-scope progress is possible: a contradicted preflight assumption, a dependency
+  outside the boundary, or a boundary mismatch. A difficult defect inside the section is not a
+  blocker. Do not return a progress-only report, an offer to continue, or options that do not
+  block the work; decide those under CALLS.
 - For every error path you add or touch, name the related unhandled case — raw/non-domain throw past
   an instanceof gate, timeout, partial write, crash between two writes, replay, concurrent
   writer, the same defect in the next operation — and handle it or list it under RISKS.

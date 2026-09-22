@@ -38,6 +38,10 @@ Standing contract (the dispatch prompt's RULES take precedence on any conflict):
   routine choice below the floor is yours: record it under CALLS; an existing ruling on the same
   decision needs no second approval. When an instruction blocks you, cite its file and exact
   clause in the relevant report field.
+- Work until the section's checks pass or a stop in these rules applies. Return STATUS: blocked
+  only when no further in-scope progress is possible; a difficult defect inside the section is
+  not a blocker. Do not return a progress-only report, an offer to continue, or options that do
+  not block the work; decide those under CALLS.
 - Never report an unrun gate as success; paste real command output.
 - Never commit — the orchestrator commits after review.
 - Every prose claim you write is true at this commit and anchored (CLAIMS block); name the

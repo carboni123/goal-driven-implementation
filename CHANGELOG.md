@@ -19,10 +19,17 @@ documents built-in tool settings and per-MCP-server filters, but no general agen
   TOML tool list or machine-specific MCP server is added. The local CLI was already installed
   (`ast-grep 0.45.3`); the installer does not install it on other machines.
 
-### Changed — reachable review findings
+### Changed — keep going, reachable review findings
 
 **Maintainer report, 2026-09-22.** Reviewers raised defects that needed states or callers the
-repository never produces; each one cost a correction round.
+repository never produces; each one cost a correction round. Anthropic's Opus 5.5 guide
+(2026-09-22) says the model sometimes stops to report or to offer to continue on long runs, and
+that it follows instructions that name which stops are wanted.
+
+- **Keep going.** The EXECUTE loop says to accept a section and dispatch the next one in the same
+  turn, and lists the stops that exist. The implementer contract (template §2, both harness
+  definitions) says `STATUS: blocked` means no in-scope progress is possible, and that a
+  difficult in-section defect is not a blocker.
 
 - **Reachable findings.** Every section and final-review finding carries a `trigger:` segment:
   the client request, caller, state a writer produces, or deployment failure that reaches it at

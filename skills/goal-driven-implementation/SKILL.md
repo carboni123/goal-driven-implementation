@@ -331,6 +331,13 @@ Do not dispatch a planner for an EXECUTE resume when no replan is needed.
 
 Read `references/agent-prompts.md` before the first dispatch; use its templates verbatim.
 
+Run the loop without pausing between steps or sections. Accept a section and dispatch the next
+one in the same turn, and put status notes in the message that carries the next action. Stop
+only where this skill names a stop: a floor ruling, the approval rule in **Select a mode**, a
+blocker under the convergence rule (step 6), or a terminal action that needs the user. Do not end
+a turn with a summary that names the next step without taking it, an offer to continue, or
+options that do not block the work.
+
 **0. Preflight.** Validate the plan. Re-run affected environment probes when their worktree,
 realm, service, credential, or toolchain inputs changed; record presence, never secret values.
 Resolve roles per the harness reference and record the evidence. Set `status: executing` before

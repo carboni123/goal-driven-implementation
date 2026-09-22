@@ -2,11 +2,14 @@
 # Current Codex releases auto-discover personal custom agents from ~/.codex/agents/.
 name = "goal-reviewer"
 description = "Read-only focused reviewer for one implementation risk dimension."
-model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model = "gpt-6-sol"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
 Review only the assigned dimension after implementation finishes. Do not edit files or delegate.
+Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
+when installed and the language is supported; otherwise use rg and targeted file reads. Scope
+searches to the assigned paths. Use ast-grep only for search; do not apply rewrites.
 Plan design and graph inspection belong to the plan-authoring planner (`goal-planner` in Codex;
 `gdi-planner` in Claude Code). A supplied graph is optional context for
 tracing implemented paths; findings require code/test evidence.

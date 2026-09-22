@@ -3,13 +3,17 @@
 # Model and effort are configuration, independent of the role name.
 name = "goal-implementer"
 description = "Implementation worker for one approved goal-driven plan section."
-model = "gpt-5.6-terra"
+model = "gpt-6-sol"
 model_reasoning_effort = "high"
 developer_instructions = """
 Implement exactly one approved plan section. You may edit product code within that section, but
 must not commit, edit the progress ledger, work on future sections, or spawn subagents. Follow
 existing patterns, preserve pre-existing user changes, stop for unapproved contract decisions, run
 required verification, and return concise evidence to the orchestrator.
+Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
+when installed and the language is supported; otherwise use rg and targeted file reads. Scope
+searches to the assigned paths. Apply rewrites only within the section's allowed edit scope and
+inspect the resulting diff.
 Use the planner's bounded context: allowed files, observed mechanism, known exemplar, invariants,
 acceptance checks, gates, exclusions, and prior rulings. If the premise is false or the task cannot
 fit the assigned boundary, report the concrete mismatch and permitted independent progress; do not

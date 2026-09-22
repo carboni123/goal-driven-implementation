@@ -5,6 +5,20 @@ executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 corre
 
 ## Unreleased
 
+### Changed — ast-grep guidance for Codex agents
+
+**Maintainer request, 2026-09-22.** Add `ast-grep` to Codex agents and check whether Codex has
+Claude-style tool allowlists. The official [custom agent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents)
+defines role files as session configuration layers; the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+documents built-in tool settings and per-MCP-server filters, but no general agent tool allowlist.
+
+- All four Codex profiles and the fallback dispatch wrapper now direct syntax-aware searches
+  through the optional `ast-grep` CLI, retaining `rg` and targeted reads for other searches.
+  Search scope and each role's existing write boundary still apply.
+- The routing reference explains the supported configuration and CLI prerequisite. No unsupported
+  TOML tool list or machine-specific MCP server is added. The local CLI was already installed
+  (`ast-grep 0.45.3`); the installer does not install it on other machines.
+
 ### Changed — commit-sized implementation sections
 
 **Maintainer request, 2026-09-22, following tyxter-messaging #968/#1002.** The workflow committed

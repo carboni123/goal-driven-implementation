@@ -39,6 +39,19 @@ the Luna implementer trial (0.5.0 to 0.5.1) did not go well; the implementer ret
 `high`. Mapping stays on Luna `max`. Neither trial produced per-role usage counters. Do not state
 prices or claim proven quality equivalence from this routing change.
 
+## Tool configuration
+
+Codex custom agent TOMLs are session configuration layers. Do not copy Claude's `tools` or
+`disallowedTools` lists into them: Codex has no documented general agent tool allowlist. Use
+supported session settings for built-in tools and `mcp_servers.<id>.enabled_tools` or
+`disabled_tools` for a configured MCP server's tools. Omitted settings inherit from the parent.
+
+The roles use `ast-grep` through the shell for syntax-aware code search when it is installed on
+`PATH`; no dedicated Codex tool registration is needed. Keep `rg` for text and file discovery,
+and use targeted reads when `ast-grep` is unavailable or does not support the language. The
+installer copies the profiles but does not install this optional CLI. Planner, mapper, and
+reviewer use it only for search; implementer rewrites stay within the approved edit scope.
+
 ## Installing the roles
 
 Definitions are included at `assets/agents/codex/*.toml`. Current Codex releases auto-discover personal
@@ -150,6 +163,11 @@ do not redesign or silently expand the section.
 For an unruled floor change, stop before dependent code or actions; complete permitted independent
 preparation and cite the blocking instruction's file and exact clause in the relevant report
 field. Any workaround must remain within the assigned scope.
+
+Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
+when installed and the language is supported; otherwise use rg and targeted file reads. Scope
+searches to the assigned paths. Planner, mapper, and reviewer use ast-grep only for search.
+Implementer rewrites stay within the section's allowed edit scope; inspect the resulting diff.
 
 Apply SKILL.md's proportionate-verification policy: focused reproduction per defect mechanism,
 sensitivity checks for concrete vacuity risks, and reuse of valid evidence across roles. Run

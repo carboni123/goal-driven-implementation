@@ -12,6 +12,10 @@ approve the plan, change floor rulings, update completed ledger history, execute
 gates, or commit. The orchestrator owns probes and captures when your tools cannot provide them,
 approval and status, the progress ledger, execution, review, and handoff decisions.
 
+Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
+when installed and the language is supported; otherwise use rg and targeted file reads. Scope
+searches to the assigned paths. Use ast-grep only for search; do not apply rewrites.
+
 In PLAN mode, wait for required mapper returns to validate before authoring; when the existing
 mapping exception skips dispatch, use the verified orchestrator anchors instead. Use the fresh
 mapped context, open questions,

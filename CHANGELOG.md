@@ -3,38 +3,7 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
-## 0.7.0 — 2026-09-22 (tag `v0.7.0`)
-
-### Changed — Codex routing reads pins from the role TOMLs
-
-**Maintainer report, 2026-09-26.** Commit `01dc6a2` changed the Codex TOML pins (mapper
-`gpt-6-luna` · `high`, implementer `gpt-6-sol` · `high`, reviewer `gpt-6-sol` · `medium`) but
-`references/routing-codex.md` and the README still named the earlier Luna `max`, Terra `high`,
-and Terra `xhigh` routes, so a direct-route (2) dispatch requested models the TOMLs no longer pin.
-The maintainer ruled that the TOMLs under `assets/agents/codex/` are the source of truth.
-
-- `routing-codex.md` names no model: the role table, direct-route list, fallbacks, escalation
-  ledger note, and resume rule point to each role's `model` and `model_reasoning_effort`.
-- The implementer escalation route uses the planner's pins from `goal-planner.toml`, which today
-  equal the ruled `gpt-6-astra` · `xhigh`; changing the planner TOML now changes the escalation
-  route as well.
-- The economics note drops the Astra-low and Luna-implementer history (recorded in 0.5.0 and
-  0.5.1) and keeps the instruction not to claim prices or quality equivalence.
-- README routing summary, stall-ladder description, and Layout block no longer name models.
-
-### Changed — ast-grep guidance for Codex agents
-
-**Maintainer request, 2026-09-22.** Add `ast-grep` to Codex agents and check whether Codex has
-Claude-style tool allowlists. The official [custom agent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents)
-defines role files as session configuration layers; the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
-documents built-in tool settings and per-MCP-server filters, but no general agent tool allowlist.
-
-- All four Codex profiles and the fallback dispatch wrapper now direct syntax-aware searches
-  through the optional `ast-grep` CLI, retaining `rg` and targeted reads for other searches.
-  Search scope and each role's existing write boundary still apply.
-- The routing reference explains the supported configuration and CLI prerequisite. No unsupported
-  TOML tool list or machine-specific MCP server is added. The local CLI was already installed
-  (`ast-grep 0.45.3`); the installer does not install it on other machines.
+## 0.8.0 — 2026-09-26 (tag `v0.8.0`)
 
 ### Changed — stall ladder, implementer escalation, reachable review findings
 
@@ -70,6 +39,47 @@ that it follows instructions that name which stops are wanted.
   rejects a finding without `trigger:` (new fixtures for reviewer and final). Reviewers whose
   installed definitions predate this change get the format from the dispatch prompt and are
   re-prompted once on a missing trigger. No lens checklist item was removed.
+
+### Changed — Codex routing reads pins from the role TOMLs
+
+**Maintainer report, 2026-09-26.** Commit `01dc6a2` changed the Codex TOML pins (mapper
+`gpt-6-luna` · `high`, implementer `gpt-6-sol` · `high`, reviewer `gpt-6-sol` · `medium`) but
+`references/routing-codex.md` and the README still named the earlier Luna `max`, Terra `high`,
+and Terra `xhigh` routes, so a direct-route (2) dispatch requested models the TOMLs no longer pin.
+The maintainer ruled that the TOMLs under `assets/agents/codex/` are the source of truth.
+
+- `routing-codex.md` names no model: the role table, direct-route list, fallbacks, escalation
+  ledger note, and resume rule point to each role's `model` and `model_reasoning_effort`.
+- The implementer escalation route uses the planner's pins from `goal-planner.toml`, which today
+  equal the ruled `gpt-6-astra` · `xhigh`; changing the planner TOML now changes the escalation
+  route as well.
+- The economics note drops the Astra-low and Luna-implementer history (recorded in 0.5.0 and
+  0.5.1) and keeps the instruction not to claim prices or quality equivalence.
+- README routing summary, stall-ladder description, and Layout block no longer name models.
+
+### Changed — AGENTS.md rewritten
+
+**Maintainer request, 2026-09-26.** The maintainer guide still told agents not to edit the
+`claude/` and `codex/` forks, which `ddae435` removed, and repeated the Codex model pins that the
+TOMLs now hold alone. The rewrite states where each fact lives, points to the forks in the
+`v0.6.1` tree, explains the two `agents/` directories, and adds the `openai.yaml` path and the
+escalation routes to the ruling floor. No skill file changed.
+
+## 0.7.0 — 2026-09-22 (tag `v0.7.0`)
+
+### Changed — ast-grep guidance for Codex agents
+
+**Maintainer request, 2026-09-22.** Add `ast-grep` to Codex agents and check whether Codex has
+Claude-style tool allowlists. The official [custom agent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents)
+defines role files as session configuration layers; the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+documents built-in tool settings and per-MCP-server filters, but no general agent tool allowlist.
+
+- All four Codex profiles and the fallback dispatch wrapper now direct syntax-aware searches
+  through the optional `ast-grep` CLI, retaining `rg` and targeted reads for other searches.
+  Search scope and each role's existing write boundary still apply.
+- The routing reference explains the supported configuration and CLI prerequisite. No unsupported
+  TOML tool list or machine-specific MCP server is added. The local CLI was already installed
+  (`ast-grep 0.45.3`); the installer does not install it on other machines.
 
 ### Changed — commit-sized implementation sections
 

@@ -5,6 +5,23 @@ executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 corre
 
 ## 0.7.0 — 2026-09-22 (tag `v0.7.0`)
 
+### Changed — Codex routing reads pins from the role TOMLs
+
+**Maintainer report, 2026-09-26.** Commit `01dc6a2` changed the Codex TOML pins (mapper
+`gpt-6-luna` · `high`, implementer `gpt-6-sol` · `high`, reviewer `gpt-6-sol` · `medium`) but
+`references/routing-codex.md` and the README still named the earlier Luna `max`, Terra `high`,
+and Terra `xhigh` routes, so a direct-route (2) dispatch requested models the TOMLs no longer pin.
+The maintainer ruled that the TOMLs under `assets/agents/codex/` are the source of truth.
+
+- `routing-codex.md` names no model: the role table, direct-route list, fallbacks, escalation
+  ledger note, and resume rule point to each role's `model` and `model_reasoning_effort`.
+- The implementer escalation route uses the planner's pins from `goal-planner.toml`, which today
+  equal the ruled `gpt-6-astra` · `xhigh`; changing the planner TOML now changes the escalation
+  route as well.
+- The economics note drops the Astra-low and Luna-implementer history (recorded in 0.5.0 and
+  0.5.1) and keeps the instruction not to claim prices or quality equivalence.
+- README routing summary, stall-ladder description, and Layout block no longer name models.
+
 ### Changed — ast-grep guidance for Codex agents
 
 **Maintainer request, 2026-09-22.** Add `ast-grep` to Codex agents and check whether Codex has

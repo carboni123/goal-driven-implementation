@@ -2,31 +2,35 @@
 
 ## Policy
 
-Use the existing main session as the ORCHESTRATOR. The user or client selects its model and effort
-(for example `gpt-5.6-sol` or `gpt-6-astra`); this skill cannot change that route by prose or by
-spawning a premium peer. The orchestrator owns rulings, approval/status, the ledger, execution,
-review, gates, and commits. In PLAN mode, after the required mapper returns validate, dispatch one
-`goal-planner` at `gpt-6-astra` with `xhigh` to author and check the plan and graph artifacts.
-Record runtime-confirmed evidence (or `unknown`) and any deviation separately, and honor explicit
-user overrides.
+Use the existing main session as the ORCHESTRATOR. The user or client selects its model and
+effort; this skill cannot change that route by prose or by spawning a premium peer. The
+orchestrator owns rulings, approval/status, the ledger, execution, review, gates, and commits. In
+PLAN mode, after the required mapper returns validate, dispatch one `goal-planner` to author and
+check the plan and graph artifacts. Record runtime-confirmed evidence (or `unknown`) and any
+deviation separately, and honor explicit user overrides.
 
-| Role                   | Custom agent          | Model · effort            | Notes                                             |
-| ---------------------- | --------------------- | ------------------------- | ------------------------------------------------- |
-| Orchestrator           | Existing root session | User-selected             | Owns rulings, ledger, gates, and commits          |
-| Plan author            | `goal-planner`        | `gpt-6-astra` · `xhigh`   | One after validated mapping; plan/graph only      |
-| Implementer            | `goal-implementer`    | `gpt-5.6-terra` · `high`  | One per section; no nested spawns                 |
-| Implementer, escalated | direct route          | `gpt-6-astra` · `xhigh`   | Stall-ladder step 3 only; fresh; once per section |
-| Mapper                 | `goal-explorer`       | `gpt-5.6-luna` · `max`    | Read-only                                         |
-| Reviewer               | `goal-reviewer`       | `gpt-5.6-terra` · `xhigh` | Read-only; one lens per spawn                     |
+Each role's pins are the `model` and `model_reasoning_effort` keys of its TOML in
+`assets/agents/codex/`. Read them from those files; this reference does not repeat them. "The
+role's pins" below means those two values.
+
+| Role                   | Custom agent          | Pins from                                | Notes                                             |
+| ---------------------- | --------------------- | ---------------------------------------- | ------------------------------------------------- |
+| Orchestrator           | Existing root session | User-selected                            | Owns rulings, ledger, gates, and commits          |
+| Plan author            | `goal-planner`        | `goal-planner.toml`                      | One after validated mapping; plan/graph only      |
+| Implementer            | `goal-implementer`    | `goal-implementer.toml`                  | One per section; no nested spawns                 |
+| Implementer, escalated | direct route          | `goal-planner.toml` (the planner's pins) | Stall-ladder step 3 only; fresh; once per section |
+| Mapper                 | `goal-explorer`       | `goal-explorer.toml`                     | Read-only                                         |
+| Reviewer               | `goal-reviewer`       | `goal-reviewer.toml`                     | Read-only; one lens per spawn                     |
 
 Select each role's model and effort explicitly; never let a child inherit the main-session route.
 Do not promote a worker to a costlier model or effort when it struggles, except for the implementer
 escalation at stall-ladder step 3 (`SKILL.md` step 6): the section is commit-sized, its facts are
 supplied, and the implementer repeats a defect mechanism. Then spawn one fresh implementer on
-direct route (2) at `gpt-6-astra` · `xhigh` with the fresh-carrier body of prompts reference §5
+direct route (2) at the planner's pins with the fresh-carrier body of prompts reference §5
 and the §2 RULES pasted into it, at most once per section; never send the previous implementer
-another task. Append `; escalated terra·high → astra·xhigh at R<n>` to the ledger row's
-`routing:` field. The next section returns to `goal-implementer` at Terra `high`. If the spawn
+another task. Append `; escalated <implementer model·effort> → <planner model·effort> at R<n>`,
+with the values read from the two TOMLs, to the ledger row's `routing:` field. The next section
+returns to `goal-implementer` at its own pins. If the spawn
 schema does not declare `model` and `reasoning_effort`, record `escalation: unavailable` and
 report the blocker (stall-ladder step 4). Do not spawn a second planner for the same plan artifact
 merely to plan or review.
@@ -37,14 +41,12 @@ slots and usage, and the root dispatches independent reviewers. The parent must 
 child can route the role-specific pins above before dispatch; the child never edits product source
 or docs, accepts sections, updates the ledger, runs final gates, or commits.
 
-Role names identify responsibilities. Model and effort belong in the TOML and routing table;
+Role names identify responsibilities. Model and effort belong in the TOML;
 changing them does not rename the role. Codex's `goal-implementer` corresponds to Claude Code's
 `gdi-implementer` through the harness routing, with the same shared task and report contract.
 
-Economics note: the user observed a cost regression on Astra-low, and on 2026-09-13 reported that
-the Luna implementer trial (0.5.0 to 0.5.1) did not go well; the implementer returns to Terra at
-`high`. Mapping stays on Luna `max`. Neither trial produced per-role usage counters. Do not state
-prices or claim proven quality equivalence from this routing change.
+Economics note: no routing change so far has produced per-role usage counters. Do not state
+prices or claim proven quality equivalence between routes.
 
 ## Tool configuration
 
@@ -70,7 +72,8 @@ cp <skill-root>/assets/agents/codex/*.toml ~/.codex/agents/
 
 Adding a TOML to the source tree does not update the current session's role inventory. Install or
 copy the definitions and reload Codex before relying on `goal-planner`; until then use the direct
-bounded Astra xhigh route and record role/model confirmation from runtime metadata (or `unknown`).
+bounded route at the planner's pins and record role/model confirmation from runtime metadata (or
+`unknown`).
 
 Older releases (verified on 0.144.6) require `multi_agent_v2` under `[features]` in
 `~/.codex/config.toml` and an `[agents.<name>]` entry per role whose `config_file` points at the
@@ -122,27 +125,28 @@ Both routes require an explicit bounded fork (`fork_turns: "none"` or a small in
 `"all"`, which inherits the main-session route). Do not rely on the default fork. Try these routes
 in order:
 (1) `agent_type` naming the current registered role;
-(2) direct `model` + `reasoning_effort` at that role's pins when the schema declares them:
+(2) direct `model` + `reasoning_effort` when the schema declares them, set to the role TOML's
+`model` and `model_reasoning_effort`:
 
-- Planner: `model: "gpt-6-astra"`, `reasoning_effort: "xhigh"`.
-- Implementer: `model: "gpt-5.6-terra"`, `reasoning_effort: "high"`.
-- Mapper: `model: "gpt-5.6-luna"`, `reasoning_effort: "max"`; a built-in `explorer` is usable
-  only when it can select this route. A built-in role name alone does not establish the pin.
-- Reviewer: `model: "gpt-5.6-terra"`, `reasoning_effort: "xhigh"`.
-- Escalated implementer (stall-ladder step 3 only): `model: "gpt-6-astra"`,
-  `reasoning_effort: "xhigh"`; route (2) only, with `attestation=none`.
+- Planner: `goal-planner.toml`.
+- Implementer: `goal-implementer.toml`.
+- Mapper: `goal-explorer.toml`; a built-in `explorer` is usable only when it can select this
+  route. A built-in role name alone does not establish the pin.
+- Reviewer: `goal-reviewer.toml`.
+- Escalated implementer (stall-ladder step 3 only): the planner's pins from `goal-planner.toml`;
+  route (2) only, with `attestation=none`.
 
 A generic child receives the role's scope, write restrictions, and report contract from the
 dispatch template; report `attestation=none` unless a profile actually supplies one. Do not put
 attestation literals in a fallback prompt. If neither the registered `goal-planner` nor the direct
-Astra xhigh route is supported, do not silently inherit the orchestrator's weaker route or treat a
-deviation record as permission to downgrade. Continue independent mapping and preparation, then
-pause plan authorship until the user supplies and the orchestrator records an explicit route
-override. If neither route (registered role or direct pin) is available for the **implementer**,
-stop before product edits. If neither route is available for a **mapper**,
-the orchestrator may gather the same anchored context itself and record the fallback. For the
-**reviewer**, use a generic read-only child at Terra `xhigh` before falling back to main-session
-review; main-session review requires `review: self (<reason>)` on the ledger row and an accepted
+route at the planner's pins is supported, do not silently inherit the orchestrator's route or
+treat a deviation record as permission to downgrade. Continue independent mapping and
+preparation, then pause plan authorship until the user supplies and the orchestrator records an
+explicit route override. If neither route (registered role or direct pin) is available for the
+**implementer**, stop before product edits. If neither route is available for a **mapper**, the
+orchestrator may gather the same anchored context itself and record the fallback. For the
+**reviewer**, use a generic read-only child at the reviewer's pins before falling back to
+main-session review; main-session review requires `review: self (<reason>)` on the ledger row and an accepted
 risk in Graph Findings, and the final review must then be independent. The implementer pin has
 no automatic substitute.
 
@@ -209,10 +213,8 @@ This adapts the [Astra prompting guidance](https://developers.openai.com/api/doc
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.
-- Before resuming an older plan, update unchecked implementer assignments targeting the former
-  role name or Astra-low, Sol, Luna, or Terra-xhigh routes to `goal-implementer` / Terra high;
-  future planner assignments use `goal-planner` / Astra xhigh, mapper assignments stay on Luna
-  max, and reviewer assignments use Terra xhigh. Re-run routing preflight and record the new
-  evidence; preserve
+- Before resuming an older plan, update unchecked assignments that name a former role (such as
+  `goal-implementer-terra`) or a route other than the role's current pins to the current role
+  name and the pins in its TOML. Re-run routing preflight and record the new evidence; preserve
   completed history and any explicit plan-specific user override. Do not add a planner dispatch to
   an EXECUTE-only resume unless a bounded replan is required.

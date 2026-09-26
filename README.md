@@ -7,8 +7,9 @@ read-only reviewers, a whole-branch final review against current `main`, and a p
 doubles as the progress ledger. Works in Claude Code and OpenAI Codex CLI from one `SKILL.md`.
 
 Preferred Codex routing: the user/client-selected main-session orchestrator, a dedicated plan
-author **Astra xhigh** after validated mapping, mappers **Luna max**, the sole implementer
-**Terra high**, and independent reviewers **Terra xhigh**. The skill records the orchestrator's
+author after validated mapping, mappers, the sole implementer, and independent reviewers, each at
+the `model` and `model_reasoning_effort` in its TOML under
+`skills/goal-driven-implementation/assets/agents/codex/`. The skill records the orchestrator's
 actual route or unknown metadata. The plan author supplies bounded, anchored assignments;
 reviewers check both the resulting code and the plan's assumptions. These are maintainer-selected
 cost preferences, with outcomes and available usage recorded per role.
@@ -69,7 +70,7 @@ prints the new snippet and leaves legacy config/files intact. See the
    one that no existing caller, writer, client, or deployment failure produces is refuted as
    unreachable. A correction loop that stalls supplies the missing fact, splits an oversized
    section, and escalates a commit-sized section's implementer once (Fable in Claude Code,
-   Astra `xhigh` in Codex) before reporting a blocker. The orchestrator does not pause between
+   the planner TOML's model and effort in Codex) before reporting a blocker. The orchestrator does not pause between
    sections except for a floor ruling, approval, a blocker, or the terminal action.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
@@ -120,10 +121,10 @@ skills/goal-driven-implementation/
     validate-report.mjs          structural check of agent returns and anchors (--self-test)
     agents/claude/gdi-*.md       pinned Claude Code roles (planner, implementer, mapper, two reviewers)
     agents/codex/goal-*.toml     Codex custom agents
-      goal-planner.toml         Astra plan-authoring role
-      goal-implementer.toml     model-neutral implementation role
-      goal-explorer.toml        Luna read-only mapper role
-      goal-reviewer.toml        Terra read-only reviewer role
+      goal-planner.toml         plan-authoring role
+      goal-implementer.toml     implementation role
+      goal-explorer.toml        read-only mapper role
+      goal-reviewer.toml        read-only reviewer role
   references/
     agent-prompts.md             mapper, implementer, reviewer lenses, final review, relays
     graph-analysis.md            the analysis checklist, each class with the failure it prevents

@@ -1,7 +1,7 @@
 ---
 gdi_schema: 2
 gdi_version: 0.8.0
-status: executing
+status: verified
 approval: auto-start — no new floor item; user selected #1091 fix, installation, archive and PRs
 harness: codex
 ---
@@ -13,13 +13,14 @@ Written: 2026-09-26.
 Skill source: `/home/iac-deploy/.agents/skills/goal-driven-implementation`, installed 0.8.0;
 implementation checkout `/tmp/1091-gdi-source` at `fd45932354f864a76ffb9b729ecdc1c4d760400f`.
 Feature map: flat repository; one shipped skill plus installer, no package/build/CI.
-Companion: `carboni123/tyxter-messaging`, `docs/plans/issue-1091-core-dispatch-plan.md`.
+Companion: `carboni123/tyxter-messaging`,
+`docs/archive/plans/implementation/issue-1091-core-dispatch-plan.md`.
 Companion owns the real-guard fixture, case matrix, archive and Messaging CI; this ledger records
 only source-repository commits. Two linked PRs, one orchestrator and one writer globally.
 
 ## Premise corrections
 
-- W — Clean source EXECUTE preflight verifies local implementer state but invokes no host guard
+- W — Baseline source EXECUTE preflight verified local implementer state but invoked no host guard
   (`skills/goal-driven-implementation/SKILL.md:342`). Original maintained checkout contains six
   unrelated dirty files: never edit or publish them. Clean source is the implementation basis.
 - W — Installer already supports both Codex discovery copies and preserved agent definitions
@@ -63,7 +64,7 @@ node scripts/install.mjs --dry-run
 
 Also run skill-creator's quick validator on the shipped skill. No native build exists. Baseline:
 root observed installed-root plan/report self-tests passing and clean-source Codex/no-agents dry-run
-passing; scout, installed forward behavior and final candidate gates remain scheduled below.
+passing; scout, installed forward behavior and final candidate gates were scheduled; results appear below.
 
 ### Execution-environment preflight
 
@@ -86,8 +87,8 @@ Execution realm: Linux `/tmp/1091-gdi-source`; isolated installer destination th
 Representative gate probe: `node scripts/install.mjs --dry-run --only codex --no-agents`, exit 0.
 Root also passed the real isolated installer preflight using `/tmp/1091-isolated-install-home.mjs`
 and `TYXTER_1091_INSTALL_ROOT=/tmp/1091-install-baseline`: both installed copies match all 21
-source files. No HOME/home/CODEX_HOME override. Native forward testing and actual home mutation
-remain unproven; reuse this task-only homedir preload for the patched candidate.
+source files. No HOME/home/CODEX_HOME override. At preflight, native forward testing and actual home mutation
+were unproven; subsequent results are recorded below.
 
 #### Known blockers
 
@@ -102,14 +103,14 @@ remain unproven; reuse this task-only homedir preload for the patched candidate.
 
 ### Expensive or mutating lifecycle gate budget
 
-| Gate                                           | Consumes / invalidated by                           | Planned runs (impl / orch) | Preflight                          | Actual runs | Why this count is safe                                    |
-| ---------------------------------------------- | --------------------------------------------------- | -------------------------- | ---------------------------------- | ----------- | --------------------------------------------------------- |
-| Baseline native-agent probe                    | companion fixture and immutable baseline            | 0 / 1 shared               | companion owns                     | 0           | run before skill correction; evidence shared              |
-| Isolated real install plus patched agent batch | reviewed section bytes, installer, companion oracle | 0 / 1 batch                | isolated path and candidate batch proven | 1           | section correctness gate, no global home mutation         |
-| Source global gates                            | final reviewed source                               | 0 / 1                      | plan/report baseline passed        | 0           | after final review; reuse unchanged section evidence      |
-| Active home install                            | both reviewed/gated repositories and backups        | 0 / 1                      | dry-run proven                     | 0           | `--only codex --no-agents`; do not run before broad gates |
-| Active-copy conflict/admission witness         | installed bytes and fixture inputs                  | 0 / 1 batch                | unproven                           | 0           | proves active integration after installation              |
-| Push and linked source PR                      | section commit, gates, install evidence             | 0 / 1                      | authenticated gh                   | 0           | authorized; no tag, merge or deployment                   |
+| Gate                                           | Consumes / invalidated by                           | Planned runs (impl / orch) | Preflight                                | Actual runs | Why this count is safe                                    |
+| ---------------------------------------------- | --------------------------------------------------- | -------------------------- | ---------------------------------------- | ----------- | --------------------------------------------------------- |
+| Baseline native-agent probe                    | companion fixture and immutable baseline            | 0 / 1 shared               | companion owns                           | 1           | run before skill correction; evidence shared              |
+| Isolated real install plus patched agent batch | reviewed section bytes, installer, companion oracle | 0 / 1 batch                | isolated path and candidate batch proven | 2           | section correctness gate, no global home mutation         |
+| Source global gates                            | final reviewed source                               | 0 / 1                      | plan/report baseline passed              | 1           | after final review; reuse unchanged section evidence      |
+| Active home install                            | both reviewed/gated repositories and backups        | 0 / 1                      | dry-run proven                           | 1           | `--only codex --no-agents`; do not run before broad gates |
+| Active-copy conflict/admission witness         | installed bytes and fixture inputs                  | 0 / 1 batch                | unproven                                 | 1           | proves active integration after installation              |
+| Push and linked source PR                      | section commit, gates, install evidence             | 0 / 1                      | authenticated gh                         | 1           | authorized; no tag, merge or deployment                   |
 
 ### Rulings
 
@@ -145,7 +146,7 @@ mutex. Keep fixture outputs, backup trees and graph captures out of Git. Pending
 
 Baseline observation (2026-09-26): the independent old-skill agent discovered the host helper
 and stopped on a conflicting PR; oracle passed with no child/write/reservation. This did not
-reproduce a skipped call. Maintain an explicit required hook because the source currently lacks
+reproduce a skipped call. Maintain an explicit required hook because the baseline source lacked
 one; reuse the fixture's omitted-invocation sensitivity, without relabeling it a native failure.
 Receipts: `/tmp/1091-before-two-trace.json`; SKILL SHA-256
 `c7de82f2011c58f9d785122ee90e13cfd3ec424299e91e0a92527b62b6117752`.
@@ -164,9 +165,9 @@ Receipts: `/tmp/1091-before-two-trace.json`; SKILL SHA-256
 
 ### Goal 2 — Reviewed source reaches the active installation
 
-- [ ] Canonical installer copies the exact reviewed source into both active Codex discovery paths
+- [x] Canonical installer copies the exact reviewed source into both active Codex discovery paths
       with backups; agent definitions/config and original source dirty files remain byte-identical.
-- [ ] Independent active-copy conflict/admission witnesses pass; both repositories' gates pass and
+- [x] Independent active-copy conflict/admission witnesses pass; both repositories' gates pass and
       linked PRs identify source revision, installed hashes and narrow evidence limits.
 
 ## 2. Topology graph and recommended order
@@ -176,22 +177,22 @@ Receipts: `/tmp/1091-before-two-trace.json`; SKILL SHA-256
 ```mermaid
 flowchart TD
   IN1(["#1091: maintain and activate guard caller"])
-  INPUT["Companion fixture + baseline agent probe"]
+  INPUT["✅ Companion fixture + baseline agent probe"]
   subgraph SRC["Source PR"]
-    A1["A1: optional host-guard lifecycle"]
+    A1["✅ A1: optional host-guard lifecycle 🔁×1"]
   end
   IN1 -. provenance .-> A1
-  INPUT --> PROBE{"Isolated install + patched batch x1"}
+  INPUT --> PROBE{"✅ Isolated installs x2 + patched batch x1"}
   A1 --> PROBE
-  PROBE --> G1{"Goal 1: guarded dispatch"}
-  G1 --> FR{"Whole-branch review: both repos"}
-  FR -- findings --> FIX["Scoped corrections"]
+  PROBE --> G1{"✅ Goal 1: guarded dispatch"}
+  G1 --> FR{"✅ Whole-branch review: both repos"}
+  FR -- findings --> FIX["✅ Scoped corrections"]
   FIX --> FR
-  FR -- clean --> GATES{"Source gates + Messaging CI x1"}
-  GATES --> INSTALL{"Backed-up active install x1"}
-  INSTALL --> WITNESS{"Active conflict + admission x1 batch"}
-  WITNESS --> G2{"Goal 2: active integration"}
-  G2 --> PR(["Linked source and Messaging PRs"])
+  FR -- clean --> GATES{"✅ Source gates + Messaging CI x1"}
+  GATES --> INSTALL{"✅ Backed-up active install x1"}
+  INSTALL --> WITNESS{"✅ Active conflict + admission x1 batch"}
+  WITNESS --> G2{"✅ Goal 2: active integration"}
+  G2 --> PR(["✅ Linked source and Messaging PRs"])
 ```
 
 ### Graph Findings
@@ -226,7 +227,9 @@ At completion root records confirmed / did not occur / missed findings and budge
 
 ### Corrections in force
 
-None accepted yet. Use clean-source anchors, not the original dirty checkout's line numbers.
+Formatting-only source correction preserved instruction words. Companion oracle corrections
+require one writer and the actual reserve operation. Use clean-source anchors, not the original
+dirty checkout's line numbers.
 
 ### Hard dependencies
 
@@ -354,10 +357,10 @@ repository as `--repo-root`; never insert Messaging SHAs into this ledger. No un
 
 ## 5. Progress ledger
 
-- [ ] A1 Optional host guard lifecycle — Goal 1 installed isolated integration. Accepted;
-  SHA follows section commit.
+- [x] A1 Optional host guard lifecycle — Goal 1 installed isolated integration — accepted 2026-09-26 ce9057a — rounds: 1 — review: independent — routing: requested=gpt-6-sol/high implementer, gpt-6-sol/medium reviewers; role=unknown; model/effort=unknown — cost: unknown / 4 initial section agents — env-retries: 0
+  - R1 convention: restore unrelated table formatting and command indentation; details below.
   - Source checks: real schema-2 plan, validator/report self-tests, skill quick validation,
-    diff check pass. Three independent reviewers APPROVE; no product correction round.
+    diff check pass. Three independent reviewers APPROVE; one formatting correction, no behavior change.
   - Canonical isolated install: `/tmp/1091-install-patched`; both discovery trees match all
     22 source files. Old trees preserved in timestamped backups; sentinel role/config unchanged.
     Installed SKILL SHA-256 `ab2abd12f8c0856d6fc635aa43c48fb136e44d82bacbdfa2a9c43320f96a2a4c`.
@@ -377,19 +380,73 @@ repository as `--repo-root`; never insert Messaging SHAs into this ledger. No un
     temporary extractor without altering runtime events or product expectations.
   - Schema/role/install compatibility and host-absent branch are source/validator evidence;
     Codex native host-integrated scenarios are the runtime witness. No Claude run is claimed.
-  - Active-home installation, final reviews, broad gates and publication remain pending.
+  - Formatting evidence: final diff audit restored unrelated table padding/separators and command
+    indentation before commit. All workflow words and every other file are identical to the
+    native batch input; behavioral evidence remains valid. A second canonical isolated install
+    at `/tmp/1091-install-reviewed` matches final 22/22 files. Final SKILL SHA-256:
+    `9ee4874368094d2864df6fbf5f662305820dcbd7950ead8e34dbee40fc8be51c`.
+    Prior installed bytes/receipts remain intact; final active probes use the exact final bytes.
+    A root normalization probe initially failed because Markdown separator lengths also changed;
+    targeted diff review and normalization of table separators confirmed no instruction change.
+  - Later milestone evidence below records active installation, final reviews, broad gates and PR publication.
+
+### Final milestone evidence — 2026-09-26
+
+- W — [Source PR #1](https://github.com/carboni123/goal-driven-implementation/pull/1) is paired
+  with [Messaging PR #1107](https://github.com/carboni123/tyxter-messaging/pull/1107).
+  Product source is `ce9057aaaa16387b41b4452f871c10841705e250`; later source commits record
+  evidence only. No release tag, merge, production deployment or role/config update occurred.
+- W — Three whole-branch lenses are CLEAN in each repository. Messaging's check-for-reserve
+  false-pass finding was corrected and independently re-reviewed. All seven existing native
+  traces and baseline pass its final oracle; 8/8 workflow and 14/14 helper tests pass.
+- W — Source mandatory checks passed: validator, report-validator and scout self-tests;
+  real-plan validation; graph rendering; full installer dry-run; skill quick validation and
+  diff checks. Messaging `pnpm ci:local --use-existing-infra` passed once in 189.2 seconds
+  at `d82fc3f6f774aed04b830d00df27bd86046bf9f5`, with isolated task migrations/seed,
+  hygiene and parity. Its affected selection contained no product-package tasks.
+- W — The unchanged canonical `node scripts/install.mjs --only codex --no-agents` ran against
+  the real home after the required gates at `2026-09-26T20:45:45Z`. Both installed discovery
+  trees match all 22 source files and final SKILL SHA-256
+  `9ee4874368094d2864df6fbf5f662305820dcbd7950ead8e34dbee40fc8be51c`.
+  Both timestamped backups match the originals; all 12 role/config and six unrelated dirty
+  source file hashes are unchanged. Proof: `/tmp/1091-active-install-proof.json`.
+- W — Independent fresh agent probes against actual installations passed: `.agents` refused
+  a conflicting core PR before any writer; `.codex` reserved a clear task before dispatching
+  its single actual child, which wrote the exact sentinel. Root evaluated sourced tool
+  receipts, parent IDs, helper logs and artifacts. Traces:
+  `/tmp/1091-active-conflict-trace.json`, `/tmp/1091-active-clear-trace.json` and their receipts.
+  These are exact-final-byte Codex witnesses; the seven-case batch remains earlier
+  pre-formatting evidence. No Claude run or broad future-agent guarantee is claimed.
+
+Completion graph findings: the source/active-install boundary, optional host ownership and
+cross-repository gate order were confirmed. No floor, schema, role or installer change occurred.
+Missed: isolated installation ran twice after formatting cleanup, above the one-install budget;
+the native seven-case batch ran once and its instruction inputs stayed equivalent. Messaging
+corrected two oracle false-pass mechanisms; all original native evidence passes the final oracle.
+The old-skill baseline correctly refused, so there was no native skipped-call reproduction.
+The PR handoff creates identifiers before publishing the final ledger links. Agent and main-session
+usage/cost are unknown. Merge/tag/global rollout remains outside this task.
+
+Terminal visual inspection: root viewed the rendered `1091-source-final.png` in the
+HubGrid artifact directory after Mermaid node layout completed. Accepted-section marks, correction
+rounds, completed gates and the linked-PR terminal node are readable; no clipped or disconnected
+node remains. An early capture raced rendering and was discarded before this inspection.
 
 ## Completion
 
-- [ ] Source section and ledger committed; accepted local SHA resolves.
-- [ ] Both branches reconciled with origin/main; independent final reviews clean.
-- [ ] Source global gates and companion CI pass for reviewed inputs.
-- [ ] Goal 1 and Goal 2 evidence passes; source/installed hashes and actual traces recorded.
-- [ ] Both active copies backed up and updated; original dirty files, agent definitions/config unchanged.
-- [ ] Actual gate counts, findings, graph marks and routing/cost recorded; linked PRs opened.
+- [x] Source section and ledger committed; accepted local SHA resolves.
+- [x] Both branches reconciled with origin/main; independent final reviews clean.
+- [x] Source global gates and companion CI pass for reviewed inputs.
+- [x] Goal 1 and Goal 2 evidence passes; source/installed hashes and actual traces recorded.
+- [x] Both active copies backed up and updated; original dirty files, agent definitions/config unchanged.
+- [x] Actual gate counts, findings, graph marks and routing/cost recorded; linked PRs opened.
 
 ## Deferrals
 
 | ID  | Class              | Remaining work and risk                                                           | Owner / issue                                              | Re-entry gate                       | Blocks | Status |
 | --- | ------------------ | --------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------- | ------ | ------ |
 | D1  | external-authority | Merge/tag/global rollout not requested; local installation is the claimed witness | https://github.com/carboni123/tyxter-messaging/issues/1091 | explicit user merge/release request | none   | open   |
+
+Completion finding: isolated installation ran twice, above the one-run
+budget, because unrelated formatting resurfaced before commit. The native seven-case batch ran
+once and remains valid by the narrowly inspected formatting-only diff.

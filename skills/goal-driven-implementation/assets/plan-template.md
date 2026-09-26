@@ -33,7 +33,8 @@ sections below are written against the corrected premise.
   It never approves the plan, changes floor rulings, edits completed ledger history, executes, or
   commits.
 - Section implementer: exactly one at a time; writes only inside its active section; never
-  commits; never delegates writing.
+  commits; never delegates writing. When a host writing guard applies, it writes only the
+  explicit approved paths passed in its brief and pauses before any expansion.
 - Mappers and reviewers: read-only; run in parallel within the harness thread cap.
 
 ### Harness routing
@@ -66,6 +67,11 @@ Preflight status: pending
 Checked: pending
 Baseline SHA: pending
 Execution realm: pending
+
+Optional host writing guard: <declared path/command and result, conventional path and result,
+or absent; a declared but unreadable integration stops writing dispatch>
+Guard owner: <task ID and repository-relative plan path when applicable>
+Verified same-PR resume: <number and matching repository/branch evidence, or none>
 
 Representative gate probe: <cheap command in the actual realm; canonical cwd, tool executable,
 mounts/cache paths, dependency outputs, and environment mode; result or unproven — no secrets>
@@ -313,6 +319,9 @@ together, explain the invariant that makes them atomic.>
 TARGET:
 <Owning unit from the feature map (name and path), plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose. Name any shared kernel written.>
 <Allowed file set and exclusions; enough scope to implement this slice without redesigning it.>
+Approved write paths when a host guard applies: <nonempty explicit normalized repository-relative
+paths, including registry files; collect before writing if an older plan lacks them. The host
+classifies these paths; a CORE SCOPE prose label is not admission.>
 
 DEPENDS ON:
 <Checked section IDs, or "none".>

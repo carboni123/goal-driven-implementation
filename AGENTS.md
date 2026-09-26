@@ -1,178 +1,161 @@
 # AGENTS.md
 
-Guidance for coding agents working on this repository. The README explains what the skill does
-and how to install it; this file explains how to change it without breaking the people who run it.
+Instructions for coding agents that change this repository. `README.md` is for people who install
+and run the skill; this file is for whoever edits it.
 
 ## What this repository is
 
-A **skill**, not an application. There is no `package.json`, no dependency, no build step, and
-no test runner. Everything ships as Markdown plus three dependency-free Node ESM scripts. The
-skill is loaded verbatim by Claude Code and OpenAI Codex CLI, so the prose in `SKILL.md` and
-`references/` *is* the product: an agent reads it and acts on it. Write it with the same care as
-code.
+One skill, `goal-driven-implementation`, for Claude Code and OpenAI Codex CLI. There is no
+package manifest, no dependency, no build, and no CI. The product is Markdown that an agent reads
+and acts on at run time, plus dependency-free Node ESM scripts: four under `assets/` and the
+installer. A wrong sentence under `skills/` is a bug in the product.
 
-## Layout and ownership
+## Layout
 
-| Path                                           | Role                                                                                                     | Edit?                                   |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| `skills/goal-driven-implementation/`           | The skill. The only source of truth.                                                                     | Yes                                     |
-| `skills/.../SKILL.md`                          | The workflow. Loaded whenever the skill triggers.                                                        | Yes                                     |
-| `skills/.../references/*.md`                   | Loaded on demand by `SKILL.md`: prompts, graph-analysis checklist, per-harness routing.                  | Yes                                     |
-| `skills/.../assets/plan-template.md`           | The `gdi_schema: 2` plan skeleton every plan is instantiated from.                                       | Yes, in step with the validator         |
-| `skills/.../assets/validate-plan.mjs`          | Strict structural validator with built-in fixtures (`--self-test`).                                      | Yes, in step with the template          |
-| `skills/.../assets/render-plan-graph.mjs`      | Plan → HTML renderer (graphs, findings, budget, ledger).                                                  | Yes                                     |
-| `skills/.../assets/scout-repo.mjs`             | Repository → feature map (apps, features, shared kernels); `--classify` maps paths to units. Self-tested. | Yes, in step with the mapper prompt     |
-| `skills/.../assets/validate-report.mjs`        | Structural validator for mapper, reviewer, final, and implementer returns and for anchors. Self-tested.   | Yes, in step with the report formats    |
-| `skills/.../assets/agents/claude/gdi-*.md`     | Pinned Claude Code agent definitions. Model and effort live in the frontmatter.                          | Yes, in step with `routing-claude.md`   |
-| `skills/.../assets/agents/codex/goal-*.toml`   | Codex custom agents. Model and effort live in the TOML.                                                  | Yes, in step with `routing-codex.md`    |
-| `skills/.../assets/VERSION`                    | The release number stamped into every plan as `gdi_version`.                                             | Only on release                         |
-| `skills/.../agents/openai.yaml`                | Codex display metadata for the skill.                                                                    | Rarely                                  |
-| `scripts/install.mjs`                          | Local installer that copies the skill and agent definitions into `~/.claude` and `~/.codex`.             | Yes                                     |
-| `claude/`, `codex/`                            | The two pre-unification forks, frozen as they ran on 2026-09-01. Historical evidence only.               | **Never**                               |
-| `CHANGELOG.md`                                 | What changed and the evidence that motivated it.                                                         | Every behavioral change                 |
+Everything shipped lives under `skills/goal-driven-implementation/` (called `<skill>` below).
 
-`claude/` and `codex/` are not stale copies to be synced. They are the baseline the 0.2.0
-retrospective was measured against. Do not edit, delete, or "fix" them, and do not copy from
-them into `skills/` without saying so in the changelog.
+| Path                                      | What it is                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `<skill>/SKILL.md`                        | The workflow. Loaded whenever the skill triggers; must read correctly in both harnesses. |
+| `<skill>/references/agent-prompts.md`     | Dispatch templates the orchestrator uses verbatim.                                       |
+| `<skill>/references/graph-analysis.md`    | Graph checklist; each check cites the failure it prevents.                               |
+| `<skill>/references/routing-claude.md`    | Claude Code role resolution, tool allowlists, dispatch mechanics.                        |
+| `<skill>/references/routing-codex.md`     | Codex role resolution and dispatch mechanics. Names no model.                            |
+| `<skill>/assets/plan-template.md`         | The `gdi_schema: 2` plan skeleton. Not expected to pass the validator.                   |
+| `<skill>/assets/validate-plan.mjs`        | Plan validator; `--commit-boundaries` checks section commits against Git.                |
+| `<skill>/assets/validate-report.mjs`      | Validator for mapper, reviewer, final, implementer, correction returns and anchors.      |
+| `<skill>/assets/scout-repo.mjs`           | Repository → feature map; `--classify` maps changed paths to units.                      |
+| `<skill>/assets/render-plan-graph.mjs`    | Plan → HTML (graphs, findings, budget, ledger). No fixtures.                             |
+| `<skill>/assets/agents/claude/gdi-*.md`   | Claude Code role definitions; model, effort, and tools in the frontmatter.               |
+| `<skill>/assets/agents/codex/goal-*.toml` | Codex role definitions; `model` and `model_reasoning_effort` in the TOML.                |
+| `<skill>/agents/openai.yaml`              | Codex display metadata for the skill. Codex requires this exact path.                    |
+| `<skill>/assets/VERSION`                  | Release number stamped into every plan as `gdi_version`.                                 |
+| `scripts/install.mjs`                     | Copies the skill and role definitions into `~/.claude`, `~/.codex`, `~/.agents`.         |
+| `CHANGELOG.md`                            | Every behavioral change and the evidence that motivated it.                              |
 
-## Things that must stay in agreement
+`<skill>/agents/` and `<skill>/assets/agents/` are different things: the first is Codex's skill
+metadata, the second holds role definitions the installer copies. Do not merge them.
 
-The 0.2.0 changelog records drift between these surfaces as a real bug class. When you change
-one, check the others in the same commit.
+The pre-unification Claude and Codex forks were removed in `ddae435`. They are the baseline the
+retrospective in `CHANGELOG.md` measured against; read them with `git show v0.6.1:claude/...` or
+`git show v0.6.1:codex/...`. Do not restore them to the tree.
 
-- **Model and effort pins.** The Claude agent frontmatter (`assets/agents/claude/*.md`), the
-  role table in `references/routing-claude.md`, and any pin mentioned in `SKILL.md` must agree.
-  Same for the Codex TOMLs and `references/routing-codex.md`. Current Claude pins: planner
-  inherit (session model and effort), implementer opus·high, mapper sonnet·medium, verify-class
-  reviewer opus·high, convention reviewer opus·medium. The implementer's stall-ladder escalation
-  route (Claude fable·high per call, Codex `gpt-6-astra`·xhigh) is a pin too: `SKILL.md` step 6,
-  both routing references, and the README's run description name it.
-- **Tool allowlists.** The `tools` line in each Claude agent frontmatter and the Tool allowlists
-  table in `references/routing-claude.md` must agree. A tool a role's contract relies on (the
-  implementer's helpers need `Agent`, its background commands need `TaskStop`) stays listed.
-- **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts reference §2 and §5, the
-  acceptance protocol in `assets/plan-template.md`, the README's run description, and the carrier
-  rule in `references/routing-claude.md` describe one rule. Codex stays resume-only in
-  `references/routing-codex.md` until a Codex run yields per-role usage.
-- **Plan schema.** `assets/plan-template.md`, `validate-plan.mjs`, and the schema description in
-  `SKILL.md` describe one contract. A new required surface goes into all three. The validator must
-  keep accepting `gdi_schema: 1` plans under the legacy rules and every plan a previous release
-  wrote; a validator change that rejects a previously valid plan is a schema bump, not a fix.
-- **Reviewer lenses.** The lens list in `references/agent-prompts.md`, the `gdi-reviewer`
-  description, and the lens names `SKILL.md` dispatches by must match.
-- **Report formats.** The labels and verdict vocabularies in the prompt templates
-  (`references/agent-prompts.md`) are what `validate-report.mjs` checks, and the agent
-  definitions' standing contracts (`assets/agents/claude/*.md`, `assets/agents/codex/*.toml`)
-  restate them so a role does not learn the format only from the dispatch prompt. Renaming a
-  label or adding a required one changes all three, plus the validator's self-test fixtures. A
-  Codex role uses a stable role label without model, effort, or revision suffixes. Keep labels
-  consistent with `references/routing-codex.md`; record schema/release/source provenance in the
-  plan, and never treat a role label as proof of the loaded profile revision or runtime model.
-- **File lists.** `SKILL.md` ends with a file index, and the README has a Layout block. Adding or
-  renaming a file under `skills/` updates both.
+## Where each fact lives
+
+Drift between copies of the same fact has shipped as a bug more than once. Keep one source for
+each fact and make every other file point to it. When a fact has more than one copy, change all
+copies in the same commit.
+
+- **Codex model and effort.** Only in `assets/agents/codex/*.toml`. `routing-codex.md` and the
+  README refer to the TOMLs and do not name models. The Codex stall-ladder escalation uses the
+  planner's pins from `goal-planner.toml`, so editing that TOML changes the escalation route too.
+- **Claude model and effort.** The agent frontmatter is the source. The role table in
+  `routing-claude.md` repeats it and must match. The Claude escalation route (`model: "fable"`
+  per call) lives in `routing-claude.md` and `SKILL.md` step 6.
+- **Claude tool allowlists.** Each frontmatter `tools` line and the allowlist table in
+  `routing-claude.md` must match. Keep every tool a role's contract uses: the implementer needs
+  `Agent` for its read-only helpers and `TaskStop` for background commands.
+- **Plan schema.** `plan-template.md`, `validate-plan.mjs`, and the schema description in
+  `SKILL.md`. A new required surface goes into all three.
+- **Report formats.** Labels and verdict words in `agent-prompts.md` are what
+  `validate-report.mjs` checks, and the role definitions restate them so a role does not learn
+  its format only from the dispatch prompt. Change all three plus the validator fixtures.
+- **Reviewer lenses.** The lens list in `agent-prompts.md`, the `gdi-reviewer` description, and
+  the lens names `SKILL.md` dispatches by.
+- **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts §2 and §5, the acceptance
+  protocol in `plan-template.md`, the carrier rule in `routing-claude.md`, and the README's run
+  description. Codex has no carrier rule and stays resume-only until a Codex run yields per-role
+  usage.
+- **Role labels.** Codex roles attest with stable labels (`gdi-planner`, `gdi-implementer`,
+  `gdi-mapper`, `gdi-reviewer`) that carry no model, effort, or revision suffix. A label is not
+  proof of which profile or model ran; provenance goes in the plan.
+- **File lists.** The file index at the end of `SKILL.md` and the README's Layout block. Adding,
+  renaming, or removing a file under `skills/` updates both.
 - **Install targets.** `scripts/install.mjs` and the README's Install section name the same
-  directories and the same agent files.
+  directories and agent files.
 
-## Checks to run before you finish
+## Checks
 
-There is no CI. Run these locally and report the output.
+Run all of these before you report done, and include the output.
 
 ```bash
-node skills/goal-driven-implementation/assets/validate-plan.mjs --self-test
-node skills/goal-driven-implementation/assets/scout-repo.mjs --self-test
-node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
-node skills/goal-driven-implementation/assets/render-plan-graph.mjs <some-plan.md> --no-open
+S=skills/goal-driven-implementation/assets
+node $S/validate-plan.mjs --self-test
+node $S/validate-report.mjs --self-test
+node $S/scout-repo.mjs --self-test
+node $S/render-plan-graph.mjs <plan.md> --no-open --out /tmp/plan.html
 node scripts/install.mjs --dry-run
 ```
 
-- Each self-test prints a single `... self-test passed` line.
-- When you touch a validator or the scout, add or extend a fixture inside it for the rule you
-  changed. A rule with no fixture is untested.
-- Run the scout against a real monorepo, not only the fixture, when you change its exclusions
-  or detection rules: the fixture cannot reproduce a nested worktree checkout or a package
-  store, and both have inflated a map thirtyfold before.
-- `plan-template.md` is a skeleton with placeholders and is **not expected** to pass the
-  validator. Do not "fix" the template to make it validate.
-- The renderer has no fixtures. Render a real plan (or a filled-in copy of the template) and
-  open the HTML if you changed rendering.
-- Without `--no-open` the renderer launches the system browser on the output file. Always pass
-  it in unattended or agent runs; use `--out <file.html>` to pick where the HTML lands.
+- Each self-test prints one `... self-test passed` line.
+- A changed rule in a validator or the scout gets a new or extended fixture in that script's
+  self-test.
+- After changing the scout's exclusions or detection, also run it on a real monorepo. The fixture
+  cannot reproduce a nested worktree or a package store, and both have inflated a map thirtyfold.
+- The renderer has no fixtures. After changing it, render a real plan and open the HTML.
+- Always pass `--no-open` to the renderer; without it the script opens a browser.
+- Never run `install.mjs` without `--dry-run` unless the user asks. It writes to the user's home
+  directory.
+- Do not edit `plan-template.md` to make it pass the validator. It contains placeholders.
 
-## Editing the prose
+## Writing the skill's prose
 
-Every file under `skills/` is read by Claude or Codex while it runs the skill, under a context
-budget, and the reader acts on what it reads. No human is the audience there: the README is for
-users, and this file and `CHANGELOG.md` are for maintainers.
+Files under `skills/` are read by an agent under a context budget, on every load. Write for that
+reader.
 
-- **Name the reader before you write.** The orchestrator reads `SKILL.md`, `references/`, and the
-  plan template. A role reads its own agent definition and its dispatch prompt, and nothing else.
-  Keep a sentence only if it changes what that reader does or settles a case the rule leaves
-  open. A reason qualifies when it fits in one clause and helps the reader apply the rule.
-- **An agent definition holds only what its role can act on.** A role cannot change its own
-  tools, model, effort, or install location, and a path relative to the skill root does not
-  resolve where the role runs. Installer and host guidance goes in the routing reference.
-- **Do not write for the person who requested the change.** Sample sizes, measurement dates, how
-  a threshold was derived, options considered and rejected, what is still unverified, and what
-  the file used to say show that the change was careful; they do not tell the reader what to do.
-  They go in the changelog entry. An `_Origin:_` note names the failure the rule prevents in
-  about three lines.
-- **Use the literal phrase.** No metaphor, aphorism, or contrast written for effect. Write "the
-  threshold was calculated and has not been tested in a run", not "the threshold is arithmetic,
-  not a trial". A figure of speech carries connotations the writer did not choose, the reading
-  agent may act on them, and the extra words are re-read on every load.
-- Every rule earns its place with a failure it prevents. `CHANGELOG.md` and
-  `references/graph-analysis.md` cite the retrospective evidence per rule. A new rule without
-  evidence, or a removed rule without an argument that the failure can no longer happen, will be
-  questioned in review.
-- Put mechanics that differ per harness in `references/routing-<harness>.md`, not in `SKILL.md`.
-  `SKILL.md` must read correctly in both Claude Code and Codex CLI.
-- Prompt templates in `references/agent-prompts.md` are used verbatim by the orchestrator. Change
-  the template, not the surrounding prose, if you want dispatched agents to behave differently.
-- Wrap Markdown at about 100 columns to match the existing files. Tables are aligned; run them
-  through a formatter or align by hand.
-- Files are LF-only (`.gitattributes` enforces it). Do not commit CRLF, and do not commit files
-  with NUL bytes; the Claude fork's renderer once shipped with four and it broke silently.
+- **Know the reader.** The orchestrator reads `SKILL.md`, `references/`, and the plan template. A
+  dispatched role reads only its own definition and its dispatch prompt. Keep a sentence only if
+  it changes what that reader does or settles a case the rule leaves open.
+- **A role definition holds only what the role can act on.** A role cannot change its tools,
+  model, effort, or install location, and skill-relative paths do not resolve where it runs.
+  Host and installer guidance goes in the routing reference.
+- **Harness differences go in `references/routing-<harness>.md`**, not in `SKILL.md`.
+- **Change the template, not the prose around it.** `agent-prompts.md` templates are pasted into
+  dispatches verbatim.
+- **Use the literal phrase.** No metaphor, aphorism, or contrast written for effect; the reading
+  agent may act on connotations the writer did not intend.
+- **Keep the history out.** Sample sizes, dates, how a threshold was derived, rejected options,
+  and what the text used to say go in `CHANGELOG.md`. An `_Origin:_` note may name the prevented
+  failure in about three lines.
+- **Every rule cites a failure.** A new rule needs evidence; removing one needs an argument that
+  the failure can no longer occur. `CHANGELOG.md` and `graph-analysis.md` hold the citations.
+- Wrap Markdown at about 100 columns and align tables. Files are LF-only (`.gitattributes`) and
+  must contain no NUL bytes.
 
-## Versioning and releases
+## Versions and the changelog
 
-Releases are git tags `vX.Y.Z`. `assets/VERSION` carries the same number and every plan written
-by that release records it as `gdi_version`, so retrospectives can correlate plan outcomes with
-skill revisions. Do not bump `VERSION` in a feature commit; the bump, the changelog heading, and
-the tag belong together.
-
-- **Patch**: prose clarifications, narrowing or re-scoping a rule that misfired in a real run,
-  renderer fixes, validator fixes that reject nothing new.
-- **Minor**: new rules, new lenses, new plan surfaces that the validator accepts but does not
-  require, new installer behavior.
-- **Schema bump** (`gdi_schema: N+1`): any change that makes the validator reject a plan a
-  previous release wrote. Keep the previous schema's rules in the validator and document the
-  resume path in `SKILL.md`, as was done for schema 1 → 2.
-
-Every changelog entry cites what motivated it: a plan, an issue, or a retrospective finding.
-"Cleanup" is not a motivation.
+- A release is a `vX.Y.Z` tag, a matching `assets/VERSION`, and a changelog heading, committed
+  together as `chore(release): prepare X.Y.Z`. Do not bump `VERSION` in a feature commit.
+- Work between releases goes under the top changelog heading until it is tagged.
+- **Patch:** prose clarifications, narrowing a rule that misfired, renderer fixes, validator fixes
+  that reject nothing new. **Minor:** new rules, lenses, optional plan surfaces, installer
+  behavior. **Schema bump** (`gdi_schema: N+1`): anything that makes the validator reject a plan
+  an earlier release wrote. The validator keeps the old schema's rules, and `SKILL.md` documents
+  the resume path.
+- Every changelog entry names what motivated it: a plan, an issue, a maintainer report, or a
+  retrospective finding.
 
 ## Commits
 
-Conventional-commit prefixes with a scope where one applies: `feat(validator):`, `feat(skill):`,
-`feat(install):`, `docs:`, `chore:`. One logical change per commit. Do not commit `.bak-*`
-directories or installer output; the installer writes outside the repo and that is intended.
+Conventional commits with a scope: `feat(skill):`, `feat(validator):`, `feat(install):`,
+`fix(...)`, `docs(skill):`, `chore(release):`. One logical change per commit, with the changelog
+entry in the same commit. Do not commit `.bak-*` directories, installer output, or
+`.hubgrid-artifacts/`.
 
-## Ruling floor for this repository
+## Ruling floor
 
-The skill lets a host repository declare its own ruling floor in an AGENTS.md. This is that
-declaration for the skill's own repository. Changes below the floor are the agent's call; record
-the rationale in the commit message or changelog. Changes on the floor need a human ruling
-before they land.
+`SKILL.md` lets a host repository declare its own ruling floor. This is the floor for this
+repository. Below it, decide and record the reason in the commit message or changelog. On it,
+stop and get a human ruling before the change lands.
 
-1. **The plan contract.** A `gdi_schema` bump, or any validator change that would reject a plan
-   an installed release has already written.
-2. **The installed surface.** Renaming or removing an agent role (`gdi-*`, `goal-*`), changing an
-   install target directory, or changing the skill's `name` in `SKILL.md` frontmatter. Users have
-   these paths in their home directories and their Codex `config.toml`.
-3. **Role economics.** Changing a pinned model or effort. These pins encode retrospective evidence
-   about where review depth pays; a change needs its own evidence.
-4. **Removing a rule** from `SKILL.md`, `graph-analysis.md`, or a reviewer lens. Each one was added
-   after a named production failure.
+1. **The plan contract.** A `gdi_schema` bump, or a validator change that rejects a plan an
+   installed release already wrote.
+2. **The installed surface.** Renaming or removing a role (`gdi-*`, `goal-*`), changing an
+   install directory or the `<skill>/agents/openai.yaml` path, or changing the skill `name` in
+   `SKILL.md` frontmatter. Users have these paths in their home directories and Codex config.
+3. **Role economics.** Changing a model or effort in a role definition or an escalation route.
+   The pins encode evidence about where review depth pays; a change needs its own evidence.
+4. **Removing a rule** from `SKILL.md`, `graph-analysis.md`, or a reviewer lens.
 
 Not floor: wording, ordering, examples, renderer appearance, new optional validator warnings,
-new optional plan surfaces, installer flags, and additions to this file.
+new optional plan surfaces, installer flags, and edits to this file.

@@ -40,6 +40,13 @@ node goal-driven-implementation/scripts/install.mjs        # both harnesses
 node goal-driven-implementation/scripts/install.mjs --only codex
 ```
 
+For a repository with a writing dispatch guard, use the maintained source or reinstall after
+updating it, then start a new agent session so dispatch reads the updated skill. The installer
+copies the complete skill tree to both Codex skill locations; a source edit does not update an
+already installed copy. Check the installed `SKILL.md` and guard reference against the source
+bytes before attributing a guarded run to the update. Repository instructions and the local guard
+remain the authority for path classification and admission.
+
 Targets: `~/.claude/skills/`, `~/.claude/agents/` (five `gdi-*` roles), `~/.codex/skills/`,
 `~/.agents/skills/`, `~/.codex/agents/` (four `goal-*` roles). Existing copies are moved to a
 `.bak-<timestamp>` sibling.
@@ -72,6 +79,11 @@ prints the new snippet and leaves legacy config/files intact. See the
    section, and escalates a commit-sized section's implementer once (Fable in Claude Code,
    the planner TOML's model and effort in Codex) before reporting a blocker. The orchestrator does not pause between
    sections except for a floor ruling, approval, a blocker, or the terminal action.
+   If the host provides a writing dispatch guard, the orchestrator reserves the complete approved
+   path scope immediately before each writing dispatch, and pauses on a failed reserve or scope
+   expansion. The reservation stays with the same task through correction and review until PR
+   handoff or deliberate abandonment. Older schema-2 plans remain valid; collect explicit paths
+   before writing when they are missing.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
@@ -127,6 +139,7 @@ skills/goal-driven-implementation/
       goal-reviewer.toml        read-only reviewer role
   references/
     agent-prompts.md             mapper, implementer, reviewer lenses, final review, relays
+    host-dispatch-guard.md        optional host guard discovery and writing lifecycle
     graph-analysis.md            the analysis checklist, each class with the failure it prevents
     routing-claude.md            role resolution and dispatch in Claude Code
     routing-codex.md             role resolution and dispatch in Codex CLI

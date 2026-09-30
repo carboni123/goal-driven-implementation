@@ -5,6 +5,26 @@ executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 corre
 
 ## 0.8.0 — 2026-09-26 (tag `v0.8.0`)
 
+### Changed — optional host guard at writing dispatch
+
+**Tyxter Messaging #1091, 2026-09-26.** A writing section could dispatch while another open
+core PR already occupied the host's core lane. The earlier installed skill had no dispatch
+instruction for the host guard. Its baseline agent happened to discover the local helper and
+blocked the conflicting PR; that observation does not reproduce a skipped call. The host
+fixture's oracle detects both a missing reserve and an unauthorized child write.
+
+- The workflow discovers a declared or conventional host guard and invokes its reserve operation
+  immediately before writing dispatch, including correction carriers. A failed or unreadable
+  declared guard stops writing; read-only roles still run. A successful non-core result proceeds
+  according to the host's classification.
+- Optional plan context and worker briefs carry the explicit approved paths, task ID, plan
+  identity, verified same-PR argument, and guard result. Scope expansion pauses for approval and
+  a fresh reserve over the complete scope. The same owner retains the reservation through review
+  and releases it at PR handoff or deliberate abandonment.
+- Tyxter's `scripts/harness/core-dispatch.mjs` is an example CLI, not a universal core module
+  taxonomy. Existing schema-2 plans validate unchanged; missing explicit paths are collected
+  before writing. No role, installer, validator, or release-version change is included.
+
 ### Changed — stall ladder, implementer escalation, reachable review findings
 
 **Maintainer report, 2026-09-22.** Orchestrators running the skill stopped at the convergence

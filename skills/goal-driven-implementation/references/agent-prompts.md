@@ -138,6 +138,10 @@ other agent writes code for this section. Do not delegate writing.
 {allowed files; observed mechanism; exemplar to reuse; invariants; exclusions; acceptance checks;
 applicable rulings — reference the section fields rather than duplicating them}
 
+=== HOST WRITING GUARD (when present) ===
+{guard path/command; approved normalized repository-relative write paths; task ID; plan path;
+verified same-PR number if resuming; immediately preceding reserve result. If absent, say absent.}
+
 === CORRECTIONS IN FORCE ===
 {every factual correction accepted in earlier sections of this plan, or "none yet"}
 
@@ -154,6 +158,10 @@ RULES
 - Read the repository instruction files and every touched module's README first.
 - Implement exactly the IMPLEMENT list — one vertical slice. No future sections, no unrelated
   refactors, no unrelated fixes; report unrelated findings under RISKS.
+- Write only the approved paths in the host guard block when present. If another path becomes
+  necessary, pause before writing it and return the proposed expansion to the orchestrator for
+  approval and a fresh reserve over the complete scope. A `CORE SCOPE` prose label is not path
+  approval; the host guard classifies paths.
 - Before your first edit, re-run the section's defining search (the symbols in CONTEXT and
   WRITERS) and report any delta from the plan's anchors under ANCHOR DELTA.
 - The plan's behavior claims are hypotheses. If one does not resolve against the code, report the
@@ -466,6 +474,9 @@ Same implementer:
 REVIEW RESULT: rejected. Fix exactly these gaps — nothing else — then send the full report again
 in the same format:
 
+HOST WRITING GUARD: {fresh reserve result, complete approved paths, task ID, plan path, verified
+same-PR number if any; or absent. Pause before any new path and request recheck/reserve.}
+
 1. {file:line — gap — required fix}
 2. {...}
 
@@ -492,6 +503,10 @@ delegate writing.
 === TASK BOUNDARY ===
 {as sent to the first implementer}
 
+=== HOST WRITING GUARD (when present) ===
+{guard path/command; complete approved normalized repository-relative write paths; task ID;
+plan path; verified same-PR number if any; fresh reserve result. If absent, say absent.}
+
 === CORRECTIONS IN FORCE ===
 {every factual correction accepted in earlier sections of this plan, or "none yet"}
 
@@ -516,6 +531,8 @@ RULES
 - The section implementer RULES apply in full: ruling floor, claims true at this commit, related
   unhandled cases, focused reproduction and targeted sensitivity checks, real gate output, no
   commit, no ledger edits. {generic fallback child: paste the RULES block of template §2 here}
+- Write only the approved paths in the host guard block when present. Pause before any path
+  expansion and request an orchestrator reserve over the complete new scope.
 - Orient from the PRIOR REPORT's DIFF and `git diff` over those paths, then the lines each gap
   cites. Do not re-map the area. A decision recorded under CALLS stands unless a gap contradicts it.
 - The earlier work is accepted except for the listed gaps. Do not restyle, reorder, or rewrite it.
@@ -549,6 +566,9 @@ After a ruling (user for floor items; orchestrator for non-floor items, recorded
 ```text
 DECISION on your brief: {chosen option, verbatim constraints}
 
+HOST WRITING GUARD: {fresh reserve result, complete approved paths, task ID, plan path, verified
+same-PR number if any; or absent. Pause before any new path and request recheck/reserve.}
+
 Proceed under this decision. It covers exactly this change; anything else on the ruling floor
 still requires a new brief. Return the full report when finished.
 ```
@@ -577,11 +597,17 @@ unrelated code.
 {files needed for the findings; mechanism and invariants; relevant exemplars and rulings;
 excluded work — preserve accepted behavior beyond the listed corrections}
 
+=== HOST WRITING GUARD (when present) ===
+{guard path/command; complete approved normalized repository-relative write paths; task ID;
+plan path; verified same-PR number if any; fresh reserve result. If absent, say absent.}
+
 === REQUIRED GATES ===
 {affected checks, scheduled final gates, reusable evidence with tested state}
 
 RULES
 - Fix exactly the listed findings; do not redesign accepted sections or cross the ruling floor.
+- Write only the approved paths in the host guard block when present. Pause before any path
+  expansion and request an orchestrator reserve over the complete new scope.
 - A correction that needs an unruled floor change stops with STATUS: decision-needed.
 - Every prose claim you touch follows the CLAIMS requirements. Apply the implementer's focused
   reproduction and targeted sensitivity rules; extend existing tests and fixtures first.

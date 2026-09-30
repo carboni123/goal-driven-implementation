@@ -127,6 +127,8 @@ decision with `⇢` and a one-line rationale in the plan's Recorded calls table.
 Before resuming an older plan that lacks `gdi_schema: 2` fields, add the plan-only fields
 (frontmatter, preflight, gate budget, rulings split, ledger schema, deferrals table) without
 changing approved scope, contracts, or completed history, validate, and continue.
+An older plan without explicit approved write paths remains valid. If its host has a writing
+dispatch guard, collect and approve those paths before the first writing dispatch.
 
 ### Plan lifecycle
 
@@ -341,6 +343,10 @@ that do not block the work.
 
 **0. Preflight.** Validate the plan. Re-run affected environment probes when their worktree,
 realm, service, credential, or toolchain inputs changed; record presence, never secret values.
+Discover an optional host writing dispatch guard from repository instructions or a documented
+conventional path; follow `references/host-dispatch-guard.md`. An absent integration leaves this
+workflow unchanged. A declared integration that cannot be read or run is a visible stop for
+writing dispatch, not permission to proceed. Read-only planning, mapping, and review continue.
 Resolve roles per the harness reference and record the evidence. Set `status: executing` before
 the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
 unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer agent exists.
@@ -360,14 +366,24 @@ If the first unchecked section has become a milestone-sized assignment, request 
 replan before implementation. Compare its current writers and acceptance scope with its commit
 boundary; do not carry an oversized section forward merely because it was already approved.
 
-**2. Implement.** Check that the bounded brief above is actionable. Send one implementer the
-section block verbatim, context brief, global gate, preflight,
-baseline, and the **Corrections in force** block (every factual correction accepted in earlier
-sections of this plan). Keep its handle: decision relays and report-validation errors resume the
-same agent, and a rejection goes to the correction carrier chosen in step 6. The implementer's
-report includes a **CLAIMS** block: every prose assertion it added or changed (README, comment,
-docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_, and
-a **RETIRES** block that names artifacts removed or explains why none was retired, such as
+**2. Implement.** Check that the bounded brief above is actionable. Before each writing
+implementer dispatch or writing resume, including decision relays, corrections, and escalations,
+invoke the discovered host's reserve operation when present, with the nonempty approved normalized
+repository-relative write paths, task ID, plan identity, and any verified same-PR argument.
+Inspect its successful result before spawning or resuming; a previous check or reservation result
+is not a substitute. Failure stops writing dispatch. Send one implementer the section block verbatim,
+context brief, global gate, preflight, baseline, and the **Corrections in force** block (every
+factual correction accepted in earlier sections of this plan). Give it the approved paths, owner
+identity, guard outcome, and a scope-expansion pause rule in its brief. Keep its handle: decision
+relays and report-validation errors resume the same agent, and a rejection goes to the correction
+carrier chosen in step 6. Retain the reservation through review and corrections; release it by
+the same owner at PR handoff or deliberate abandonment, never because of a timeout or a
+foreign-owner failure. If scope expands, pause before any expanded write, approve the added
+paths, and re-run reserve on the complete scope
+before the same or a replacement writer proceeds. See `references/host-dispatch-guard.md`.
+The implementer's report includes a **CLAIMS** block: every prose assertion it added or changed
+(README, comment, docs, OpenAPI description, evidence row) with the anchor that makes it
+true _at this commit_, and a **RETIRES** block that names artifacts removed or explains why none was retired, such as
 additive work with no obsolete artifact or retained compatibility. Validate the report
 (`validate-report.mjs --kind implementer --repo-root <repo>`) before any reviewer is dispatched;
 a hard error goes back to the same agent once.
@@ -466,8 +482,10 @@ When every section is checked:
    in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
    at HEAD, including adjacent pre-existing sentences; (f) **rollout window** —
    old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
-   to one correction implementer scoped to the findings; validate its report with
-   `validate-report.mjs --kind correction --repo-root <repo>` before re-running final review; commit
+   to one correction implementer scoped to the findings. Apply the same host reserve and brief
+   rule from EXECUTE step 2 before this writing dispatch and any writing resume. Validate its
+   report with `validate-report.mjs --kind correction --repo-root <repo>` before re-running final
+   review; commit
    additively; repeat until clean under the convergence rule. In the
    bounded-fix lane the section review already served as the final review: skip the separate review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
@@ -510,6 +528,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
   configuration, independent of its name.
 - `references/agent-prompts.md` — mapper, implementer, reviewer lenses, final-review, rejection,
   decision relay, and correction implementer templates; optional graph context for code review.
+- `references/host-dispatch-guard.md` — optional host guard discovery, reservation, scope changes,
+  and release for writing dispatch.
 - `references/graph-analysis.md` — structural and rendered-image inspection checklists, capture
   and correction procedure, and the failure each class prevented.
 - `references/routing-claude.md`, `references/routing-codex.md` — per-harness role resolution.

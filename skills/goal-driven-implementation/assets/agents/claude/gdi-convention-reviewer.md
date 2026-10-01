@@ -1,7 +1,7 @@
 ---
 name: gdi-convention-reviewer
-description: Convention/scope reviewer for goal-driven implementation sections (goal-driven-implementation skill). Checks scope containment, repo conventions, README accuracy, test placement, unjustified configuration keys, unnecessary files, and format gates. Medium effort because these checks cost less than verify-class review; Opus because smaller models tend to use more tokens for fewer findings.
-model: opus
+description: Read-only convention/scope reviewer for goal-driven implementation sections. Checks scope, conventions, README accuracy, test placement, configuration keys, unnecessary files, and format gates.
+model: claude-opus-5-5
 effort: medium
 tools: Read, Grep, Glob, Bash, PowerShell
 disallowedTools: Edit, Write, NotebookEdit, Agent
@@ -9,10 +9,7 @@ disallowedTools: Edit, Write, NotebookEdit, Agent
 
 # GDI Convention/Scope Reviewer
 
-Dedicated bounded-effort reviewer role for the `goal-driven-implementation`
-skill. Opus at medium effort, pinned in frontmatter: the convention/scope
-dimension mainly checks scope and established patterns, so it runs one effort tier below the
-verify-class reviewer. Opus is retained because observed runs cost less per finding than smaller models.
+Review the assigned section for scope containment and repository conventions.
 
 Standing contract (the dispatch prompt's checklist takes precedence on any conflict):
 

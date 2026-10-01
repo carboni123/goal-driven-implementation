@@ -1,6 +1,6 @@
 ---
 name: goal-driven-implementation
-description: Author and execute goal-driven implementation plans. A harness-specific plan author drafts and graph-checks after validated mapping; one implementer builds each section, reviewers check it, and a whole-branch final review runs before expensive or outward gates. Use when creating, reviewing, resuming, or executing a plan, or fixing an issue end to end.
+description: Define concise goals and execute them with mapped repository context. A planner organizes execution and filters mapper evidence; one implementer chooses the approach for each section, reviewers check the result, and the orchestrator owns acceptance and sign-off. Use when creating, reviewing, resuming, or executing a plan, or fixing an issue end to end.
 ---
 
 # Goal-Driven Implementation
@@ -43,17 +43,19 @@ findings into the remaining sections. Splitting cannot relabel a known defect as
 
 ## Role contract
 
-| Role         | Who                    | May                                                                                         | Must never                                                         |
-| ------------ | ---------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| ORCHESTRATOR | Main session           | Read; supply context; direct workers; own rulings, status, ledger, reviews, gates, commits | Edit product source/docs; silently replace the plan-authoring route |
-| PLANNER      | Plan-authoring session | Write assigned plan/graph artifacts; decompose; resolve ambiguity; check graphs             | Edit product source/docs; delegate; approve; alter rulings/history; execute; commit |
-| IMPLEMENTER  | One per section        | Write code in its section; run gates/tests; spawn allowed read-only helpers                 | Touch future sections; commit; delegate writing; cross an unruled floor |
-| MAPPER       | Read-only agent        | Map code, tests, conventions, lifecycle couplings                                           | Write files                                                         |
-| REVIEWER     | Read-only, one lens    | Review implemented code with `file:line` evidence                                           | Write files; design or approve plans                               |
+| Role         | Who                     | May                                                                                        | Must never                                                                                  |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| ORCHESTRATOR | Main session            | Read; direct workers; own rulings, status, ledger, reviews, sign-off, gates, commits       | Edit product source/docs outside the direct lane; silently replace the plan-authoring route |
+| PLANNER      | Goal-organizing session | Define concise goals/order; filter mapper evidence; write plan/graph; check dependencies   | Edit product source/docs; delegate; approve; alter rulings/history; execute; commit         |
+| IMPLEMENTER  | One per section         | Write code in its section; run gates/tests; spawn allowed read-only helpers                | Touch future sections; commit; delegate writing; cross an unruled floor                     |
+| MAPPER       | Read-only agent         | Map code, tests, conventions, lifecycle couplings                                          | Write files                                                                                 |
+| REVIEWER     | Read-only, one lens     | Review implemented code with `file:line` evidence                                          | Write files; design or approve plans                                                        |
 
-The plan-authoring planner owns decomposition and structural and visual graph review. Both
-harnesses dispatch it after validated PLAN-mode mapping: `gdi-planner` in Claude Code,
-`goal-planner` in Codex.
+The planner defines concise goals, groups them into sections, organizes execution order, and
+filters validated mapper output into the context each implementer needs. It returns the plan to
+the orchestrator for dispatch; it does not design implementation steps. The planner also checks
+dependencies and the structural and visual graph. The bounded-fix lane has the orchestrator write
+the plan, and the direct lane has no plan.
 The orchestrator supplies rulings, preflight/evidence, open questions, and artifact paths, and may
 run probes or captures when the planner lacks those tools. Code reviewers may use the planner's
 inspected graph as context for tracing implementation paths; a diagram is not implementation evidence.
@@ -64,14 +66,8 @@ run in parallel within the harness thread cap.
 **Harness routing.** Model, effort, and dispatch mechanics differ per harness and are defined in one
 reference each — read the one for the harness you are running in before the first dispatch:
 
-- Claude Code: `references/routing-claude.md` (pinned `gdi-*` agent definitions including a
-  `gdi-planner` that inherits the session model, a definition-currency check in preflight,
-  `SendMessage` for follow-ups, a correction-carrier rule keyed to the implementer's reported
-  context size, an implementer that may spawn read-only helpers, and the implementer's escalation
-  route).
-- Codex CLI: `references/routing-codex.md` (`goal-*` custom agents, `followup_task`, a dedicated
-  `goal-planner`, routing attestation, the implementer's escalation route; ordinary workers do not
-  spawn, with a bounded delegated-orchestrator exception).
+- Claude Code: `references/routing-claude.md` — role resolution and dispatch mechanics.
+- Codex CLI: `references/routing-codex.md` — role resolution and dispatch mechanics.
 
 Resolve every role during preflight, **before** preparing the plan for approval, and record
 `requested / role-confirmed / model-confirmed` per role in the plan. If the reviewer role cannot be
@@ -80,13 +76,13 @@ orchestrator's own dispatch is a last resort: record it as `review: self (<reaso
 and as an accepted risk in Graph Findings, and the whole-branch final review must then run with an
 independent agent. If no independent reviewer can be obtained at all, stop and say so.
 
-The plan-authoring planner owns decomposition and resolves ambiguity before dispatch. A bounded brief names the
-allowed files, observed mechanism, existing exemplar, invariants, acceptance checks, exclusions,
-and applicable rulings; use the existing section fields rather than another planning document.
-Include only context needed for that assignment. A detailed brief can still be wrong: workers
-report contradicted premises, and reviewers independently trace the changed behavior. When an
-implementer struggles, follow the stall ladder in EXECUTE step 6: supply the missing fact, then
-split the section, and only then escalate the implementer's model.
+Each assignment names its goal, scope, dependencies, acceptance checks, gates, exclusions, and
+applicable rulings. Filter mapper evidence into the existing section fields, preserving relevant
+anchors and uncertainties; do not pass every mapper return to every implementer. Keep observed
+mechanisms, exemplars, and invariants when they affect the assignment. The implementer chooses
+the design and implementation steps. Workers report contradicted premises, and reviewers trace
+the resulting behavior independently. When review stops converging, the orchestrator takes over
+the acceptance decision under EXECUTE step 6's sign-off mode.
 
 ## Ruling floor
 
@@ -116,8 +112,9 @@ decision with `⇢` and a one-line rationale in the plan's Recorded calls table.
 ## Select a mode
 
 - Existing plan for this feature → **EXECUTE**, resuming at the first eligible unchecked item.
-- No plan → **PLAN**. Decide the lane first (**Bounded-fix lane** below) and record it in the
-  plan; the full loop is the default.
+- No plan → decide the lane first: **Direct lane** (no plan file), **Bounded-fix lane**, or the
+  full loop, which is the default. Record the lane in the plan, or in the commit for the direct
+  lane. When the plan would be longer than the diff, check the direct lane before writing one.
 - **Approval.** A plan whose analysis pass finds a floor item (any `⚠` section, any ruling in the
   floor table) waits for the user to rule on exactly those rulings. A plan with no floor item, in a
   repository that declares its ruling floor, starts EXECUTE immediately and posts the rendered graph
@@ -197,18 +194,70 @@ is redone.
 Inside the lane:
 
 - **PLAN.** The plan file is still written from the template: it is the ledger and the record a
-  retrospective reads. One section, one goal. Skip mapper dispatch when the orchestrator can
-  anchor every context item itself in one read. The graph is the minimal
-  input → section → goal → PR chain. Graph analysis still runs; classes that cannot apply are
-  recorded as `None` in one line each. Validate. Rendering is optional; the raw Mermaid in the
-  message is enough.
+  retrospective reads. One section, one goal. The orchestrator writes the plan itself; no planner
+  dispatch. Skip mapper dispatch when the orchestrator can anchor every context item itself in
+  one read. The graph is the minimal input → section → goal → PR chain. Graph analysis still
+  checks every class; Graph Findings lists the classes that apply and one line naming the rest as
+  checked and not applicable. Parts of the template with nothing to record stay minimal: one
+  preflight row per gate realm, a Known blockers row `None` when none applies, and an empty
+  gate-budget table when no expensive gate is budgeted. Validate. Rendering is optional; the raw
+  Mermaid in the message is enough.
 - **EXECUTE.** No aggregation step. One implementer with the standard template. Two review
   lenses: convention/scope and doc-truth. The orchestrator verifies the affected test evidence
   named in the gate budget, reads the full diff, and applies the same seven checks and the same
-  convergence rule.
+  convergence and sign-off rules in EXECUTE step 6.
 - **COMPLETE.** The section review is the final review; no separate whole-branch review. Re-baseline on
   `origin/main` and verify the global gate (owning package's full suite plus affected dependents)
   against the merged tree, reusing evidence only if its inputs remain valid. Annotate, report.
+  The SHA-only ledger update, final evidence, and any archive move the host requires go in one
+  closure commit.
+
+## Direct lane
+
+For a change that no program runs or reads, the orchestrator does the work itself: no plan file,
+no feature-map file, and no mapper, planner, or implementer. One independent reviewer remains.
+
+Eligible when every check holds after the orchestrator has read the code:
+
+- Every **Bounded-fix lane** check holds.
+- The diff changes only text that no program runs or reads: documentation, runbooks, code
+  comments, roadmap or checklist entries. A change to executable code, tests, build or CI
+  configuration, configuration a program reads, or a tracked generated artifact disqualifies.
+- The orchestrator has read every file the change edits and every code location it makes a
+  claim about.
+- Reading and the owning unit's documentation checks (format, links, docs checks) prove the goal.
+
+Inside the lane:
+
+1. Treat input claims as hypotheses (PLAN step 1). Check each claim the change will make against
+   the code before writing it.
+2. Write the change and run the owning unit's checks. Classify every path the change edits or
+   adds, new files included: `node <skill-root>/assets/scout-repo.mjs <repo> --classify
+   <path,path,...>` reports one owning unit and no shared kernel.
+3. Dispatch one independent reviewer with the section reviewer template (prompts reference §3):
+   `LENS: doc-truth and convention/scope`, both checklists, on the doc-truth reviewer route, with
+   the orchestrator's change summary and a CLAIMS block (every assertion the diff adds, with its
+   anchor) in place of the implementer report. Validate the return (`--kind reviewer`) and apply
+   EXECUTE step 4's refutation rules. The orchestrator corrects a REJECT and returns the diff to
+   the same reviewer under the convergence and sign-off rules in EXECUTE step 6. Record sign-off
+   evidence in the commit body when this lane has no plan.
+4. Commit. The commit body is the record a retrospective reads:
+
+   ```text
+   Lane: direct — <why each eligibility check holds>
+   Premise corrections: <input claims the code contradicted, or none>
+   Checks: <command — result>; ...
+   Review: independent <agent> doc-truth and convention/scope — APPROVE, rounds: <n>
+     or sign-off (<reason>), with original verdicts, finding dispositions, and evidence
+   ```
+
+5. Run the checks the host requires for every change (commit and push hooks, local CI) once on
+   the committed candidate, then take the terminal action the user asked for.
+
+A disqualifier found mid-lane (a needed code or configuration change, a second unit, a reviewer
+finding that names one) ends the lane: write the bounded or full plan from the current state,
+record the working-tree diff as the section's starting candidate and the review as existing
+evidence, and continue in that lane.
 
 ## PLAN mode
 
@@ -228,12 +277,17 @@ Inside the lane:
 3. After the required PLAN-mode mapper returns validate, dispatch the harness's plan-authoring
    route from its routing reference, using the §0 planner prompt. The orchestrator supplies the
    validated mapper brief (or verified anchors under the mapping exception), open questions,
-   existing rulings, scope, preflight/evidence, and plan/graph paths. A missing supported route
-   follows the harness's explicit deviation policy; it never silently inherits a weaker model.
-   When the planner returns, the orchestrator confirms that only the plan and graph artifacts
-   changed and runs the validation itself. The planner instantiates
+   existing rulings, scope, preflight/evidence, plan/graph paths, and resolved workflow/template/
+   checklist paths.
+   The planner inherits the orchestrator's model and effort under the harness routing reference.
+   In the bounded-fix lane the orchestrator writes the plan instead. When the planner returns,
+   the orchestrator confirms that only the plan and graph artifacts changed and runs the
+   validation itself. The planner instantiates
    `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions) and fills
-   every field. In particular:
+   every field concisely. Fields with nothing to record take one line. Define outcomes and
+   execution order; leave implementation design and detailed task lists to the implementer.
+   Filter mapper evidence into each section's context fields, preserving anchors, uncertainties,
+   and premise corrections needed for that goal. In particular:
    - **Global gate**: name the final verification command: the owning package's _full_ suite
      plus affected dependents, including fail-closed registries in other packages. Establish a
      focused baseline or reproduction, reusing valid evidence when available; run a broader
@@ -273,12 +327,12 @@ Inside the lane:
      product changes from tests, plans, and generated output. Adding a shared helper is an
      intermediate result when the requested outcome is removal of duplication. Preserve distinct
      behavior checks; a shared fixture does not prove that each caller uses it correctly.
-   - **Sections**: one S/M vertical slice each. Size by invariant inversion — how many unstated
-     assumptions the change falsifies — not by diff size. For any invariant a section changes,
+   - **Sections**: one commit-sized outcome each, with scope, dependencies, acceptance, and
+     relevant mapper evidence. For any invariant a section changes,
      list its **writers** as well as its readers. TARGET names the owning unit from the
      feature map; a section that writes into a shared kernel says so there.
      Apply **Commit-sized sections**: name the milestone and justify each stopping point.
-     Review all planned changes needed to reach the first commit; a PR-sized result must be
+     Check the scope needed to reach the first commit; a PR-sized result must be
      decomposed before dispatch. Group milestone gates separately from section checks.
    - **Base drift policy**: when to re-baseline on `origin/main` and what happens if a stacked
      predecessor merges. Finish upstream merges separately from section commits so incoming
@@ -335,7 +389,7 @@ Read `references/agent-prompts.md` before the first dispatch; use its templates 
 Run the loop without pausing between steps or sections. Accept a section and dispatch the next
 one in the same turn, and put status notes in the message that carries the next action. Stop
 only where this skill names a stop: a floor ruling, the approval rule in **Select a mode**, a
-blocker from the stall ladder (step 6), or a terminal action that needs the user. Do not end a
+blocker identified in step 6, or a terminal action that needs the user. Do not end a
 turn with a summary that names the next step without taking it, an offer to continue, or options
 that do not block the work.
 
@@ -353,15 +407,16 @@ stage them or hide unfinished section work by adding it to the baseline exclusio
 **1. Aggregate.** Skip when the section's context items have verified anchors and the relevant
 symbols and behavior have not changed since mapping. `validate-report.mjs --kind anchors` checks
 file and line existence only; re-read changed context and its defining search before reusing it.
-Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, apply the
-follow-up rule from the prompts reference, and merge.
+Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, and apply
+the follow-up rule from the prompts reference. Filter refreshed facts into this section's brief;
+use the same planner for a bounded replan only if goals or execution order need to change.
 
 If the first unchecked section has become a milestone-sized assignment, request the bounded
 replan before implementation. Compare its current writers and acceptance scope with its commit
 boundary; do not carry an oversized section forward merely because it was already approved.
 
-**2. Implement.** Check that the bounded brief above is actionable. Send one implementer the
-section block verbatim, context brief, global gate, preflight,
+**2. Implement.** Check that the goal, acceptance, and filtered evidence are actionable. Send one
+implementer the section block verbatim, context brief, global gate, preflight,
 baseline, and the **Corrections in force** block (every factual correction accepted in earlier
 sections of this plan). Keep its handle: decision relays and report-validation errors resume the
 same agent, and a rejection goes to the correction carrier chosen in step 6. The implementer's
@@ -418,25 +473,29 @@ reference's carrier rule applies. The handoff to a fresh agent is the validated 
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: one
 implementer exists at a time. Count rounds the same way for either carrier. **Convergence rule:**
 in-contract rounds continue while unresolved findings decrease. An unruled floor item goes to the
-user. When a round repeats a defect mechanism it was assigned to fix, stops reducing unresolved
-findings, or invalidates the commit boundary, take the first **stall ladder** step that applies:
+user. A repeated defect mechanism or findings that stop decreasing enters **sign-off mode**:
 
-1. **Missing fact.** The gap traces to a wrong premise, a stale anchor, or context the brief
-   lacked → supply it with the next round (one targeted mapper follow-up or verified anchors).
-2. **Oversized section.** Writers, lifecycle states, or independent mechanisms exceed the commit
-   boundary → bounded replan into smaller sections; the next round covers the first of them.
-3. **Capability.** The section is commit-sized, its facts are supplied, and the implementer
-   still repeats the mechanism → escalate once per section: a fresh correction carrier (prompts
-   reference §5) on the harness routing reference's escalation route. Append
-   `; escalated <from> → <to> at R<n>` to the ledger row's `routing:` field. The next section
-   returns to the pinned route.
-4. **Blocker.** The escalated implementer repeats the mechanism, the escalation route is
-   unavailable, or no step applies → report a blocker to the user with the diagnosis from each
-   step taken.
+1. The orchestrator takes over review and acceptance. Read each unresolved finding against the
+   current diff, original goal, recorded rulings, and verification evidence; use a targeted probe
+   when needed. Preserve the independent reviewers' original verdicts and findings.
+2. Give every finding a disposition with evidence: **required correction** for a reachable
+   defect or unmet obligation; **refuted** for a contradicted or unreachable claim; **note** for
+   a preference or proposed work outside the approved goal that breaks no current obligation.
+   Supply missing facts with required corrections. If discovery invalidates the commit boundary,
+   request a bounded replan and carry each unresolved finding into the remaining work.
+3. Send required corrections to the current correction carrier at its usual route. Recheck the
+   resulting candidate yourself; further reviewer agreement is not required in this mode.
+   Sign off only when all seven acceptance checks pass and every finding has a resolved
+   disposition. Sign-off cannot waive a known defect, failed required gate, or unruled floor item.
+4. Record `review: sign-off (<reason>)` on the ledger row, with findings, dispositions, anchors,
+   and check evidence in Graph Findings. Keep prior rounds and reviewer verdicts. For final
+   review, record the same decision and evidence in Graph Findings and the completion record.
+   If no further in-scope progress is possible, report the concrete blocker and evidence.
 
-Steps 1–3 need no user approval. Do not erase unresolved findings or reset their history by
-splitting or escalating. Record environment retries separately (`⚙×n`); they never count as
-rounds. Accept →
+Do not change a worker's model or effort to resolve a stalled review. Round count or token use
+alone does not trigger sign-off or a blocker. Preserve unresolved findings and their history
+through a split. Record environment retries separately (`⚙×n`); they never count as rounds.
+Accept →
 append the ledger record (schema in the template: sha, `rounds: n` with one
 `R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
 return exposed, per the harness reference, never an estimate). Stage only the reviewed section
@@ -468,7 +527,8 @@ When every section is checked:
    old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
    to one correction implementer scoped to the findings; validate its report with
    `validate-report.mjs --kind correction --repo-root <repo>` before re-running final review; commit
-   additively; repeat until clean under the convergence rule. In the
+   additively; repeat until clean or signed off by the orchestrator under step 6. Required
+   corrections and gates still have to pass. In the
    bounded-fix lane the section review already served as the final review: skip the separate review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
    in the budgeted order. Reuse valid results; run missing or invalidated checks once and record
@@ -502,10 +562,10 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
-- `assets/agents/claude/gdi-planner.md` — Claude Code plan-authoring and graph-checking role;
+- `assets/agents/claude/gdi-planner.md` — Claude Code goal organization and filtered-context role;
   inherits the session model and effort and writes only plan and graph artifacts.
-- `assets/agents/codex/goal-planner.toml` — Codex plan-authoring and graph-checking role; model and
-  effort are configuration, independent of the role label.
+- `assets/agents/codex/goal-planner.toml` — Codex goal organization and filtered-context role;
+  inherits the orchestrator's model and effort and writes only plan and graph artifacts.
 - `assets/agents/codex/goal-implementer.toml` — Codex implementation role; model and effort are
   configuration, independent of its name.
 - `references/agent-prompts.md` — mapper, implementer, reviewer lenses, final-review, rejection,

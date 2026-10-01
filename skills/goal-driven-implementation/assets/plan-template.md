@@ -24,15 +24,17 @@ sections below are written against the corrected premise.
 
 ### Roles
 
-- Main session: orchestrator. It supplies validated context, prepares bounded worker briefs,
-  assesses reviews, verifies, owns rulings and approval/status, updates this ledger, and commits.
+- Main session: orchestrator. It forwards filtered section context, assesses reviews, owns
+  acceptance and sign-off, verifies, owns rulings and approval/status, updates this ledger, and
+  commits.
   It never edits product source or product docs.
 - Plan author: one at a time for an initial draft or explicit replan (`gdi-planner` in Claude Code,
   `goal-planner` in Codex; a recorded fallback otherwise). It writes only the assigned plan and graph
-  artifacts, waits for validated mapping, and owns decomposition and structural/visual graph checks.
+  artifacts, defines concise goals and execution order, filters validated mapper evidence per
+  section, and checks dependencies and graphs. It leaves implementation design to the implementer.
   It never approves the plan, changes floor rulings, edits completed ledger history, executes, or
   commits.
-- Section implementer: exactly one at a time; writes only inside its active section; never
+- Section implementer: exactly one at a time; chooses the approach and writes inside its section; never
   commits; never delegates writing.
 - Mappers and reviewers: read-only; run in parallel within the harness thread cap.
 
@@ -146,14 +148,15 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
 - No unrun gate may be reported as successful; an unexecuted test due at this section blocks
   section acceptance. Later milestone tests stay pending and block milestone acceptance.
 - Preserve and exclude unrelated pre-existing working-tree changes.
-- In-contract rounds continue while unresolved findings decrease. An unruled floor item goes to
-  the user. A repeated defect mechanism, findings that stop decreasing, or an invalidated commit
-  boundary go through the stall ladder: supply the missing fact, split an oversized section with a
-  bounded replan, escalate a commit-sized section's implementer once to the harness escalation
-  route, then report a blocker. Preserve findings/history through splits and escalations. Round
-  count and token use are never decision boundaries.
+- In-contract rounds continue while unresolved findings decrease. A repeated defect mechanism or
+  findings that stop decreasing enters orchestrator sign-off mode (SKILL.md step 6). Preserve
+  reviewer verdicts and give every finding an evidenced disposition. Correct real defects at the
+  usual implementer route; supply missing facts or split an invalidated boundary with a bounded
+  replan. Sign-off needs passing acceptance checks and cannot waive known defects, failed required
+  gates, or unruled floor items. Preserve findings/history through splits. Round count and token
+  use alone do not trigger sign-off or a blocker.
 - Between sections the orchestrator continues without pausing; it stops only for a floor ruling,
-  the approval rule, a stall-ladder blocker, or a terminal action that needs the user.
+  the approval rule, a concrete blocker, or a terminal action that needs the user.
 - Environment retries (`⚙`) follow the Known blockers table and never count as rounds.
 - Do not work on future sections.
 
@@ -165,10 +168,12 @@ flowchart LR
   GATE -- "reject (converging)" --> IMPL
   GATE -- accept --> COMMIT["commit section + evidence<br>record SHA / verify Git"]
   GATE -- "unruled floor item" --> USER["user ruling"]
-  GATE -- "repeated mechanism / boundary growth" --> LADDER["stall ladder<br>fact → split → escalate once<br>preserve findings and history"]
+  GATE -- "review stops converging" --> SIGN["orchestrator sign-off<br>dispositions + evidence"]
   USER --> IMPL
-  LADDER -- "fact supplied / split / escalated route" --> IMPL
-  LADDER -- "escalated round repeats / no step applies" --> STOP["report blocker"]
+  SIGN -- "required corrections / facts / bounded replan" --> IMPL
+  IMPL -- "sign-off active" --> SIGN
+  SIGN -- "seven checks pass; findings resolved" --> COMMIT
+  SIGN -- "no in-scope progress possible" --> STOP["report blocker"]
 ```
 
 ## 1. Goals — observable definition of done
@@ -235,7 +240,7 @@ flowchart LR
   G1 --> FR{"final review — merged onto origin/main"}
   FR -- findings --> FIX["correction commit(s)"]
   FIX --> FR
-  FR -- clean --> CI{"full CI ×1"}
+  FR -- "clean / orchestrator sign-off" --> CI{"full CI ×1"}
   CI --> BUILD{"image build ×1"}
   BUILD --> DEPLOY{"deploy ×1"}
   DEPLOY --> G2{"Goal 2 live exit"}
@@ -245,7 +250,8 @@ flowchart LR
 ### Graph Findings
 
 Run the checklist in `references/graph-analysis.md` before approval. `None` is valid only after
-every class was checked.
+every class was checked. Bounded-fix lane: list the classes that apply, then one line naming the
+rest as checked and not applicable.
 
 Resolved before approval:
 
@@ -265,6 +271,11 @@ At completion (trace vs findings):
 - Confirmed: <problem that occurred as predicted>
 - Did not occur: <accepted risk that did not occur>
 - Missed: <problem the analysis did not predict>
+
+Sign-off decisions (only when used):
+
+- <section or final review> — <reason; original reviewer verdicts and findings; each disposition
+  with anchors/check evidence; seven acceptance checks passing>
 
 ### Corrections in force
 
@@ -289,7 +300,9 @@ and prepends this block to every later implementer prompt.
 
 ## 3. Sections
 
-Use this block for every commit-sized vertical slice. Several sections may share a milestone.
+Use this block for every commit-sized outcome. Several sections may share a milestone. Keep
+goals and execution order concise; fields with nothing to record take one line. The planner
+filters mapper evidence into the context fields. The implementer chooses the design and steps.
 
 ```md
 ## <ID> — <section title>
@@ -312,7 +325,7 @@ together, explain the invariant that makes them atomic.>
 
 TARGET:
 <Owning unit from the feature map (name and path), plus the owning docs of every package written: README, PRD, overview, conformance row, OpenAPI prose. Name any shared kernel written.>
-<Allowed file set and exclusions; enough scope to implement this slice without redesigning it.>
+<Allowed scope and exclusions; enough scope to choose the implementation approach.>
 
 DEPENDS ON:
 <Checked section IDs, or "none".>
@@ -321,11 +334,8 @@ IMPLEMENTER PROFILE:
 <role / model / effort per the routing table>
 
 CONTEXT TO AGGREGATE:
-
-1. <File/module/pattern to inspect, with file:line anchors.>
-2. <Existing tests to extend.>
-3. <Relevant runtime path.>
-4. <Observed defect/mechanism, exemplar to reuse, and invariants the worker must preserve.>
+<Filtered mapper evidence needed for this goal: relevant file:line anchors, tests and commands,
+observed mechanism, useful exemplar, invariants, uncertainties, and premise corrections.>
 
 WRITERS:
 <Every writer of any state whose invariant this section changes, with file:line. Readers to verify follow.>
@@ -344,10 +354,8 @@ LIFECYCLE / GATE EFFECTS:
 
 IMPLEMENT:
 
-- <Concrete vertical-slice behavior.>
-- <Data/model/API/UI change.>
-- <Backward-compatibility constraint.>
-- <Docs to update, named.>
+- <Required observable behavior and compatibility constraints; no step-by-step task list.>
+- <Owning docs whose claims must match the outcome.>
 
 CONTRACT DECISION — ESCALATE:
 Stop before coding and return a decision brief if the work requires an unruled change on the
@@ -401,8 +409,11 @@ at milestone closure. This avoids requiring a commit to contain its own SHA. Git
 checks identity and ancestry; the orchestrator still verifies diff ownership and test evidence.
 On rejection, send exact `file:line` gaps to the correction carrier (the same
 implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
-under the convergence rule and its stall ladder. Refute a reviewer finding against the code when it
-is wrong, including a finding whose trigger no existing client, caller, writer, or deployment
+under the convergence rule. When review stops converging, the orchestrator applies SKILL.md step
+6's sign-off mode: preserve original verdicts, record every disposition and its evidence in Graph
+Findings, send real gaps for correction at the usual route, and accept only after all seven checks
+pass. Use `review: sign-off (<reason>)` on the ledger row. Refute a reviewer finding against the
+code when it is wrong, including a finding whose trigger no existing client, caller, writer, or deployment
 failure produces (`unreachable`); record the refutation.
 
 ## 5. Progress ledger
@@ -418,8 +429,9 @@ Record schema for a checked row (one line per rejection round):
 Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.
 Where the harness reports a context size and tool-use count per agent return, record them per
 return (first report and each correction round); mark a round a fresh agent carried with
-`(carrier: fresh)` at the end of its `R<n>` line, or `(carrier: fresh, escalated)` for a
-stall-ladder escalation, which also appends `; escalated <from> → <to> at R<n>` to `routing:`.
+`(carrier: fresh)` at the end of its `R<n>` line. `review:` is `independent`, `self (<reason>)`,
+or `sign-off (<reason>)`. A sign-off keeps prior round lines and reviewer verdicts;
+Graph Findings records the finding dispositions, anchors, and passing acceptance evidence.
 When available, break usage down by planning, mapping, implementation, review, and correction
 rounds, including main-session overhead. Record monetary cost only when supplied by the runtime
 or calculated from verified rates with the relevant input/cache/output breakdown. Keep quality
@@ -439,7 +451,7 @@ outcomes (correction rounds and later escaped defects) alongside cost comparison
 - [ ] Every section is committed; all ledger records are committed.
 - [ ] Accepted SHAs resolve on this branch in dependency order; no section-owned product changes remain uncommitted.
 - [ ] Branch re-baselined on `origin/main` before final review.
-- [ ] Whole-branch final review (seams, contract, conformance, reader sweep, claim decay, rollout window) is clean; corrections committed.
+- [ ] Whole-branch final review is clean or has evidenced orchestrator sign-off; corrections committed.
 - [ ] Goal 1 exit tests pass with evidence.
 - [ ] Goal 2 exit tests pass with evidence.
 - [ ] Global and budgeted gate evidence is valid and passing for the final reviewed candidate.

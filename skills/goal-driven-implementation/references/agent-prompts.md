@@ -28,7 +28,7 @@ Codex; a harness fallback is recorded, never silent). It runs in a fresh context
 delegate.
 
 ```text
-Author or revise the assigned goal-driven implementation plan and its graph artifacts. Write only
+Define concise goals, organize execution, and filter mapper evidence in the assigned plan. Write only
 the named plan and graph paths; read source as needed. Do not edit product source or product docs,
 approve the plan, change floor rulings, update completed ledger history, execute sections, run final
 gates, commit, or delegate.
@@ -40,13 +40,22 @@ mapping exception}
 OPEN QUESTIONS: {unresolved facts and the owner of each answer}
 SCOPE AND SOURCES: {allowed plan inputs, exclusions, and source paths}
 RULINGS: {existing floor rulings and recorded calls}
+WORKFLOW AND RESOURCES: {absolute paths to SKILL.md, plan-template.md, graph-analysis.md, and validators}
 SKILL ROOT AND PROVENANCE: {resolved skill root, source revision/release, installed or repository copy}
 PREFLIGHT AND GATES: {status, baseline SHA, scheduled gates, and valid evidence}
 COMPLETION: {plan validation, structural/visual graph checks, and handoff criteria}
 
-Use SKILL.md's PLAN mode, assets/plan-template.md, and references/graph-analysis.md as the
-workflow. Use mapped facts and read narrowly when needed; report contradictions instead of
-silently expanding scope. Own decomposition and structural/visual graph checks. Inspect supplied
+Read the supplied workflow, template, and checklist at their resolved paths. Define observable
+goals, scope, dependencies, execution order, acceptance, gates, and applicable rulings. Leave
+implementation design and step-by-step task lists to the implementer. Keep every required field;
+fields with nothing to record take one line.
+
+Filter validated mapper evidence into each section's CONTEXT TO AGGREGATE, WRITERS, SIBLING
+SURFACES, and LIFECYCLE / GATE EFFECTS. Keep relevant anchors, uncertainties, and premise
+corrections; remove duplicate and unrelated material. The orchestrator forwards those fields
+to the implementer rather than forwarding all raw mapper returns.
+Use mapped facts and read narrowly when needed; report contradictions instead of silently
+expanding scope. Own goal grouping and structural/visual graph checks. Inspect supplied
 images only when they are actual captures; if images or image tools are unavailable, report visual
 inspection as unperformed and name the affected graph and cause. Preserve approved scope and
 completed history on a bounded replan. The orchestrator owns probes/capture when needed, rulings,
@@ -62,7 +71,8 @@ Validate populated boundary fields with `validate-plan.mjs <plan-file> --commit-
 this structural check does not judge whether a proposed boundary is coherent.
 
 Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
-Include the plan path and status, commands and decisive check results (or pending), graph
+Include the plan path and status, concise goals and execution order, each section's filtered-context
+location, commands and decisive check results (or pending), graph
 inspection evidence and image paths (or unperformed/cause), remaining open questions, and the
 next step for the orchestrator.
 ```
@@ -114,8 +124,9 @@ under **Premise corrections** as an unmapped area; do not retry again. A `thin` 
 allows at most one targeted follow-up per section: a narrower AREA limited to symbols with
 insufficient evidence. Record any remaining evidence gaps as an accepted risk in Graph Findings.
 
-Merge returns into one deduplicated brief. Record any correction to the plan's premise under
-**Premise corrections**.
+Merge validated returns for the planner to filter into per-section context. On an EXECUTE refresh
+without a replan, the orchestrator filters the new evidence into the current section's brief.
+Record any correction to the plan's premise under **Premise corrections**.
 
 ---
 
@@ -132,11 +143,12 @@ other agent writes code for this section. Do not delegate writing.
 {full section block}
 
 === CONTEXT BRIEF ===
-{merged mapper output, or "none — the plan's anchors are the brief"}
+{planner-filtered evidence for this section, including relevant uncertainties and corrections;
+or "none — the plan's anchored context fields are the brief"}
 
 === TASK BOUNDARY ===
-{allowed files; observed mechanism; exemplar to reuse; invariants; exclusions; acceptance checks;
-applicable rulings — reference the section fields rather than duplicating them}
+{goal, allowed scope, invariants, exclusions, acceptance checks, and applicable rulings;
+reference the section fields rather than duplicating them}
 
 === CORRECTIONS IN FORCE ===
 {every factual correction accepted in earlier sections of this plan, or "none yet"}
@@ -152,8 +164,9 @@ applicable rulings — reference the section fields rather than duplicating them
 
 RULES
 - Read the repository instruction files and every touched module's README first.
-- Implement exactly the IMPLEMENT list — one vertical slice. No future sections, no unrelated
-  refactors, no unrelated fixes; report unrelated findings under RISKS.
+- Choose the design and implementation steps that satisfy GOAL, IMPLEMENT outcomes, and
+  ACCEPTANCE using the filtered context. No detailed task plan is required. No future sections,
+  unrelated refactors, or unrelated fixes; report unrelated findings under RISKS.
 - Before your first edit, re-run the section's defining search (the symbols in CONTEXT and
   WRITERS) and report any delta from the plan's anchors under ANCHOR DELTA.
 - The plan's behavior claims are hypotheses. If one does not resolve against the code, report the
@@ -247,8 +260,10 @@ validates.
 
 Read-only, one lens each, all applicable lenses launched in one message after the implementer
 reports. Never fewer than three lenses outside the bounded-fix lane, which runs exactly
-convention/scope and doc-truth. `⚠` sections get the full set. Security stays whenever tenancy,
-auth, limits, resolvers, or hooks are touched. Doc-truth always runs.
+convention/scope and doc-truth. The direct lane runs one reviewer with `LENS: doc-truth and
+convention/scope`, both checklists, and the orchestrator's change summary and CLAIMS block as
+IMPLEMENTER REPORT. `⚠` sections get the full set. Security stays whenever tenancy, auth, limits,
+resolvers, or hooks are touched. Doc-truth always runs.
 
 For section and final reviews, graph context is optional: include an existing planner-inspected
 image or relevant crop only when it clarifies cross-section dependencies, shared-state paths, or
@@ -452,9 +467,6 @@ rule always uses the same implementer.
   one implementer exists at a time. Append `(carrier: fresh)` to the round line. The validated
   prior report and the uncommitted section diff are the whole handoff, so send the report
   verbatim; a paraphrase drops the CALLS and CLAIMS the new agent must honor.
-- **Escalated implementer.** Stall-ladder step 3 (`SKILL.md` step 6) always uses the second body,
-  dispatched on the harness routing reference's escalation route, whatever carrier the size rule
-  would pick. Append `(carrier: fresh, escalated)` to the round line.
 
 Decision relays (§6) and report-validation errors always resume the same agent. They arrive
 before a validated report exists, when that agent's context is the only record of the section's
@@ -533,12 +545,14 @@ RULES
 Validate the fresh agent's return with `--kind implementer`, as for any section report.
 
 Convergence rule: rounds continue while unresolved findings decrease. An unruled floor item goes
-to the user. A repeated defect mechanism, findings that stop decreasing, or an invalidated commit
-boundary sends the orchestrator through the stall ladder in `SKILL.md` step 6: supply the missing
-fact, split an oversized section with a bounded replan, escalate a commit-sized section's
-implementer once, and report a blocker only after those steps. Preserve unresolved findings and
-their history through a split or an escalation. Never stop over a round count or token threshold;
-the carrier threshold only selects which agent receives a round.
+to the user. A repeated defect mechanism or findings that stop decreasing enters orchestrator
+sign-off mode (`SKILL.md` step 6). The orchestrator supplies missing facts, requests a bounded
+replan if the commit boundary no longer holds, and gives each finding an evidenced disposition.
+Send only required corrections to the implementer at its usual route; the orchestrator then
+rechecks and accepts without requiring further reviewer agreement. Known defects, failed required
+gates, and unruled floor items still block acceptance. Preserve finding history through a split;
+never stop over a round count or token threshold. The carrier threshold only selects which agent
+receives a round. This rule also applies to final-review corrections (§7).
 
 ---
 

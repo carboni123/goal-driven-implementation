@@ -46,12 +46,13 @@ Drift between copies of the same fact has shipped as a bug more than once. Keep 
 each fact and make every other file point to it. When a fact has more than one copy, change all
 copies in the same commit.
 
-- **Codex model and effort.** Only in `assets/agents/codex/*.toml`. `routing-codex.md` and the
-  README refer to the TOMLs and do not name models. The Codex stall-ladder escalation uses the
-  planner's pins from `goal-planner.toml`, so editing that TOML changes the escalation route too.
+- **Codex model and effort.** Worker pins live only in `assets/agents/codex/*.toml`.
+  `routing-codex.md` and the README refer to the TOMLs and do not name models. The planner TOML
+  omits both keys to inherit the orchestrator's model and effort; routing preserves that
+  inheritance against global subagent defaults.
 - **Claude model and effort.** The agent frontmatter is the source. The role table in
-  `routing-claude.md` repeats it and must match. The Claude escalation route (`model: "fable"`
-  per call) lives in `routing-claude.md` and `SKILL.md` step 6.
+  `routing-claude.md` repeats it and must match. The planner uses `model: inherit` without an
+  effort key. There is no worker model-escalation route.
 - **Claude tool allowlists.** Each frontmatter `tools` line and the allowlist table in
   `routing-claude.md` must match. Keep every tool a role's contract uses: the implementer needs
   `Agent` for its read-only helpers and `TaskStop` for background commands.
@@ -66,6 +67,10 @@ copies in the same commit.
   protocol in `plan-template.md`, the carrier rule in `routing-claude.md`, and the README's run
   description. Codex has no carrier rule and stays resume-only until a Codex run yields per-role
   usage.
+- **Sign-off.** The orchestrator's authority and acceptance checks live in `SKILL.md` step 6.
+  Prompts §5, the plan template, both routing references, the README, and the plan validator's
+  optional `review: sign-off (<reason>)` value must agree. Sign-off retains reviewer verdicts
+  and finding dispositions; it cannot waive required checks, real defects, or unruled floor items.
 - **Role labels.** Codex roles attest with stable labels (`gdi-planner`, `gdi-implementer`,
   `gdi-mapper`, `gdi-reviewer`) that carry no model, effort, or revision suffix. A label is not
   proof of which profile or model ran; provenance goes in the plan.

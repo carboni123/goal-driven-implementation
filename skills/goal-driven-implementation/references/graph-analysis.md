@@ -5,6 +5,12 @@ fixed by restructuring the plan or recorded under `### Graph Findings` as a name
 with its mitigation. `None` is valid only after every class was checked. At completion, compare
 the execution record with this list: confirmed, did not occur, missed.
 
+Apply the checks to concise goals, ownership, dependencies, and mapped evidence. Record only
+the context and constraints a check establishes; it does not require a detailed implementation
+task list. _Origin:_ the October 1, 2026 maintainer report found that current implementers choose
+the implementation approach without detailed planner tasks; the graph still carries dependency
+and reachability facts that prevent the failures cited below.
+
 Each class names the failure it prevents and the run that motivated the check.
 
 Contents: rendered graph inspection · structural classes · scope classes · contract classes ·
@@ -14,14 +20,15 @@ data classes · lifecycle classes · environment classes · evidence classes.
 
 For full PLAN mode, the plan-authoring planner inspects actual rendered images after authoring and
 validating the Mermaid, before presenting the plan. Claude Code dispatches `gdi-planner` and Codex
-`goal-planner`, both after validated mapper context. The planner owns this pass
-and the structural/premise checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation
-code, not plans. Do not dispatch a second planner for the same artifact. The orchestrator may run
-the environment probe or capture and hand actual images to the planner; if the planner cannot
-inspect supplied images, record the visual pass as unperformed. The bounded-fix lane keeps its
-optional rendering rule. _Origin:_ on September 10, 2026, the maintainer reported that an agent
-viewing a rendered graph caught an error missed while reading its Mermaid source, and requested
-an explicit visual pass, then clarified that graph review belongs to the goal planner.
+`goal-planner`, both after validated mapper context. The planner owns this pass and the
+structural/premise checks below; `gdi-reviewer`/`goal-reviewer` agents review implementation code,
+not plans. Do not dispatch a second planner for the same artifact. The orchestrator may run the
+environment probe or capture and hand actual images to the planner; if the planner cannot inspect
+supplied images, record the visual pass as unperformed. In the bounded-fix lane the orchestrator
+writes the plan and runs these checks, and rendering is optional. _Origin:_ on September 10, 2026,
+the maintainer reported that an agent viewing a rendered graph caught an error missed while reading
+its Mermaid source, and requested an explicit visual pass, then clarified that graph review belongs
+to the goal planner.
 
 ### Prepare the images
 

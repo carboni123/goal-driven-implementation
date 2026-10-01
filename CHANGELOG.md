@@ -3,6 +3,80 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — concise goals, inherited planner, current workers, orchestrator sign-off
+
+**Maintainer report and ruling, 2026-10-01.** After about a week using GPT-6.1 Sol and Claude
+Opus 5.5, complex assignments no longer needed detailed task planning. The maintainer requested
+keeping Luna/Sonnet mapping, inheriting the orchestrator's model and effort for planning,
+high-effort implementation, medium-effort review on the same models, and orchestrator sign-off
+for stalled reviewer disagreement instead of model escalation. This request supplies the human
+ruling for role-economics changes and removal of the escalation rule under this repository's
+floor; no release/version or plan-schema bump is part of this change.
+
+- **Planner.** `goal-planner.toml` omits `model` and `model_reasoning_effort`; `gdi-planner`
+  keeps `model: inherit` without an effort key. The shared prompt, definitions, workflow, and
+  template now define concise goals, execution order, scope, acceptance, and filtered per-section
+  mapper context. Implementers choose the design and steps. Anchors, uncertainties, premise
+  corrections, and dependency/graph checks stay because model capability does not make incorrect
+  repository facts correct. This replaces detailed IMPLEMENT task lists while preserving schema 2
+  fields and existing plan resumes. Codex preflight checks global subagent defaults so omitted
+  profile keys cannot silently select a different planner route.
+- **Workers.** Codex implementation/review now use `gpt-6.1-sol` at high/medium effort.
+  Claude implementation/review use the full `claude-opus-5-5` ID at high/medium effort, including
+  convention review. Mappers keep `gpt-6-luna` high and Sonnet medium. Full Claude IDs prevent
+  family aliases selecting an older session model. Generic fallbacks must preserve the role's
+  effort or an explicit override, since per-call model selection cannot set Claude effort.
+  The forced-model preflight now records the model variable or parent route, not the boolean
+  force flag as a model. Sources: official [Codex subagent configuration](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents)
+  and [Claude subagent configuration](https://code.claude.com/docs/en/sub-agents#frontmatter-fields).
+- **Sign-off.** Repeated mechanisms or findings that stop decreasing transfer acceptance to the
+  orchestrator. It records each finding as required correction, refuted, or note with evidence,
+  supplies missing facts, replans invalidated boundaries, and rechecks required corrections at
+  the usual worker route. Reviewer agreement is no longer needed after this transfer. Sign-off
+  retains original verdicts and rounds and cannot waive real defects, failed required checks,
+  or an unruled floor item. It applies to section, direct-lane, and whole-branch final review.
+  This replaces the escalation ladder because the maintainer's failure is repeated reviewer
+  disagreement; a more expensive implementer does not decide whether that finding is valid.
+- **Compatibility.** The plan validator additionally accepts `review: sign-off (<reason>)`;
+  existing `independent` and `self (<reason>)` records still validate. Fixtures cover populated
+  sign-off, absent/placeholder reasons, unknown review values, and preserved round records.
+  No report labels or reviewer verdict words change. Historical escalation records remain;
+  unchecked assignments follow current routing. No per-role cost or escaped-defect comparison
+  is yet available for these changes.
+
+### Added — direct lane; lighter bounded-fix lane
+
+**Plan, 2026-09-26: tyxter-messaging PR #1086.** A bounded-fix run added one 144-line internal
+runbook and changed one roadmap line. It produced a 444-line plan, dispatched six agents (two
+mappers, planner, implementer, two reviewers) plus two mapper format follow-ups, and needed two
+commits after the product commit to archive the plan and correct its hook evidence. Both
+reviewers approved with no findings and the section took zero rounds. The mappers' premise
+corrections (a row timestamp is not connection age; recovery needs a positive lift) did change
+the runbook's content, so claim verification is kept. About 40 plan lines recorded checks that
+could not apply as `None`. The maintainer ruled that one independent reviewer stays.
+
+- **Direct lane** (`SKILL.md`). For a change that edits only text no program runs or reads, and
+  that meets every bounded-fix check, the orchestrator verifies the input claims against the
+  code, writes the change, runs the owning unit's documentation checks, and classifies the
+  changed paths. It dispatches one independent reviewer with `LENS: doc-truth and
+  convention/scope` (prompts §3). There is no plan file, no feature-map file, and no mapper,
+  planner, or implementer. The commit body records the lane, premise corrections, checks, and
+  review. Host-required hooks and CI still run once. A disqualifier moves the work to the
+  bounded or full lane from the current state. Selecting a lane now includes a size trigger:
+  when the plan would be longer than the diff, check the direct lane first. Eligibility is still
+  decided by what the diff affects. The role contract lets the orchestrator edit only in this
+  lane.
+- **Bounded-fix lane.** The orchestrator writes the plan; no planner dispatch. Graph Findings
+  lists the classes that apply and one line naming the rest as checked and not applicable
+  (`SKILL.md`, template, `graph-analysis.md`). Every class is still checked. Parts of the
+  template with nothing to record stay minimal: one preflight row per gate realm, Known blockers
+  `None`, an empty gate-budget table. The SHA-only ledger update, final evidence, and any host
+  archive move go in one closure commit. No validator rule changed; an empty gate-budget table
+  already validates.
+- Not yet measured: how often the direct-lane reviewer finds a defect.
+
 ## 0.8.0 — 2026-09-26 (tag `v0.8.0`)
 
 ### Changed — stall ladder, implementer escalation, reachable review findings

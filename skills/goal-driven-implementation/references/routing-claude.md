@@ -2,28 +2,26 @@
 
 ## Roles
 
-| Role                                                                                                                | `subagent_type`           | Pinned model · effort | Notes                                                                                            |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| Plan author                                                                                                         | `gdi-planner`             | inherit · session     | Fresh context after validated PLAN-mode mapping; writes only plan/graph artifacts; no delegation |
-| Implementer                                                                                                         | `gdi-implementer`         | opus · high           | One writer per section; may spawn ≤5 read-only helpers via the Agent tool                        |
-| Implementer, escalated                                                                                              | `gdi-implementer`         | fable · high          | Stall-ladder step 3 only: per-call `model: "fable"`, fresh carrier, once per section             |
-| Mapper                                                                                                              | `gdi-mapper`              | sonnet · medium       | Read-only; verifies anchors before reporting; no delegation                                      |
-| Verify-class reviewer (security, data, contract, failure-mode, doc-truth, capacity, evaluator, final-review lenses) | `gdi-reviewer`            | opus · high           | Read-only; may run tests and probes to verify; no delegation                                     |
-| Convention/scope reviewer                                                                                           | `gdi-convention-reviewer` | opus · medium         | Read-only; no delegation                                                                         |
+| Role                                                                                                                | `subagent_type`           | Pinned model · effort    | Notes                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ |
+| Plan author                                                                                                         | `gdi-planner`             | inherit · session        | Concise goals/order and filtered mapper context; writes only plan/graph artifacts                |
+| Implementer                                                                                                         | `gdi-implementer`         | claude-opus-5-5 · high   | One writer per section; may spawn ≤5 read-only helpers via the Agent tool                        |
+| Mapper                                                                                                              | `gdi-mapper`              | sonnet · medium          | Read-only; verifies anchors before reporting; no delegation                                      |
+| Verify-class reviewer (security, data, contract, failure-mode, doc-truth, capacity, evaluator, final-review lenses) | `gdi-reviewer`            | claude-opus-5-5 · medium | Read-only; may run tests and probes to verify; no delegation                                     |
+| Convention/scope reviewer                                                                                           | `gdi-convention-reviewer` | claude-opus-5-5 · medium | Read-only; no delegation                                                                         |
 
 Model and effort pins are set in the agent definitions' frontmatter. **Never pass a per-call
-`model`** to these types: it overrides the pinned model. The one exception is the implementer
-escalation under Economics. Effort has no per-call override. If
+`model`** to these types: it overrides the definition. Effort has no per-call override. If
 `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set in the environment, the harness ignores every
-definition's `model`; check it in preflight and, when set, record its value as the effective model
-of every role.
+definition's `model`; check it in preflight. When forced, the effective model comes from
+`CLAUDE_CODE_SUBAGENT_MODEL`, or the main session when that variable is absent; record this
+route deviation rather than the force flag's value as a model.
 
 The planner runs on `model: inherit` with no `effort` key: it uses the main session's model and
-effort, so plan quality tracks the session the user selected and no new economics pin is
-introduced. The role's value is a fresh context that holds only the validated mapper brief,
-rulings, and open questions, and an author that is not the session which approves, reviews, and
-commits. A stronger planner pin is a role-economics change under the repository's ruling floor;
-make it in the frontmatter, never per call.
+effort. Its fresh context holds the validated mapper evidence, rulings, and open questions.
+It returns concise goals, execution order, and filtered section context to the orchestrator.
+See the official [subagent configuration](https://code.claude.com/docs/en/sub-agents) for full
+model IDs and inheritance.
 
 ## Tool allowlists
 
@@ -86,12 +84,15 @@ Reuse the routing record while the definition files and environment are unchange
   user selected, so this is not a downgrade, but the author and the approver are then the same
   session; record `fallback: main-session planner` in the routing table and name that risk in
   Graph Findings.
-- Mapper → `Explore` (read-only by construction).
-- Implementer and reviewers → `general-purpose` with `model: "opus"` per call. Effort cannot be
-  set per call and runs at the session default. A generic child has no standing contract and can
+- Mapper → `Explore` with `model: "sonnet"` (read-only by construction); record its session-default
+  effort if the fallback cannot select medium.
+- Implementer and reviewers → `general-purpose` with `model: "claude-opus-5-5"` per call.
+  Effort cannot be set per call and runs at the session default. Use this only when session effort matches
+  the role's frontmatter or an explicit user override covers the deviation; otherwise prepare
+  the role definition and reload before dispatch. A generic child has no standing contract and can
   write files: the dispatch template is its only contract, so send the full RULES and, for a
-  reviewer or mapper, an explicit read-only instruction. Record `fallback: general-purpose+opus`
-  in the routing table and on every affected ledger row.
+  reviewer or mapper, an explicit read-only instruction. Record the fallback model and effort in
+  the routing table and on every affected ledger row.
 - If no read-only reviewer can be dispatched at all, the orchestrator may review a section itself
   only with `review: self (<reason>)` on the row and an accepted risk in Graph Findings; the final
   review must then run with an independent agent, or the run stops.
@@ -135,7 +136,7 @@ being rejected:
   the first handle again in this section. Later rounds apply the same test to the fresh agent.
 
 Decision relays and report-validation errors always resume the same agent, whatever its size.
-An escalation (Economics) always goes to a fresh agent, whatever the first agent's size.
+Sign-off uses the same carrier rule for required corrections, at the usual implementer route.
 
 _Origin:_ in 16 measured implementer runs, work after the first report was 43% of implementer
 spend. Every later turn re-read a context of 183k to 543k tokens, and 22 of 28 follow-ups arrived
@@ -143,24 +144,14 @@ after the five-minute subagent prompt cache had expired, so the whole context wa
 
 ## Economics
 
-Keep the pinned effort tiers and models. In the retrospective, verify-class review found defects
-that less thorough reviews missed; do not reduce its model or effort. The mapper uses Sonnet
-because it locates relevant code and its anchors are checked before implementation and review.
-Do not promote a role to a costlier model or effort mid-run, except for this implementer
-escalation:
+Keep worker models and efforts from the definitions; the planner inherits the session route.
+Do not promote a worker when review stalls. Apply orchestrator sign-off under `SKILL.md` step 6,
+retaining independent reviewer verdicts and acceptance evidence. The mapper keeps Sonnet and
+its anchors are checked before implementation and review.
 
-- **When.** Only at stall-ladder step 3 (`SKILL.md` step 6): the section is commit-sized, its
-  facts are supplied, and the implementer repeats a defect mechanism. At most once per section;
-  the next section dispatches the pinned `gdi-implementer` again.
-- **How.** One `Agent` call with `subagent_type: "gdi-implementer"`, `model: "fable"`, and the
-  fresh-carrier body of prompts reference §5. The definition still supplies the effort, tool
-  allowlist, and standing contract. Never message the previous implementer's handle again.
-- **Record.** Requested `fable · high` in the routing table,
-  `; escalated opus·high → fable·high at R<n>` on the ledger row's `routing:` field, and
-  `(carrier: fresh, escalated)` on the round line.
-- **Unavailable.** If the dispatch is refused because the session cannot use Fable, record
-  `escalation: unavailable (<error>)` and report the blocker (stall-ladder step 4). Do not
-  substitute a `general-purpose` agent or another model.
+Before resuming an older plan, update unchecked assignments to the current worker pins and
+inherited planner route; replace pending model-escalation instructions with sign-off mode.
+Preserve completed history, historical escalation records, and explicit plan-specific overrides.
 
 The Agent tool result exposes no token counts. A background agent's completion notification
 carries the `<usage>` block described under Correction carrier. Record it per return in the

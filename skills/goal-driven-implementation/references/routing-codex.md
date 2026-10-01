@@ -9,31 +9,24 @@ PLAN mode, after the required mapper returns validate, dispatch one `goal-planne
 check the plan and graph artifacts. Record runtime-confirmed evidence (or `unknown`) and any
 deviation separately, and honor explicit user overrides.
 
-Each role's pins are the `model` and `model_reasoning_effort` keys of its TOML in
-`assets/agents/codex/`. Read them from those files; this reference does not repeat them. "The
-role's pins" below means those two values.
+Worker pins are the `model` and `model_reasoning_effort` keys of their TOMLs in
+`assets/agents/codex/`. Read them from those files; this reference does not repeat them. The
+planner omits both keys and inherits the orchestrator's model and effort. Confirm that global
+`[agents]` defaults do not replace that inheritance; when the spawn schema supports explicit
+settings, request the parent session's effective model and effort to preserve the same route.
+Otherwise use the main-session planner fallback if conflicting defaults cannot be overridden.
 
 | Role                   | Custom agent          | Pins from                                | Notes                                             |
 | ---------------------- | --------------------- | ---------------------------------------- | ------------------------------------------------- |
 | Orchestrator           | Existing root session | User-selected                            | Owns rulings, ledger, gates, and commits          |
-| Plan author            | `goal-planner`        | `goal-planner.toml`                      | One after validated mapping; plan/graph only      |
+| Plan author            | `goal-planner`        | Inherit orchestrator model and effort    | Concise goals/order and filtered section context  |
 | Implementer            | `goal-implementer`    | `goal-implementer.toml`                  | One per section; no nested spawns                 |
-| Implementer, escalated | direct route          | `goal-planner.toml` (the planner's pins) | Stall-ladder step 3 only; fresh; once per section |
 | Mapper                 | `goal-explorer`       | `goal-explorer.toml`                     | Read-only                                         |
 | Reviewer               | `goal-reviewer`       | `goal-reviewer.toml`                     | Read-only; one lens per spawn                     |
 
-Select each role's model and effort explicitly; never let a child inherit the main-session route.
-Do not promote a worker to a costlier model or effort when it struggles, except for the implementer
-escalation at stall-ladder step 3 (`SKILL.md` step 6): the section is commit-sized, its facts are
-supplied, and the implementer repeats a defect mechanism. Then spawn one fresh implementer on
-direct route (2) at the planner's pins with the fresh-carrier body of prompts reference §5
-and the §2 RULES pasted into it, at most once per section; never send the previous implementer
-another task. Append `; escalated <implementer model·effort> → <planner model·effort> at R<n>`,
-with the values read from the two TOMLs, to the ledger row's `routing:` field. The next section
-returns to `goal-implementer` at its own pins. If the spawn
-schema does not declare `model` and `reasoning_effort`, record `escalation: unavailable` and
-report the blocker (stall-ladder step 4). Do not spawn a second planner for the same plan artifact
-merely to plan or review.
+Select worker pins explicitly. Keep the planner on the orchestrator's route; do not promote a
+worker when a review stalls. The orchestrator resolves stalled review in sign-off mode under
+`SKILL.md` step 6. Do not spawn a second planner for the same plan artifact merely to review it.
 The delegated-orchestrator exception is limited to an explicitly assigned bounded multi-section
 subtree with exact section IDs and paths. The root retains the ledger, acceptance, commit, and
 final-gate decisions; one implementer remains active globally, descendants count against thread
@@ -41,7 +34,7 @@ slots and usage, and the root dispatches independent reviewers. The parent must 
 child can route the role-specific pins above before dispatch; the child never edits product source
 or docs, accepts sections, updates the ledger, runs final gates, or commits.
 
-Role names identify responsibilities. Model and effort belong in the TOML;
+Role names identify responsibilities. Worker model and effort belong in the TOML;
 changing them does not rename the role. Codex's `goal-implementer` corresponds to Claude Code's
 `gdi-implementer` through the harness routing, with the same shared task and report contract.
 
@@ -71,8 +64,8 @@ cp <skill-root>/assets/agents/codex/*.toml ~/.codex/agents/
 ```
 
 Adding a TOML to the source tree does not update the current session's role inventory. Install or
-copy the definitions and reload Codex before relying on `goal-planner`; until then use the direct
-bounded route at the planner's pins and record role/model confirmation from runtime metadata (or
+copy the definitions and reload Codex before relying on `goal-planner`; until then use a generic
+bounded planner on the orchestrator's route and record confirmation from runtime metadata (or
 `unknown`).
 
 Older releases (verified on 0.144.6) require `multi_agent_v2` under `[features]` in
@@ -108,8 +101,8 @@ The existing `attestation` report field carries only a stable role label: `gdi-p
 Code. It proves
 neither profile freshness nor model routing. Keep `gdi_schema` (plan format), `gdi_version` (skill
 release), and source path/revision in the plan's provenance; none alone proves which profile the
-runtime loaded. Verify installed definitions and reload after changes, or use the current direct
-pinned fallback when the loaded profile cannot be established. Do not copy labels into fallback
+runtime loaded. Verify installed definitions and reload after changes, or use the role's current
+generic fallback when the loaded profile cannot be established. Do not copy labels into fallback
 prompts; a generic child records `attestation=none`.
 
 Steps: check role files and a supported runtime diagnostic; use `codex doctor` when the runtime
@@ -121,28 +114,24 @@ verification is needed, use a read-only scratch task before permitting writes. R
 receipt when role configuration and runtime are unchanged. Capture metadata and record it; hidden
 metadata is `unknown`.
 
-Both routes require an explicit bounded fork (`fork_turns: "none"` or a small integer; never
-`"all"`, which inherits the main-session route). Do not rely on the default fork. Try these routes
-in order:
-(1) `agent_type` naming the current registered role;
-(2) direct `model` + `reasoning_effort` when the schema declares them, set to the role TOML's
-`model` and `model_reasoning_effort`:
+Use an explicit bounded fork (`fork_turns: "none"` or a small integer) to supply only the task's
+context; inherited model/effort does not require inheriting the conversation. Do not rely on the
+default fork. Try `agent_type` naming the current registered role first. For a planner, omit
+model/effort overrides unless needed to match the parent against global defaults. The generic
+planner fallback uses that same parent route and the full §0 contract. Worker fallbacks use
+direct `model` + `reasoning_effort` only when the schema declares them, read from:
 
-- Planner: `goal-planner.toml`.
 - Implementer: `goal-implementer.toml`.
 - Mapper: `goal-explorer.toml`; a built-in `explorer` is usable only when it can select this
   route. A built-in role name alone does not establish the pin.
 - Reviewer: `goal-reviewer.toml`.
-- Escalated implementer (stall-ladder step 3 only): the planner's pins from `goal-planner.toml`;
-  route (2) only, with `attestation=none`.
 
 A generic child receives the role's scope, write restrictions, and report contract from the
 dispatch template; report `attestation=none` unless a profile actually supplies one. Do not put
-attestation literals in a fallback prompt. If neither the registered `goal-planner` nor the direct
-route at the planner's pins is supported, do not silently inherit the orchestrator's route or
-treat a deviation record as permission to downgrade. Continue independent mapping and
-preparation, then pause plan authorship until the user supplies and the orchestrator records an
-explicit route override. If neither route (registered role or direct pin) is available for the
+attestation literals in a fallback prompt. If no supported planner child can use the parent's
+route, the orchestrator authors under the §0 contract and records `fallback: main-session planner`
+in Harness routing and the loss of a separate author in Graph Findings. If neither
+route (registered role or direct pin) is available for the
 **implementer**, stop before product edits. If neither route is available for a **mapper**, the
 orchestrator may gather the same anchored context itself and record the fallback. For the
 **reviewer**, use a generic read-only child at the reviewer's pins before falling back to
@@ -163,16 +152,16 @@ preserves completed history; an EXECUTE resume without a replan does not dispatc
 
 For a generic correction implementer, also include the RULES from template §2; a fresh child
 does not inherit them. Apply those rules to the listed findings, with template §7 defining the
-correction scope, required gates, and report format instead of a section's IMPLEMENT list.
+correction scope, required gates, and report format instead of a section's IMPLEMENT outcomes.
 
 ```text
 Complete the assigned task and provide the required evidence and report. Use prior user instructions
 and recorded rulings as authorization for the same scope; resolve routine choices within your
 role. User instructions take precedence over skill guidance, subject to higher-priority rules.
-Use the planner's bounded context — allowed files, observed mechanism, known exemplar, invariants,
-acceptance, gates, exclusions, and prior rulings — as the task boundary. If a premise is false or
-the task cannot fit that boundary, report the concrete mismatch and permitted independent progress;
-do not redesign or silently expand the section.
+Use the goal, assigned scope, acceptance, gates, exclusions, prior rulings, and relevant filtered
+mapper evidence as the task boundary. Implementers choose the design and implementation steps.
+If a premise is false or the task cannot fit that boundary, report the concrete mismatch and
+permitted independent progress; do not redesign or silently expand the section.
 For an unruled floor change, stop before dependent code or actions; complete permitted independent
 preparation and cite the blocking instruction's file and exact clause in the relevant report
 field. Any workaround must remain within the assigned scope.
@@ -202,19 +191,22 @@ window. The root may write temporary render/capture artifacts when the planner l
 resumes ledger/status writes after handoff. The implementer stays the sole product writer.
 Apply the wrapper's authorization guidance when
 orchestrating too: request only unresolved rulings, with the exact instruction and evidence.
-This adapts the [Astra prompting guidance](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra.md#prompting-best-practices)
-(read 2026-09-05) to GDI's existing role boundaries and verification gates.
+For configuration inheritance, see the official
+[Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents).
 
 ## Dispatch mechanics
 
 - Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`. Codex
   has no correction-carrier rule: every rejection uses the same-implementer body of prompts
-  reference §5, except the stall-ladder escalation under Policy, which spawns a fresh one.
+  reference §5. In sign-off mode, the orchestrator sends only the required corrections and
+  verifies the result itself; the implementer stays on its usual route.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.
 - Before resuming an older plan, update unchecked assignments that name a former role (such as
-  `goal-implementer-terra`) or a route other than the role's current pins to the current role
-  name and the pins in its TOML. Re-run routing preflight and record the new evidence; preserve
+  `goal-implementer-terra`) or outdated worker pins to the current role and TOML settings. A
+  planner assignment inherits the current orchestrator route. Retire pending model-escalation
+  instructions in favor of sign-off mode; preserve historical escalation records. Re-run
+  routing preflight and record the new evidence; preserve
   completed history and any explicit plan-specific user override. Do not add a planner dispatch to
   an EXECUTE-only resume unless a bounded replan is required.

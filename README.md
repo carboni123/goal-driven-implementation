@@ -2,27 +2,28 @@
 
 A skill for coding agents that turns a roadmap, PRD, ADR, or issue into a **goal-driven
 implementation plan** and executes it: one orchestrator that never writes product code, one
-plan author for the initial draft or an explicit replan, one implementer per plan section, parallel
+planner that defines concise goals and execution order, one implementer per plan section, parallel
 read-only reviewers, a whole-branch final review against current `main`, and a plan file that
 doubles as the progress ledger. Works in Claude Code and OpenAI Codex CLI from one `SKILL.md`.
 
 Preferred Codex routing: the user/client-selected main-session orchestrator, a dedicated plan
-author after validated mapping, mappers, the sole implementer, and independent reviewers, each at
-the `model` and `model_reasoning_effort` in its TOML under
+author that inherits the orchestrator's model and effort after validated mapping, mappers, the
+sole implementer, and independent reviewers. Worker models and efforts are configured in
 `skills/goal-driven-implementation/assets/agents/codex/`. The skill records the orchestrator's
-actual route or unknown metadata. The plan author supplies bounded, anchored assignments;
-reviewers check both the resulting code and the plan's assumptions. These are maintainer-selected
-cost preferences, with outcomes and available usage recorded per role.
-The Codex planner is `goal-planner`; model and effort stay in its configuration. The orchestrator's
-model remains user-selected.
+actual route or unknown metadata. The planner filters mapper evidence into each section and
+returns concise goals, scope, dependencies, and acceptance checks; implementers choose the design
+and implementation steps. Reviewers check the resulting code and the plan's assumptions. These
+are maintainer-selected cost preferences, with outcomes and available usage recorded per role.
+The Codex planner is `goal-planner`; its TOML omits model and effort so they inherit.
+The orchestrator's model remains user-selected.
 The Codex implementer is `goal-implementer`; model and effort stay in its configuration.
 
 Claude Code routing: the user-selected main session orchestrates; `gdi-planner`, which inherits
-the session's model, authors the plan in a fresh context after validated mapping;
-`gdi-implementer` (Opus high) builds; `gdi-mapper` (Sonnet medium) maps; `gdi-reviewer` (Opus
-high) and `gdi-convention-reviewer` (Opus medium) review. Preflight diffs the installed agent
-definitions against the skill's copies before the first dispatch, because a stale definition runs
-an older contract while the plan records the current release.
+the session's model and effort, organizes goals and filters mapper evidence in a fresh context;
+`gdi-implementer` (Claude Opus 5.5 high) builds; `gdi-mapper` (Sonnet medium) maps;
+`gdi-reviewer` and `gdi-convention-reviewer` (Claude Opus 5.5 medium) review. Preflight diffs the
+installed agent definitions against the skill's copies before the first dispatch, because a stale
+definition runs an older contract while the plan records the current release.
 
 ## Install
 
@@ -54,7 +55,8 @@ prints the new snippet and leaves legacy config/files intact. See the
 1. **PLAN** — scout the repository into a feature map (`assets/scout-repo.mjs`, no LLM call),
    map the code one unit at a time, dispatch the plan author after mapper returns validate (or
    use the existing mapping exception when the orchestrator has verified every context anchor),
-   write the plan from `assets/plan-template.md`, draw the topology graph (inputs → sections → goal
+   define concise goals and execution order in `assets/plan-template.md`, filter each section's
+   mapper evidence, draw the topology graph (inputs → sections → goal
    exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
    validate, render, have the plan author inspect supplied screenshots, and either wait for the
@@ -69,8 +71,13 @@ prints the new snippet and leaves legacy config/files intact. See the
    first returned with a large context. Reviewer findings name the trigger that reaches them;
    one that no existing caller, writer, client, or deployment failure produces is refuted as
    unreachable. A correction loop that stalls supplies the missing fact, splits an oversized
-   section, and escalates a commit-sized section's implementer once (Fable in Claude Code,
-   the planner TOML's model and effort in Codex) before reporting a blocker. The orchestrator does not pause between
+   section when its boundary no longer holds, and enters **sign-off mode** when review stops
+   converging. The orchestrator checks each finding, records a required correction, refutation,
+   or non-blocking note with evidence, and signs off without requiring reviewer agreement.
+   Workers stay on their usual model and effort. Required corrections, gates, and floor rulings
+   still block acceptance. Original verdicts, finding dispositions, and evidence remain in the
+   plan; the ledger records `review: sign-off (<reason>)`. The same mode applies to final review.
+   The orchestrator does not pause between
    sections except for a floor ruling, approval, a blocker, or the terminal action.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
@@ -81,6 +88,15 @@ A change that is one section, touches nothing on the floor, and writes nothing i
 runs the **bounded-fix lane** instead: same plan file and implementer, two review lenses, the
 affected tests, no whole-branch fan-out. Eligibility is decided by what the diff touches, not its
 size, and any disqualifier found mid-run continues under the full loop without redoing work.
+The orchestrator writes a bounded plan itself, and parts of the template that do not apply take
+one line.
+
+A change that also touches only text no program runs or reads (docs, runbooks, comments, roadmap
+entries) runs the **direct lane**: no plan file and no mapper, planner, or implementer. The
+orchestrator checks each claim against the code, writes the change, runs the documentation
+checks, and has one independent reviewer check doc-truth and convention/scope. The commit body
+records the lane, premise corrections, checks, and review. A disqualifier moves the work to the
+bounded lane or the full loop.
 
 Verification is proportionate in both lanes: focused defect reproduction, additional sensitivity
 checks for concrete risks, and evidence shared across roles while its inputs remain valid.

@@ -571,9 +571,13 @@ function validateSchema2(md, fm, errors) {
         `ledger row ${r.id} declares rounds: ${n} but has ${r.rounds.length} "R<k> <class>:" lines`,
       );
     }
-    if (!/\breview:\s*(independent|self\s*\()/.test(r.text)) {
+    const signOff = r.text.match(/\breview:\s*sign-off\s*\(([^)\n]*)\)/);
+    const signOffReason = signOff?.[1].trim();
+    const validSignOff = signOff && !isPlaceholder(signOffReason) &&
+      !/^(pending|none|-|n\/a|tbd)$/i.test(signOffReason);
+    if (!/\breview:\s*(independent|self\s*\()/.test(r.text) && !validSignOff) {
       errors.push(
-        `ledger row ${r.id} must record "review: independent" or "review: self (<reason>)"`,
+        `ledger row ${r.id} must record "review: independent", "review: self (<reason>)", or "review: sign-off (<reason>)" with a concrete reason`,
       );
     }
     if (!/\brouting:/.test(r.text))
@@ -982,6 +986,29 @@ function selfTest() {
     throw new Error(
       `annotated fixture failed:\n${annotatedResult.errors.join("\n")}`,
     );
+
+  const signedOff = annotated.replace(
+    "review: independent",
+    "review: sign-off (review repeated a refuted claim; see Graph Findings)",
+  );
+  const signOffResult = validatePlan(signedOff);
+  if (signOffResult.errors.length)
+    throw new Error(`sign-off fixture failed:\n${signOffResult.errors.join("\n")}`);
+  const selfReviewed = validatePlan(annotated.replace(
+    "review: independent", "review: self (reviewer route unavailable)",
+  ));
+  if (selfReviewed.errors.length)
+    throw new Error(`self-review compatibility failed:\n${selfReviewed.errors.join("\n")}`);
+  for (const invalid of [
+    "sign-off", "sign-off ()", "sign-off (   )", "sign-off (<reason>)",
+    "sign-off (pending)", "sign-off (none)", "waived",
+  ]) {
+    expectError(validatePlan(annotated.replace("review: independent", `review: ${invalid}`)),
+      'must record "review:', `invalid review record: ${invalid}`);
+  }
+  expectError(validatePlan(signedOff.replace(
+    "  - R1 doc-truth: README over-claimed the retry behavior", "",
+  )), "declares rounds: 1 but has 0", "sign-off preserves round history");
 
   expectError(
     validatePlan(

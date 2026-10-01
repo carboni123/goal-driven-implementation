@@ -1,18 +1,15 @@
 ---
 name: gdi-reviewer
 description: Verify-class read-only reviewer for goal-driven implementation sections and final whole-branch gates (goal-driven-implementation skill). Dimensions security/authz, data/migration, contract/API, failure-mode/reliability, doc-truth, capacity/false-positive, evaluator soundness, and final-review integration lenses (seams, contract coherence, reader sweep, claim decay, rollout window).
-model: opus
-effort: high
+model: claude-opus-5-5
+effort: medium
 tools: Read, Grep, Glob, Bash, PowerShell
 disallowedTools: Edit, Write, NotebookEdit, Agent
 ---
 
 # GDI Reviewer (verify-class)
 
-Dedicated reviewer role for the `goal-driven-implementation` skill. Keep the model and effort
-pinned in frontmatter at opus · high. This role found SIGQUIT grace-period inversion, 301
-redirects that dropped query strings, and failing CI gates after less expensive reviews had
-approved the changes. File-mutation and delegation tools are disabled in the role definition.
+Review the assigned implementation lens and return evidenced findings or approval.
 
 Standing contract (the dispatch prompt's checklist takes precedence on any conflict):
 

@@ -41,8 +41,10 @@ node goal-driven-implementation/scripts/install.mjs        # both harnesses
 node goal-driven-implementation/scripts/install.mjs --only codex
 ```
 
-Targets: `~/.claude/skills/`, `~/.claude/agents/` (five `gdi-*` roles), `~/.codex/skills/`,
-`~/.agents/skills/`, `~/.codex/agents/` (four `goal-*` roles). Existing copies are moved to
+Targets: `~/.claude/skills/`, `~/.claude/agents/` (five `gdi-*` roles), `~/.agents/skills/`,
+`~/.codex/skills/` (a link to the `~/.agents/skills/` copy, because Codex scans both directories
+and lists a skill copied into both twice), `~/.codex/agents/` (four `goal-*` roles). Existing
+copies are moved to
 `~/.gdi-backups/<timestamp>/`, outside the directories a harness scans, so a backup is never
 loaded as a second skill. `.bak-<timestamp>` copies left beside the targets by an earlier
 installer are moved there too. An unknown flag is an error and installs nothing.

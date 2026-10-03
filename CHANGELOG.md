@@ -103,6 +103,12 @@ What changed:
 - **Claude routing.** The per-call fallback model is the alias `opus`. A missing role is
   installed and dispatched in the same session; the fallback is for a session that still
   rejects the type.
+- **Installer, Codex copy.** Maintainer question after installing, 2026-10-03: Codex CLI 0.159.3
+  scans both `~/.codex/skills` and `~/.agents/skills`, and the installer's copy in each put the
+  skill in Codex's model-visible skill list twice (`codex debug prompt-input`). The installer now
+  copies the skill to `~/.agents/skills` and makes `~/.codex/skills/<name>` a link to it; in a
+  temporary home Codex lists two copies twice and the linked layout once. The Codex note it
+  prints now says first that current releases need no configuration.
 - **Installer.** A replaced target moves to `~/.gdi-backups/<timestamp>/`. A link at the target,
   which the skills CLI creates, is removed and its target left alone. `.bak-*` copies from the
   earlier installer are moved out of the scanned directories. An unknown flag is a usage error:

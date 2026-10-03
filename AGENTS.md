@@ -91,8 +91,9 @@ copies in the same commit.
   proof of which profile or model ran; provenance goes in the plan.
 - **File lists.** The file index at the end of `SKILL.md` and the README's Layout block. Adding,
   renaming, or removing a file under `skills/` updates both.
-- **Install targets.** `scripts/install.mjs` and the README's Install section name the same
-  directories and agent files.
+- **Install targets.** `scripts/install.mjs`, the README's Install section, and the skill
+  discovery paragraph of `routing-codex.md` name the same directories and agent files. A harness
+  must find exactly one copy of the skill: check its skill list after changing a target.
 
 ## Checks
 

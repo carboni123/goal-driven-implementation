@@ -73,9 +73,12 @@ Older releases (verified on 0.144.6) require `multi_agent_v2` under `[features]`
 TOML; the file's `name` must equal the registry key. Do not edit the user's config without
 permission — print the snippet and ask.
 
-Skill discovery: the `npx skills` CLI installs to `~/.codex/skills/<name>/`; OpenAI's documentation
-lists `~/.agents/skills/` (user scope) and `<repo>/.agents/skills/` (repo scope). The installer
-writes both user paths.
+Skill discovery: Codex scans `~/.codex/skills/`, `~/.agents/skills/` (user scope), and
+`<repo>/.agents/skills/` (repo scope), and lists a skill once per copy it finds. The installer
+copies the skill to `~/.agents/skills/` and makes `~/.codex/skills/<name>` a link to that copy,
+which Codex lists once. If the skill appears twice in a session's skill list, one of the two user
+paths holds a second real copy: run the installer again. _Origin:_ on Codex CLI 0.159.3 the
+installer's two copies put the skill in the model-visible skill list twice.
 
 **Upgrade from `goal-implementer-terra`.** Install `goal-implementer.toml`; if a config registration
 exists, rename its key to `[agents.goal-implementer]` and update `config_file` to the new filename.

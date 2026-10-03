@@ -13,6 +13,10 @@
 // `.bak-<timestamp>` copies that an earlier installer left in those directories are moved there
 // too.
 //
+// Codex scans both ~/.agents/skills and ~/.codex/skills and lists a skill copied into both
+// twice. The skill is copied to ~/.agents/skills, and ~/.codex/skills/<name> is a link to that
+// copy, which Codex lists once.
+//
 // Prefer `npx skills add carboni123/goal-driven-implementation` when the skills CLI is
 // available; this script exists for machines without it and to place the agent definitions,
 // which the skills CLI does not install.
@@ -27,6 +31,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  symlinkSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
@@ -69,6 +74,9 @@ const plan = [];
 function copyDir(src, dest) {
   plan.push({ kind: "dir", src, dest });
 }
+function linkDir(target, dest) {
+  plan.push({ kind: "link", src: target, dest });
+}
 function copyFiles(srcDir, dest, filter) {
   for (const name of readdirSync(srcDir)) {
     if (filter && !filter(name)) continue;
@@ -93,14 +101,9 @@ if (!only || only === "claude") {
     );
 }
 if (!only || only === "codex") {
-  copyDir(
-    skillSrc,
-    join(home, ".codex", "skills", "goal-driven-implementation"),
-  );
-  copyDir(
-    skillSrc,
-    join(home, ".agents", "skills", "goal-driven-implementation"),
-  );
+  const shared = join(home, ".agents", "skills", "goal-driven-implementation");
+  copyDir(skillSrc, shared);
+  linkDir(shared, join(home, ".codex", "skills", "goal-driven-implementation"));
   if (!noAgents)
     copyFiles(
       join(skillSrc, "assets", "agents", "codex"),
@@ -129,6 +132,7 @@ for (const step of plan) {
   for (let dir = dirname(step.dest); within(dir, home) && dir !== home; dir = dirname(dir)) {
     if (stat(dir)?.isSymbolicLink() && !real(dir)) problems.add(`${dir} is a link whose target does not exist`);
   }
+  if (step.kind === "link") continue;
   const source = real(step.src);
   const parent = real(dirname(step.dest));
   for (const target of [real(step.dest), parent && join(parent, basename(step.dest))]) {
@@ -180,17 +184,42 @@ function retire(target) {
 console.log(
   `goal-driven-implementation ${version} → ${dryRun ? "dry run" : "installing"}`,
 );
+// Points dest at the installed copy. A relative link survives a moved home directory; Windows
+// needs a junction, which takes an absolute target.
+function link(target, dest) {
+  if (process.platform === "win32") symlinkSync(target, dest, "junction");
+  else symlinkSync(relative(dirname(dest), target), dest);
+}
+
 for (const step of plan) {
+  if (step.kind === "link") {
+    // When the two skill directories are one directory, the copy is already visible there.
+    const [here, there] = [real(dirname(step.dest)), real(dirname(step.src))];
+    if (here && here === there) {
+      console.log(`  kept     skill ${step.dest}  (${dirname(step.dest)} is the same directory as ${dirname(step.src)})`);
+      continue;
+    }
+  }
   const existed = Boolean(stat(step.dest));
   const note = retire(step.dest);
+  let what = step.kind === "file" ? "agent" : "skill";
   if (!dryRun) {
     mkdirSync(dirname(step.dest), { recursive: true });
     if (step.kind === "dir") cpSync(step.src, step.dest, { recursive: true });
-    else cpSync(step.src, step.dest);
+    else if (step.kind === "file") cpSync(step.src, step.dest);
+    else {
+      try {
+        link(step.src, step.dest);
+      } catch (error) {
+        // No permission to create links: fall back to a second copy, which Codex lists twice.
+        cpSync(step.src, step.dest, { recursive: true });
+        console.log(`  note: could not link ${step.dest} (${error.code}); copied instead, so Codex lists the skill twice`);
+      }
+    }
   }
-  const what = step.kind === "dir" ? "skill" : "agent";
+  if (step.kind === "link") what = "link";
   console.log(
-    `  ${existed ? "replaced" : "created "} ${what.padEnd(5)} ${step.dest}${note}`,
+    `  ${existed ? "replaced" : "created "} ${what.padEnd(5)} ${step.dest}${step.kind === "link" ? ` → ${step.src}` : ""}${note}`,
   );
 }
 
@@ -213,8 +242,9 @@ for (const step of plan) {
 
 if (!only || only === "codex") {
   console.log(`
-Codex: current releases auto-discover agents from ~/.codex/agents/. Older releases (0.144.x)
-need this in ~/.codex/config.toml — add it yourself; the installer never edits your config:
+Codex: nothing to configure on current releases, which discover agents in ~/.codex/agents/.
+Only on 0.144.x and older, add this to ~/.codex/config.toml yourself (the installer never
+edits your config):
 
   [features]
   multi_agent_v2 = true

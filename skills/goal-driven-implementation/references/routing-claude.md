@@ -99,9 +99,10 @@ Reuse the routing record while the definition files and environment are unchange
 
 ## Dispatch mechanics
 
-- Parallel dispatch = multiple `Agent` calls in one message. Sequential implementer = one call,
-  then wait for its report before any other implementer dispatch. The harness chooses foreground
-  or background; a background agent's report arrives in a completion notification.
+- Parallel dispatch = multiple `Agent` calls in one message. Outside a parallel batch, an
+  implementer is one call: wait for its report before any other implementer dispatch. Batch
+  members follow **Parallel implementation** below. The harness chooses foreground or
+  background; a background agent's report arrives in a completion notification.
 - Never pass `isolation` to a `gdi-*` dispatch. A worktree child branches from the default branch,
   not the current HEAD, and its edits land in another checkout: the orchestrator's `git diff`,
   the reviewers, and the section commit would all miss the work.
@@ -122,6 +123,27 @@ Reuse the routing record while the definition files and environment are unchange
   child, and the type named at dispatch identifies the definition. Routing evidence lives in the
   plan's table under the protocol above.
 
+## Parallel implementation
+
+Claude Code implements the members of a parallel batch (`SKILL.md`, **Parallel batches**) at the
+same time in the session's one checkout.
+
+- **Width.** At most three implementers at a time, within any agent concurrency limit the
+  session has. A member's reviewers and read-only helpers do not count against the three.
+- **Dispatch.** Send the picked members' implementers as `Agent` calls in one message and keep
+  one handle per section. Each runs in the background. When a completion notification arrives,
+  validate that member's report and dispatch its reviewers in the same turn; do not wait for the
+  other members.
+- **One checkout.** Never pass `isolation` and do not create a worktree for a member. The
+  reviewers, the join check, and the section commits all read the checkout the implementers
+  write. While a batch implementer is active, run no Git command there that changes the index,
+  the working tree, or the branch.
+- **Follow-ups.** Each follow-up goes to that member's own agent. A rejection follows the
+  carrier rule below, and a fresh carrier replaces only that member's handle. A write-set relay
+  resumes the same agent, like a decision relay.
+- **Usage.** Record each member's `<usage>` block on its own ledger row. At completion, report
+  the batch's elapsed time from first dispatch to last commit.
+
 ## Correction carrier
 
 A background implementer's completion notification carries a `<usage>` block: `subagent_tokens`
@@ -135,7 +157,8 @@ being rejected:
 - **Above 150k** → dispatch a fresh `gdi-implementer` with the second body of §5. Never message
   the first handle again in this section. Later rounds apply the same test to the fresh agent.
 
-Decision relays and report-validation errors always resume the same agent, whatever its size.
+Decision relays, write-set relays, and report-validation errors always resume the same agent,
+whatever its size.
 Sign-off uses the same carrier rule for required corrections, at the usual implementer route.
 
 _Origin:_ in 16 measured implementer runs, work after the first report was 43% of implementer
@@ -155,6 +178,6 @@ Preserve completed history, historical escalation records, and explicit plan-spe
 
 The Agent tool result exposes no token counts. A background agent's completion notification
 carries the `<usage>` block described under Correction carrier. Record it per return in the
-ledger `cost:` field as observed, for example `ctx 212k / 135 tools`, and write `cost: unknown`
-when the block is absent. `subagent_tokens` is a context size, not billed usage; billed usage
-comes only from `/tasks` or usage reporting.
+ledger `cost:` field as observed, for example `ctx 212k / 135 tools / 15 min` (`duration_ms` in
+minutes), and write `cost: unknown` when the block is absent. `subagent_tokens` is a context
+size, not billed usage; billed usage comes only from `/tasks` or usage reporting.

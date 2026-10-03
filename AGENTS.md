@@ -22,7 +22,7 @@ Everything shipped lives under `skills/goal-driven-implementation/` (called `<sk
 | `<skill>/references/routing-claude.md`    | Claude Code role resolution, tool allowlists, dispatch mechanics.                        |
 | `<skill>/references/routing-codex.md`     | Codex role resolution and dispatch mechanics. Names no model.                            |
 | `<skill>/assets/plan-template.md`         | The `gdi_schema: 2` plan skeleton. Not expected to pass the validator.                   |
-| `<skill>/assets/validate-plan.mjs`        | Plan validator; `--commit-boundaries` checks section commits against Git.                |
+| `<skill>/assets/validate-plan.mjs`        | Plan validator: batches and write sets; `--repo-root` checks section commits in Git.     |
 | `<skill>/assets/validate-report.mjs`      | Validator for mapper, reviewer, final, implementer, correction returns and anchors.      |
 | `<skill>/assets/scout-repo.mjs`           | Repository → feature map; `--classify` maps changed paths to units.                      |
 | `<skill>/assets/render-plan-graph.mjs`    | Plan → HTML (graphs, findings, budget, ledger). No fixtures.                             |
@@ -71,6 +71,12 @@ copies in the same commit.
   Prompts §5, the plan template, both routing references, the README, and the plan validator's
   optional `review: sign-off (<reason>)` value must agree. Sign-off retains reviewer verdicts
   and finding dispositions; it cannot waive required checks, real defects, or unruled floor items.
+- **Parallel batches.** The conditions and batch execution live in `SKILL.md` (**Parallel
+  batches** and EXECUTE). Prompts §0, §2, §3, and §5, the plan template (rules, section fields,
+  Graph Findings, acceptance protocol), the `Parallel batch` class in `graph-analysis.md`, the
+  batch checks in `validate-plan.mjs`, both planner and both implementer definitions, and the
+  README must agree. Width and dispatch mechanics live only in `routing-claude.md`;
+  `routing-codex.md` states that Codex runs one implementer at a time.
 - **Role labels.** Codex roles attest with stable labels (`gdi-planner`, `gdi-implementer`,
   `gdi-mapper`, `gdi-reviewer`) that carry no model, effort, or revision suffix. A label is not
   proof of which profile or model ran; provenance goes in the plan.

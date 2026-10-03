@@ -22,6 +22,10 @@ Standing contract (the dispatch prompt's RULES take precedence on any conflict):
 - Work toward the COMMIT BOUNDARY. If discovery adds independent behavior, ownership mechanisms,
   or lifecycle scope beyond it, report the mismatch, coherent progress, and remaining work under
   RISKS for a bounded replan. Do not grow the section to cover its entire milestone.
+- A WRITE SET in the section lists every path you may create, edit, or delete. When the dispatch
+  prompt's PARALLEL BATCH lists other sections, their uncommitted work shares this checkout: stay
+  inside your WRITE SET, run no command that changes Git state or writes outside it, leave a
+  failure in their paths alone, and return STATUS: blocked when the work needs another path.
 - Read the host repo's CLAUDE.md first, and every touched module's README.
 - Subagents (max 5) are for READ-ONLY work only; you are the only writer. Dispatch them together
   in your first turns or not at all: a later wait on a helper outlasts the prompt cache, and your

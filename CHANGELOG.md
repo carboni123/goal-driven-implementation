@@ -3,6 +3,96 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — parallel batches in Claude Code
+
+**Maintainer report and ruling, 2026-10-03.** The maintainer reported that the skill makes Claude
+Code implement slowly and that Claude handles several agents at once much better than GPT-6. The
+ruling: implementation stays sequential by default, and parts that can be parallelized may now
+run in parallel. This supplies the human ruling for relaxing the one-implementer rule under this
+repository's floor. Evidence from tyxter-messaging plans run in Claude Code:
+
+- **#1197 (gdi 0.9.0, 2026-10-03).** Four sections with "Hard dependencies: None between
+  sections", separate target units, and one soft edge for reused wording. They ran one at a
+  time: A1 took 42 minutes from implementer dispatch to its last re-review, and A2 took 38.
+- **#1179 (2026-10-02).** Four chained sections took 97 minutes from the first implementer
+  dispatch to the last re-review. The implementers' first runs were 48 minutes of that (926 s,
+  926 s, 836 s, 197 s), first-round reviews 18, and correction rounds 15. A chain gains nothing
+  from a batch; the planner guidance below addresses how such chains are cut.
+- **#1162 (2026-10-01 to 2026-10-02).** Fourteen sections ran one at a time. Seven of the
+  thirteen planned sections had no hard dependency and the longest hard chain was three
+  sections. Its soft edges came from sections that edit the same file.
+
+Timings are the dispatch and completion-notification timestamps in the session transcripts.
+#1162 ran on another host; only its plan structure is cited.
+
+- **Parallel batches** (`SKILL.md`). Sections that share `PARALLEL: batch <label>` may be
+  implemented at the same time in one checkout where the harness routing reference defines
+  parallel implementation. A batch needs no `DEPENDS ON` path between members (hard or soft),
+  a complete and disjoint `WRITE SET` per member, no shared mutable realm, and checks that pass
+  without a sibling's result. A section with no batch label still runs with no other implementer
+  active, and batches run one after another. "Only one implementer agent may exist at a time"
+  becomes "a section never has two implementers". The orchestrator may batch unchecked sections
+  of an already approved plan after making the same checks.
+- **Why the single-writer failures cannot occur inside a batch.** Two writers in one file:
+  write sets are disjoint and the validator rejects an overlap. A section built on unreviewed
+  work: no dependency path joins members, also validated. A section diff that cannot be
+  committed alone: commits are staged by write set, and the Git-aware validation rejects a
+  commit that leaves its write set. A commit hook, stash, or formatter rewriting a sibling's
+  files: nothing is committed, stashed, formatted, or merged while a batch implementer is
+  active, so members are accepted with the commit pending and committed at batch close.
+  Evidence produced while a sibling was still editing the same package: the join check reruns
+  every check whose inputs span members on the combined tree before the commits.
+- **Batch execution** (`SKILL.md` EXECUTE). Each return is handled when it arrives. A member
+  that needs a path outside its write set returns `STATUS: blocked`; the orchestrator widens the
+  set when no sibling is affected, and otherwise the member leaves the batch and finishes alone.
+  Unchecked ledger rows carry each member's state, saved report path, acceptance record, and a
+  digest of its paths, and a **Resume** rule says what a new session does in each state. The
+  digest is checked again at batch close, so an edit to an accepted member's paths is reviewed
+  before it is committed. A correction accepted from one member is checked against its siblings
+  at their review or at batch close. A bounded replan waits for the other members' commits.
+- **Planner** (prompts §0, both planner definitions, `graph-analysis.md`). The planner cuts
+  separately verifiable outcomes with disjoint write sets, keeps a `DEPENDS ON` edge only for a
+  consumed symbol, schema, state, or artifact, and assigns a file two members would edit to one
+  of them or to a join section. The new **Parallel batch** graph class checks both directions:
+  independent sections left in a chain, and batched sections that are not independent.
+- **Implementer and reviewers** (prompts §2, §3, §5, §6, both implementer definitions). The
+  implementer prompt gains a PARALLEL BATCH block, which lists every other section with
+  uncommitted work in the checkout, and a WRITE SET rule: with such sections listed it edits
+  nothing outside its write set, runs no command that changes Git state or writes outside it,
+  and leaves a failure in their paths alone. §6 adds the write-set relay. Reviewers receive the
+  section's write set and the other sections' write sets as in-progress exclusions. The
+  convention/scope checklist adds write-set containment; no checklist item was removed and no
+  report label changed.
+- **Harnesses.** `routing-claude.md` defines parallel implementation: at most three implementers
+  at a time, dispatched in one message, in the session's one checkout. Worktree isolation is not
+  used: 0.6.0 recorded that a worktree child branches from the default branch, and reviewers,
+  the join check, and the commits must read the tree the implementers write. `routing-codex.md`
+  keeps one implementer at a time and runs batch members in ledger order.
+- **Validator.** `validate-plan.mjs` rejects a batch with a `DEPENDS ON` path between members, a
+  member without a `WRITE SET`, overlapping write sets, and a malformed `PARALLEL` value. A
+  write-set line that could drop or misread a path is an error: two paths on a line, a trailing
+  comma, brace or bracket globs, `**` inside a segment, an absolute path, or an unknown label
+  that cuts the field short. An entry matches exactly the files its pattern names; a directory
+  ends with `/`. With `--repo-root` it rejects an accepted commit that changes a path outside
+  the section's `WRITE SET`, the plan file excepted, and an entry that names an existing
+  directory without the `/`. `--write-sets [IDs]` lists uncommitted paths under the section
+  whose write set owns them and prints a digest per section. New fixtures cover each rule, a
+  real Git commit inside and outside its write set, and listing of modified, untracked, and
+  renamed paths. A brute-force comparison of 400,000 random entry pairs against path matching
+  found no overlap the check misses. The checks apply only to plans that carry the new fields:
+  the old and new validators print the same result for all 74 plans in tyxter-messaging, and
+  `gdi_schema` stays 2.
+- **Plan template.** Optional `PARALLEL` and `WRITE SET` section fields, a `∥<label>` graph
+  mark, batches in braces in the recommended order, a Parallel batches record under Graph
+  Findings, batch state on unchecked ledger rows, and the batch-close rule in the acceptance
+  protocol.
+- Not yet measured: no plan has run a parallel batch, so the speed-up, the rate of write-set
+  mismatches, and the rate of join-check failures are unknown. The width of three is a starting
+  value. The completion report now records each batch's elapsed time, and the Claude ledger
+  `cost:` field records `duration_ms`, so a later retrospective can measure them.
+
 ## 0.9.0 — 2026-10-01 (tag `v0.9.0`)
 
 ### Changed — concise goals, inherited planner, current workers, orchestrator sign-off

@@ -70,6 +70,14 @@ assignment. On a replan, preserve accepted work and explicitly assign every unre
 Validate populated boundary fields with `validate-plan.mjs <plan-file> --commit-boundaries`;
 this structural check does not judge whether a proposed boundary is coherent.
 
+Place sections in a parallel batch where the workflow's Parallel batches conditions hold. Where
+two outcomes can be verified separately, cut them with disjoint write sets and no dependency;
+keep a DEPENDS ON edge only where a section consumes a symbol, schema, state, or artifact another
+creates. Assign a file two members would edit to one of them or to a join section. Give each
+member PARALLEL and a complete WRITE SET, mark members `∥<label>` in the graph, write each batch
+in braces in the recommended order, and record each batch's check in Graph Findings. Leave a
+section unbatched when a condition is uncertain.
+
 Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
 Include the plan path and status, concise goals and execution order, each section's filtered-context
 location, commands and decisive check results (or pending), graph
@@ -132,8 +140,9 @@ Record any correction to the plan's premise under **Premise corrections**.
 
 ## 2. Implementer
 
-Only one implementer agent may exist at a time. Keep its handle: decision relays (§6) and
-report-validation errors resume that agent; a rejection goes to the correction carrier (§5).
+A section has one implementer at a time, and only members of one parallel batch run at the same
+time. Keep each handle: decision relays (§6) and report-validation errors resume that agent; a
+rejection goes to the correction carrier (§5).
 
 ```text
 You are the sole implementation agent for ONE section of a goal-driven implementation plan. No
@@ -155,6 +164,11 @@ reference the section fields rather than duplicating them}
 
 === WORKING-TREE BASELINE ===
 {pre-existing changed/untracked files to preserve and exclude}
+
+=== PARALLEL BATCH ===
+{"none — no other section has uncommitted work in this checkout", or every other section with
+uncommitted work here: ID, title, state (implementing, in review, accepted, left the batch), and
+WRITE SET}
 
 === GLOBAL GATE ===
 {final verification command and scheduled stage; existing valid evidence, if any}
@@ -178,6 +192,17 @@ RULES
   coherent progress and remaining work for a bounded replan. Do not grow the IMPLEMENT list or
   substitute future milestone gates for the assigned section checks. The orchestrator owns
   acceptance and commits; do not commit incomplete work yourself.
+- WRITE SET: when the section declares one, it lists every path you may create, edit, or delete.
+  With PARALLEL BATCH `none`, edit a path it lacks only when the section needs it and name the
+  path under RISKS. When PARALLEL BATCH lists sections, their uncommitted work is in this
+  checkout and other implementers may be editing it now: do not edit a path outside your WRITE
+  SET. Finish what it allows and return STATUS: blocked naming the path and the edit it needs.
+  Run no command that changes Git state or writes outside your WRITE SET: no `git stash`,
+  `checkout`, `restore`, `reset`, `clean`, `add`, or `commit`; no formatter, fixer, generator,
+  or codemod whose output leaves your WRITE SET; no database migration, reset, or reseed and no
+  stack rebuild or restart that the section does not assign. A check that fails only in a
+  listed section's WRITE SET is that section's work in progress: do not edit it; rerun the
+  check once, then record the command and output under ENV and continue.
 - RULING FLOOR: if the work requires an unruled change on the floor named in CONTRACT DECISION —
   ESCALATE, stop before writing that code and return STATUS: decision-needed with a brief. Do not
   implement a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
@@ -280,7 +305,9 @@ LENS: {lens name}
 SECTION GOAL: {one-line goal}
 ACCEPTANCE AND INVARIANTS: {relevant exit clauses, behavior to preserve, and applicable rulings}
 DIFF SCOPE: {changed files or commit range}
-BASELINE EXCLUSIONS: {pre-existing changes}
+WRITE SET: {the section's WRITE SET as amended, or "none declared"}
+BASELINE EXCLUSIONS: {pre-existing changes; also every other section with uncommitted work in
+the checkout and its WRITE SET, marked "in progress"}
 CHECK FOR: {lens checklist}
 IMPLEMENTER REPORT: {validated section report}
 GRAPH CONTEXT: {planner-inspected image/crop + relevant node IDs + plan state, or "none"}
@@ -299,8 +326,11 @@ obsolete artifact or a compatibility facade remains. Do not require deletion mer
 field. Reject a missing, bare, empty, or unsupported entry. The validator checks the field's shape
 only — the reviewer judges whether its rationale is true. Review supplied verification evidence
 before running checks. Run a targeted probe for a concrete gap or uncertain validity; do not
-repeat valid runs solely for independent review. Never modify the tree. A finding must be concrete
-and anchored; default to APPROVE when no concrete issue is found. Approvals cite anchors too.
+repeat valid runs solely for independent review. Never modify the tree. A path under BASELINE
+EXCLUSIONS marked in progress belongs to another section whose work is not committed yet: do not
+review it, and report a check that fails only there under NOTES with its output. A finding must
+be concrete and anchored; default to APPROVE when no concrete issue is found. Approvals cite
+anchors too.
 
 Report a finding only when a trigger that exists at this commit reaches it: a request any client
 can send (for security, a hostile client too), a caller in the repository, a state some writer in
@@ -353,22 +383,22 @@ Lens checklists:
    partial failure and idempotency; races between the writers listed in the section; **who else
    already traverses any shared limiter, queue, or table this change re-scopes, and their
    per-interaction demand**; no orphaned state on the unhappy path.
-5. **Convention/scope** — naming, layering, test placement; change stays inside the section; no
-   dead code or unrelated changes; **test doubles use the current row structure**, not a legacy
-   structure; defect reproduction and any needed sensitivity checks address the actual mechanism,
-   with obstacles and alternative evidence stated. Require a concrete coverage gap before asking
-   for more tests or fixtures; mocks alone do not justify mutation checks. No proof reverts
-   committed or applied state; **no unjustified configuration key** — a new environment variable
-   or other host-set key is a finding unless the
+5. **Convention/scope** — naming, layering, test placement; change stays inside the section and
+   inside its WRITE SET when it declares one; no dead code or unrelated changes; **test doubles use
+   the current row structure**, not a legacy structure; defect reproduction and any needed
+   sensitivity checks address the actual mechanism, with obstacles and alternative evidence stated.
+   Require a concrete coverage gap before asking for more tests or fixtures; mocks alone do not
+   justify mutation checks. No proof reverts committed or applied state; **no unjustified
+   configuration key** — a new environment variable or other host-set key is a finding unless the
    section names who sets it, on which host, and what breaks at the default (numeric parameters are
    named constants in the owning module, runtime-changed values are config rows, env is for
    secrets, endpoints, and per-host selectors; a Zod default is not a justification); compare
    **RETIRES** against the diff and reject a missing or unsupported retirement rationale. For a
    reduction goal, check caller adoption and remaining duplication against the promised outcome;
    distinguish shared setup from each caller's behavior coverage. Do not demand deletion for
-   additive work or reject a correct implementation merely to prefer a different abstraction.
-   Check affected tracked generated artifacts against their canonical generation inputs,
-   including test imports and moved files, before sending the candidate to broader gates.
+   additive work or reject a correct implementation merely to prefer a different abstraction. Check
+   affected tracked generated artifacts against their canonical generation inputs, including test
+   imports and moved files, before sending the candidate to broader gates.
 6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
    makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
    UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is
@@ -463,10 +493,10 @@ rule always uses the same implementer.
 
 - **Same implementer (default).** Resume it with the first body below.
 - **Fresh section-correction implementer.** When the carrier rule applies, dispatch a new
-  implementer with the second body and never message the first handle again in this section:
-  one implementer exists at a time. Append `(carrier: fresh)` to the round line. The validated
-  prior report and the uncommitted section diff are the whole handoff, so send the report
-  verbatim; a paraphrase drops the CALLS and CLAIMS the new agent must honor.
+  implementer with the second body and never message the first handle again in this section: a
+  section has one implementer at a time. Append `(carrier: fresh)` to the round line. The validated
+  prior report and the uncommitted section diff are the whole handoff, so send the report verbatim;
+  a paraphrase drops the CALLS and CLAIMS the new agent must honor.
 
 Decision relays (§6) and report-validation errors always resume the same agent. They arrive
 before a validated report exists, when that agent's context is the only record of the section's
@@ -509,7 +539,12 @@ delegate writing.
 
 === WORKING-TREE BASELINE ===
 {pre-existing changed/untracked files to preserve and exclude. Every other uncommitted change is
-this section's work in progress: keep it}
+this section's work in progress, or a sibling's under PARALLEL BATCH: keep it}
+
+=== PARALLEL BATCH ===
+{"none — no other section has uncommitted work in this checkout", or every other section with
+uncommitted work here: ID, title, state (implementing, in review, accepted, left the batch), and
+WRITE SET}
 
 === PRIOR REPORT (validated, verbatim) ===
 {the first implementer's full report, or the latest full report if this is a later round}
@@ -525,9 +560,10 @@ Fix exactly these gaps — nothing else:
 and known blockers with pre-approved handling}
 
 RULES
-- The section implementer RULES apply in full: ruling floor, claims true at this commit, related
-  unhandled cases, focused reproduction and targeted sensitivity checks, real gate output, no
-  commit, no ledger edits. {generic fallback child: paste the RULES block of template §2 here}
+- The section implementer RULES apply in full: ruling floor, write set and parallel batch, claims
+  true at this commit, related unhandled cases, focused reproduction and targeted sensitivity
+  checks, real gate output, no commit, no ledger edits. {generic fallback child: paste the RULES
+  block of template §2 here}
 - Orient from the PRIOR REPORT's DIFF and `git diff` over those paths, then the lines each gap
   cites. Do not re-map the area. A decision recorded under CALLS stands unless a gap contradicts it.
 - The earlier work is accepted except for the listed gaps. Do not restyle, reorder, or rewrite it.
@@ -565,6 +601,17 @@ DECISION on your brief: {chosen option, verbatim constraints}
 
 Proceed under this decision. It covers exactly this change; anything else on the ruling floor
 still requires a new brief. Return the full report when finished.
+```
+
+Write-set relay, after the orchestrator amends a `WRITE SET` for a member that returned
+`STATUS: blocked` on a path. It resumes the same agent, like a decision relay:
+
+```text
+WRITE SET amended: {paths added}. You may now edit them.
+
+PARALLEL BATCH: {the current block}
+
+Finish the section under the amended WRITE SET and return the full report.
 ```
 
 ---

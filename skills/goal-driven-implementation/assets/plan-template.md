@@ -34,8 +34,9 @@ sections below are written against the corrected premise.
   section, and checks dependencies and graphs. It leaves implementation design to the implementer.
   It never approves the plan, changes floor rulings, edits completed ledger history, executes, or
   commits.
-- Section implementer: exactly one at a time; chooses the approach and writes inside its section; never
-  commits; never delegates writing.
+- Section implementer: one per section, and one at a time except for members of a parallel batch
+  where the harness routing reference defines parallel implementation. It chooses the approach,
+  writes inside its section and write set, never commits, and never delegates writing.
 - Mappers and reviewers: read-only; run in parallel within the harness thread cap.
 
 ### Harness routing
@@ -144,7 +145,9 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
 
 ### Rules
 
-- Implementation is sequential; never run two implementers concurrently.
+- Implementation is sequential: one implementer at a time. Members of one parallel batch may run
+  at the same time where the harness routing reference defines it. Each writes only its
+  `WRITE SET`, and nothing is committed while a batch implementer is active.
 - No unrun gate may be reported as successful; an unexecuted test due at this section blocks
   section acceptance. Later milestone tests stay pending and block milestone acceptance.
 - Preserve and exclude unrelated pre-existing working-tree changes.
@@ -162,7 +165,7 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
 
 ```mermaid
 flowchart LR
-  AGG["AGGREGATE<br>skip when anchored; ≤2 mappers"] --> IMPL["IMPLEMENT<br>one agent, sequential"]
+  AGG["AGGREGATE<br>skip when anchored; ≤2 mappers"] --> IMPL["IMPLEMENT<br>one agent per section;<br>batch members together"]
   IMPL --> REV["REVIEW<br>≥3 lenses in parallel"]
   REV --> GATE{"full-diff read + gates pass +<br>seven checks pass?"}
   GATE -- "reject (converging)" --> IMPL
@@ -204,7 +207,8 @@ Use the graph to review and approve the plan, then annotate it with execution re
   provenance edges from an input to the sections that serve it. Every clause of an input reaches
   a section or is named in the out-of-scope list.
 - One node per section, grouped by phase; solid edges for hard dependencies, dashed for soft.
-  Suffix `⚠` on a section that touches the ruling floor.
+  Suffix `⚠` on a section that touches the ruling floor. Suffix `∥<label>` on each member of a
+  parallel batch; no edge joins two members of one batch.
 - Explicit nodes for lifecycle outputs and gates whose repetition matters (credentials/config,
   migration, image build, deployment, live e2e), labeled with the planned run count.
 - One diamond per goal exit test. The whole-branch final review sits on every path to
@@ -221,8 +225,8 @@ flowchart LR
   IN2(["PRD §<n> — <gist>"])
 
   subgraph PA["Phase A — <milestone>"]
-    A1["A1 — <title>"]
-    A2["A2 — <title> ⚠"]
+    A1["A1 — <title> ∥1"]
+    A2["A2 — <title> ⚠ ∥1"]
   end
 
   subgraph PB["Phase B — <milestone>"]
@@ -232,7 +236,7 @@ flowchart LR
   IN1 -.-> A1
   IN1 -.-> A2
   IN2 -.-> B1
-  A1 --> A2
+  A1 --> B1
   A2 --> B1
   A1 --> PROBE{"real-client probe ×1"}
   B1 --> G1{"Goal 1 exit"}
@@ -266,6 +270,13 @@ type, or registry):
 
 - <value> — readers: <file:line, file:line> — <each handles it / provably unaffected>
 
+Parallel batches (required whenever a section carries a batch label):
+
+- batch <label> — <members> — no dependency path; write sets disjoint — shared files and
+  generated artifacts: <file → owning member or join section, or none> — realm: <why no member's
+  work or checks mutate state a sibling uses> — checks: <why each member's checks pass before a
+  sibling finishes> — join check: <checks whose inputs span members, or none>
+
 At completion (trace vs findings):
 
 - Confirmed: <problem that occurred as predicted>
@@ -295,7 +306,7 @@ and prepends this block to every later implementer prompt.
 ### Recommended linear order
 
 ```text
-<sections> -> cheap/local gates when ready -> real-client probe -> final review (merged on main) -> full CI ×1 -> image build ×1 -> deploy ×1 -> live goal gates -> PR/handoff
+<sections, each parallel batch in braces: {A1 ∥ A2} -> B1> -> cheap/local gates when ready -> real-client probe -> final review (merged on main) -> full CI ×1 -> image build ×1 -> deploy ×1 -> live goal gates -> PR/handoff
 ```
 
 ## 3. Sections
@@ -329,6 +340,16 @@ TARGET:
 
 DEPENDS ON:
 <Checked section IDs, or "none".>
+
+PARALLEL:
+<`no`, or `batch <label>` shared with the sections that may be implemented at the same time
+(SKILL.md, Parallel batches).>
+
+WRITE SET:
+<Required for a batch member, optional otherwise. One repository-relative path or glob per line;
+a note may follow a dash. `*` and `?` match inside one path segment, `**` is a whole segment of
+any depth, and a directory ends with `/`. List every file this section may create, edit, or
+delete, counting tests, owning docs, registries, wiring files, and tracked generated artifacts.>
 
 IMPLEMENTER PROFILE:
 <role / model / effort per the routing table>
@@ -416,6 +437,12 @@ pass. Use `review: sign-off (<reason>)` on the ledger row. Refute a reviewer fin
 code when it is wrong, including a finding whose trigger no existing client, caller, writer, or deployment
 failure produces (`unreachable`); record the refutation.
 
+In a parallel batch, a member that passes these checks is accepted with its commit pending, and
+nothing is committed while a batch implementer is active. At batch close, confirm each member's
+digest is unchanged, run the join check on the combined tree, then commit the members one at a
+time, staging the paths that
+`validate-plan.mjs <plan-file> --repo-root <repo> --write-sets <member IDs>` lists for each.
+
 ## 5. Progress ledger
 
 Record schema for a checked row (one line per rejection round):
@@ -425,6 +452,13 @@ Record schema for a checked row (one line per rejection round):
   - R1 failure-mode: <one line — what the reviewer found>
   - R2 doc-truth: <one line>
 ```
+
+While a parallel batch is in progress, each member's unchecked row carries its state:
+`- [ ] A1 <title> — <exit clause> — batch <label>: implementing`; then `in review` with the path
+of the saved validated report; then `accepted, commit pending` with the rounds, review, routing,
+and cost record and the member's digest from the `--write-sets` listing. A member that leaves
+the batch carries `left batch <label>: needs <path>`. The row is checked when the member is
+committed.
 
 Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.
 Where the harness reports a context size and tool-use count per agent return, record them per

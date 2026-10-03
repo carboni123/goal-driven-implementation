@@ -201,6 +201,9 @@ For configuration inheritance, see the official
   reference §5. In sign-off mode, the orchestrator sends only the required corrections and
   verifies the result itself; the implementer stays on its usual route.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
+- One implementer at a time: this reference defines no parallel implementation. Members of a
+  parallel batch run one after another in ledger order through the per-section loop, and each is
+  committed when it is accepted.
 - Every spawned role begins its report with
   `ROUTING: requested=<...>; attestation=<role label or none>; runtime=<metadata or unknown>`.
 - Before resuming an older plan, update unchecked assignments that name a former role (such as

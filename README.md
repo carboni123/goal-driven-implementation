@@ -79,6 +79,11 @@ prints the new snippet and leaves legacy config/files intact. See the
    plan; the ledger records `review: sign-off (<reason>)`. The same mode applies to final review.
    The orchestrator does not pause between
    sections except for a floor ruling, approval, a blocker, or the terminal action.
+   Implementation is sequential by default. Sections the plan places in a **parallel batch** (no
+   dependency between them, declared and disjoint write sets, no shared mutable realm, checks
+   that pass without a sibling's result) are implemented at the same time in Claude Code, in one
+   checkout; each is reviewed as it returns, and the batch is committed one section at a time
+   after a join check on the combined tree. Codex runs batch members one after another.
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
@@ -131,7 +136,7 @@ skills/goal-driven-implementation/
   assets/
     VERSION                      release stamped into every plan as gdi_version
     plan-template.md             gdi_schema: 2 plan skeleton
-    validate-plan.mjs            structural/boundary checks + Git commit verification (--self-test)
+    validate-plan.mjs            structural, batch, boundary, and Git commit checks (--self-test)
     render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
     scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
     validate-report.mjs          structural check of agent returns and anchors (--self-test)
@@ -168,6 +173,7 @@ node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --commit-boundaries
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo
+node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo --write-sets A1,A2
 node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md --no-open
 node skills/goal-driven-implementation/assets/scout-repo.mjs path/to/repo --out feature-map.yml
 ```

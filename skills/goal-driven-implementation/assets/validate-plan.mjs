@@ -3,10 +3,14 @@
 //   node validate-plan.mjs <plan.md>      validate one plan
 //   node validate-plan.mjs <plan.md> --commit-boundaries --repo-root <repo>
 //     also check stopping-point fields and accepted commits against Git
+//   node validate-plan.mjs <plan.md> --repo-root <repo> --write-sets [A1,A2]
+//     also list uncommitted paths under the section whose WRITE SET owns them, with a digest per
+//     section; without IDs, every unchecked section that declares a WRITE SET is listed
 //   node validate-plan.mjs --self-test    run the built-in fixtures
 // gdi_schema 2 is the current contract; gdi_schema 1 plans are validated with the legacy rules.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -242,16 +246,230 @@ function gitEnv() {
   );
 }
 
-function git(repoRoot, args) {
-  return execFileSync("git", ["-C", repoRoot, ...args], {
+function git(repoRoot, args, { trim = true } = {}) {
+  const out = execFileSync("git", ["-C", repoRoot, ...args], {
     encoding: "utf8",
     env: gitEnv(),
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 10_000,
-  }).trim();
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return trim ? out.trim() : out;
 }
 
-function checkAcceptedCommits(md, repoRoot, errors) {
+// The plan file is the orchestrator's ledger, not section work. Match it by name so a plan that
+// was moved (an archive step) still exempts its earlier path.
+const isPlanFile = (path, planPath) => Boolean(planPath) && basename(path) === basename(planPath);
+
+// ---------- parallel batches and write sets (optional schema-2 surface) ----------
+
+function sectionBlocks(md) {
+  return [...md.matchAll(/^## ([A-Z][0-9]+) — (.+)$/gm)].map((m) => {
+    const rest = md.slice(m.index + m[0].length);
+    const next = rest.search(/^## /m);
+    return { id: m[1], block: next === -1 ? rest : rest.slice(0, next) };
+  });
+}
+
+// WRITE SET: one repository-relative path or glob per line. `*` and `?` match inside one path
+// segment, `**` is a whole segment that matches any depth, and a directory ends with `/`; every
+// other entry names exactly the files its pattern matches. A list marker, backticks, and a note
+// after a dash are allowed. Returns null when the field is absent, `none`, or still the template
+// placeholder. Anything that would drop or misread a path is an error.
+function writeSet(block, id, errors) {
+  if (!/^WRITE SET:/m.test(block)) return null;
+  const value = field(block, "WRITE SET");
+  if (isPlaceholder(value.replace(/\s+/g, " ")) || /^(none|n\/a)(\s|\.?$)/i.test(value)) return null;
+  const lines = block.split(/\r?\n/);
+  const start = lines.findIndex((l) => l.startsWith("WRITE SET:"));
+  const next = lines.slice(start + 1).map((l) => l.match(/^([A-Z][A-Z0-9 /—-]+):\s*/)?.[1]).find(Boolean);
+  if (next && ![...S2_FIELDS, "MILESTONE", "COMMIT BOUNDARY", "PARALLEL"].includes(next)) {
+    errors.push(`${id} WRITE SET is cut short by the label "${next}:"; list one path per line and nothing else`);
+  }
+  const entries = [];
+  for (const raw of value.split(/\r?\n/)) {
+    const line = raw.trim().replace(/^(?:[-*]|\d+[.)])\s+/, "");
+    if (!line) continue;
+    const quoted = line.match(/^`([^`]+)`(.*)$/);
+    const entry = (quoted ? quoted[1] : line.split(/\s/)[0]).replace(/^\.\//, "");
+    const rest = (quoted ? quoted[2] : line.slice(line.split(/\s/)[0].length)).trim();
+    if (rest && !/^(?:—|–|-|\(|#|\/\/)/.test(rest)) {
+      errors.push(`${id} WRITE SET takes one path per line, with any note after a dash: "${line}"`);
+    } else if (/[,;]$/.test(entry) || /[{}[\]"\\]/.test(entry)) {
+      errors.push(`${id} WRITE SET entry uses unsupported punctuation or glob syntax: "${entry}"`);
+    } else if (entry.startsWith("/") || /^[A-Za-z]:/.test(entry)) {
+      errors.push(`${id} WRITE SET path must be repository-relative: "${entry}"`);
+    } else if (entry.split("/").some((seg) => seg.includes("**") && seg !== "**")) {
+      errors.push(`${id} WRITE SET entry must use "**" as a whole path segment: "${entry}"`);
+    } else {
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+function writeSetRegExp(entry) {
+  const pattern = entry.endsWith("/") ? `${entry}**` : entry;
+  let re = "";
+  for (let i = 0; i < pattern.length; i += 1) {
+    const c = pattern[i];
+    if (c === "*" && pattern[i + 1] === "*") {
+      i += 1;
+      if (pattern[i + 1] === "/") {
+        i += 1;
+        re += "(?:.*/)?";
+      } else re += ".*";
+    } else if (c === "*") re += "[^/]*";
+    else if (c === "?") re += "[^/]";
+    else re += escapeRe(c);
+  }
+  return new RegExp(`^${re}$`);
+}
+
+const inWriteSet = (path, entries) => entries.some((e) => writeSetRegExp(e).test(path));
+
+// Two entries overlap when one file path can match both. A literal against a glob is exact. Two
+// globs are compared segment by segment; once `**` makes the depth unknown, only two file names
+// that cannot match rule an overlap out, so the answer errs toward reporting an overlap.
+function entriesOverlap(a, b) {
+  const isGlob = (s) => /[*?]/.test(s);
+  const [pa, pb] = [a, b].map((e) => (e.endsWith("/") ? `${e}**` : e));
+  if (!isGlob(pa) && !isGlob(pb)) return pa === pb;
+  if (isGlob(pa) !== isGlob(pb)) return isGlob(pa) ? writeSetRegExp(pa).test(pb) : writeSetRegExp(pb).test(pa);
+  const segmentsMatch = (x, y) => {
+    if (!isGlob(x) && !isGlob(y)) return x === y;
+    if (isGlob(x) !== isGlob(y)) return isGlob(x) ? writeSetRegExp(x).test(y) : writeSetRegExp(y).test(x);
+    const head = (g) => g.slice(0, g.search(/[*?]/));
+    const tail = (g) => g.slice(Math.max(g.lastIndexOf("*"), g.lastIndexOf("?")) + 1);
+    return (head(x).startsWith(head(y)) || head(y).startsWith(head(x))) &&
+      (tail(x).endsWith(tail(y)) || tail(y).endsWith(tail(x)));
+  };
+  const [sa, sb] = [pa.split("/"), pb.split("/")];
+  for (let i = 0; i < Math.min(sa.length, sb.length); i += 1) {
+    if (sa[i] === "**" || sb[i] === "**") {
+      return sa.at(-1) === "**" || sb.at(-1) === "**" || segmentsMatch(sa.at(-1), sb.at(-1));
+    }
+    if (!segmentsMatch(sa[i], sb[i])) return false;
+  }
+  return sa.length === sb.length;
+}
+
+function writeSetsOverlap(a, b) {
+  for (const x of a) for (const y of b) if (entriesOverlap(x, y)) return [x, y];
+  return undefined;
+}
+
+// Sections sharing `PARALLEL: batch <label>` may be implemented at the same time: no DEPENDS ON
+// path may join two members, and their WRITE SETs must be declared and disjoint.
+function checkParallelBatches(md, errors) {
+  const blocks = sectionBlocks(md);
+  const deps = new Map(
+    blocks.map(({ id, block }) => [id, field(block, "DEPENDS ON").match(/\b[A-Z][0-9]+\b/g) ?? []]),
+  );
+  const reaches = (from, to, seen = new Set()) =>
+    (deps.get(from) ?? []).some((d) => d === to || (!seen.has(d) && reaches(d, to, seen.add(d))));
+  const sets = new Map();
+  const batches = new Map();
+  for (const { id, block } of blocks) {
+    const before = errors.length;
+    const entries = writeSet(block, id, errors);
+    const malformed = errors.length > before;
+    if (entries) sets.set(id, entries);
+    if (!/^PARALLEL:/m.test(block)) continue;
+    const value = field(block, "PARALLEL").split(/\r?\n/)[0].trim().replace(/`/g, "");
+    if (/^(no|none)\b/i.test(value)) continue;
+    const label = value.match(/^batch\s+([A-Za-z0-9][\w-]*)/i)?.[1];
+    if (!label) {
+      errors.push(`${id} PARALLEL must be "no" or "batch <label>"`);
+      continue;
+    }
+    if (!entries?.length && !malformed) {
+      errors.push(`${id} is in parallel batch ${label} and needs a WRITE SET listing every path it may write`);
+    }
+    batches.set(label, [...(batches.get(label) ?? []), id]);
+  }
+  for (const [label, members] of batches) {
+    for (let i = 0; i < members.length; i += 1) {
+      for (let j = i + 1; j < members.length; j += 1) {
+        const [a, b] = [members[i], members[j]];
+        if (reaches(a, b) || reaches(b, a)) {
+          errors.push(`parallel batch ${label}: ${a} and ${b} are joined by a DEPENDS ON path; batch members must be independent`);
+        }
+        const hit = writeSetsOverlap(sets.get(a) ?? [], sets.get(b) ?? []);
+        if (hit) {
+          errors.push(`parallel batch ${label}: ${a} and ${b} both claim ${hit[0] === hit[1] ? hit[0] : `${hit[0]} / ${hit[1]}`} in WRITE SET`);
+        }
+      }
+    }
+  }
+  return batches.size;
+}
+
+// Uncommitted paths grouped by the section whose WRITE SET owns them, with a digest of each
+// section's paths and contents. Lists the named sections, or every unchecked section that
+// declares a WRITE SET. The plan file is left out.
+export function attributeChanges(md, repoRoot, planPath, ids) {
+  const done = new Set(ledgerRows(md).filter((row) => row.done).map((row) => row.id));
+  const sets = sectionBlocks(md)
+    .filter(({ id }) => (ids ? ids.includes(id) : !done.has(id)))
+    .map(({ id, block }) => [id, writeSet(block, id, []) ?? []])
+    .filter(([, entries]) => entries.length);
+  const top = git(repoRoot, ["rev-parse", "--show-toplevel"]);
+  const tokens = git(repoRoot, ["status", "--porcelain=v1", "-z", "-uall"], { trim: false }).split("\0");
+  const paths = new Set();
+  for (let i = 0; i < tokens.length; i += 1) {
+    if (!tokens[i]) continue;
+    paths.add(tokens[i].slice(3));
+    // A rename or copy entry is followed by its source path.
+    if (/[RC]/.test(tokens[i].slice(0, 2))) paths.add(tokens[++i]);
+  }
+  const bySection = new Map(sets.map(([id]) => [id, []]));
+  const outside = [];
+  const shared = [];
+  for (const path of [...paths].sort()) {
+    if (isPlanFile(path, planPath)) continue;
+    const owners = sets.filter(([, entries]) => inWriteSet(path, entries)).map(([id]) => id);
+    for (const id of owners) bySection.get(id).push(path);
+    if (owners.length === 0) outside.push(path);
+    if (owners.length > 1) shared.push(`${path} (${owners.join(", ")})`);
+  }
+  const digests = new Map();
+  for (const [id, owned] of bySection) {
+    if (!owned.length) continue;
+    const hash = createHash("sha256");
+    for (const path of owned) {
+      hash.update(`${path}\0`);
+      try {
+        hash.update(readFileSync(join(top, path)));
+      } catch {
+        hash.update("absent");
+      }
+      hash.update("\0");
+    }
+    digests.set(id, hash.digest("hex").slice(0, 12));
+  }
+  return { bySection, digests, outside, shared };
+}
+
+// A WRITE SET entry that names an existing directory without the trailing `/` would match no file.
+function checkWriteSetPaths(md, repoRoot, errors) {
+  let top;
+  try {
+    top = git(repoRoot, ["rev-parse", "--show-toplevel"]);
+  } catch {
+    return;
+  }
+  for (const { id, block } of sectionBlocks(md)) {
+    for (const entry of writeSet(block, id, []) ?? []) {
+      if (/[*?]/.test(entry) || entry.endsWith("/")) continue;
+      if (statSync(join(top, entry), { throwIfNoEntry: false })?.isDirectory()) {
+        errors.push(`${id} WRITE SET entry "${entry}" is a directory; end it with "/"`);
+      }
+    }
+  }
+}
+
+function checkAcceptedCommits(md, repoRoot, errors, planPath) {
   const acceptedRows = ledgerRows(md).filter((row) => row.done);
   try {
     git(repoRoot, ["rev-parse", "--show-toplevel"]);
@@ -303,6 +521,19 @@ function checkAcceptedCommits(md, repoRoot, errors) {
         git(repoRoot, ["merge-base", "--is-ancestor", commits.get(dep), commit]);
       } catch {
         errors.push(`${m[1]} accepted commit does not contain dependency ${dep}`);
+      }
+    }
+  }
+  // A section that declares a WRITE SET commits only paths inside it, plus the plan file.
+  for (const { id, block } of sectionBlocks(md)) {
+    const commit = commits.get(id);
+    const entries = commit && writeSet(block, id, []);
+    if (!entries?.length) continue;
+    const files = git(repoRoot, ["diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", commit], { trim: false })
+      .split("\0").filter(Boolean);
+    for (const file of files) {
+      if (!isPlanFile(file, planPath) && !inWriteSet(file, entries)) {
+        errors.push(`${id} commit ${commit.slice(0, 9)} changes ${file} outside its WRITE SET; if the path belongs to the section, add it to WRITE SET and record the call`);
       }
     }
   }
@@ -551,6 +782,7 @@ function validateSchema2(md, fm, errors) {
   }
 
   const { ids, idSet } = checkSections(md, errors, S2_FIELDS);
+  const batches = checkParallelBatches(md, errors);
   const graph = checkGraphMembership(md, ids, errors);
   const rows = ledgerRows(md);
   checkLedgerMembership(rows, ids, idSet, errors);
@@ -633,12 +865,12 @@ function validateSchema2(md, fm, errors) {
     }
   }
 
-  return { preflight: pstatus, sections: ids.length };
+  return { preflight: pstatus, sections: ids.length, batches };
 }
 
 // ---------- entry ----------
 
-export function validatePlan(md, { commitBoundaries = false, repoRoot } = {}) {
+export function validatePlan(md, { commitBoundaries = false, repoRoot, planPath } = {}) {
   const errors = [];
   const fm = parseFrontmatter(md, errors);
   const schema = fm.gdi_schema;
@@ -660,7 +892,10 @@ export function validatePlan(md, { commitBoundaries = false, repoRoot } = {}) {
   else if (schema === "1") extra = validateSchema1(md, fm, errors);
   else errors.push("frontmatter gdi_schema must be 2 (current) or 1 (legacy)");
   if (commitBoundaries) checkCommitBoundaries(md, errors);
-  if (repoRoot) extra.commits = checkAcceptedCommits(md, repoRoot, errors);
+  if (repoRoot) {
+    extra.commits = checkAcceptedCommits(md, repoRoot, errors, planPath);
+    if (schema === "2") checkWriteSetPaths(md, repoRoot, errors);
+  }
   return {
     errors,
     summary: {
@@ -928,7 +1163,7 @@ function commitSelfTest() {
     const cli = execFileSync(process.execPath, [scriptPath, planPath, "--commit-boundaries", "--repo-root", repo],
       { encoding: "utf8", env: gitEnv(), stdio: ["ignore", "pipe", "pipe"] });
     if (!cli.includes("commits=1") || !cli.includes("commit-boundaries=checked")) throw new Error("CLI did not run requested checks");
-    for (const args of [[planPath, "--repo-root"], [planPath, "--unknown"], [planPath, "--commit-boundaries", "--commit-boundaries"]]) {
+    for (const args of [[planPath, "--repo-root"], [planPath, "--unknown"], [planPath, "--commit-boundaries", "--commit-boundaries"], [planPath, "--write-sets"]]) {
       let status;
       try {
         execFileSync(process.execPath, [scriptPath, ...args], { stdio: "pipe" });
@@ -956,6 +1191,49 @@ function commitSelfTest() {
       throw new Error("commit verification mutated Git state");
     }
     expectError(validatePlan(one(first), { repoRoot: join(repo, "missing") }), "committed HEAD", "invalid repo");
+
+    // An accepted section that declares a WRITE SET commits only paths inside it.
+    const scoped = (sha, set) => one(sha).replace("DEPENDS ON:\nnone.\n", `DEPENDS ON:\nnone.\nWRITE SET:\n${set}\n`);
+    const inside = validatePlan(scoped(first, "- first.txt"), { repoRoot: repo });
+    if (inside.errors.length) throw new Error(`commit inside its WRITE SET rejected: ${inside.errors.join("\n")}`);
+    expectError(validatePlan(scoped(first, "- src/**"), { repoRoot: repo }), "outside its WRITE SET", "commit outside WRITE SET");
+    const ledgerOnly = validatePlan(scoped(first, "- src/**"), { repoRoot: repo, planPath: join(repo, "first.txt") });
+    if (ledgerOnly.errors.length) throw new Error("the plan file must not count against a WRITE SET");
+
+    // Uncommitted paths are listed under the unchecked section whose WRITE SET owns them.
+    mkdirSync(join(repo, "src", "a"), { recursive: true });
+    writeFileSync(join(repo, "src", "a", "new.ts"), "export {};\n");
+    writeFileSync(join(repo, "second.txt"), "edited\n");
+    git(repo, ["mv", "first.txt", "moved.txt"]);
+    const pending = S2_FIXTURE.replace("DEPENDS ON:\nnone.\n", "DEPENDS ON:\nnone.\nWRITE SET:\n- src/a/\n- moved.txt\n");
+    const owned = attributeChanges(pending, repo, planPath);
+    if (owned.bySection.get("A1").join() !== "moved.txt,src/a/new.ts" ||
+        owned.outside.join() !== "first.txt,second.txt,user.txt" || owned.shared.length ||
+        !/^[a-f0-9]{12}$/.test(owned.digests.get("A1"))) {
+      throw new Error(`write-set attribution failed: ${JSON.stringify([...owned.bySection], null, 1)} ${owned.outside}`);
+    }
+    if (attributeChanges(scoped(first, "- src/a/"), repo, planPath).bySection.size ||
+        attributeChanges(scoped(first, "- src/a/"), repo, planPath, ["A1"]).bySection.get("A1").join() !== "src/a/new.ts") {
+      throw new Error("an accepted section is listed only when it is named");
+    }
+    writeFileSync(join(repo, "src", "a", "new.ts"), "export const edited = true;\n");
+    if (attributeChanges(pending, repo, planPath).digests.get("A1") === owned.digests.get("A1")) {
+      throw new Error("the digest must change when a listed path changes");
+    }
+    expectError(validatePlan(pending.replace("- src/a/\n", "- src/a\n"), { repoRoot: repo }), 'is a directory; end it with "/"', "directory without a trailing slash");
+    writeFileSync(planPath, pending);
+    const listing = execFileSync(process.execPath, [scriptPath, planPath, "--repo-root", repo, "--write-sets", "A1"],
+      { encoding: "utf8", env: gitEnv(), stdio: ["ignore", "pipe", "pipe"] });
+    if (!/A1 digest=[a-f0-9]{12}\n  moved\.txt\n  src\/a\/new\.ts\noutside every listed WRITE SET\n  first\.txt/.test(listing)) {
+      throw new Error(`--write-sets listing failed:\n${listing}`);
+    }
+    let unknownStatus;
+    try {
+      execFileSync(process.execPath, [scriptPath, planPath, "--repo-root", repo, "--write-sets", "Z9"], { stdio: "pipe" });
+    } catch (error) {
+      unknownStatus = error.status;
+    }
+    if (unknownStatus !== 2) throw new Error("--write-sets accepted an unknown section ID");
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
@@ -1094,8 +1372,64 @@ function selfTest() {
     { commitBoundaries: true }), "COMMIT BOUNDARY", "multiline template boundary");
   expectError(validatePlan(bounded.replace("Messaging admission PR.", ""),
     { commitBoundaries: true }), "MILESTONE", "empty milestone");
+
+  // Parallel batches: members are independent and their WRITE SETs are declared and disjoint.
+  const a1Block = between(S2_FIXTURE, /^## A1 — slice$/m, /^## 4\. /m);
+  const member = (deps, parallel, set) => a1Block.replace("DEPENDS ON:\nnone.\n",
+    `DEPENDS ON:\n${deps}\n${parallel ? `PARALLEL:\n${parallel}\n` : ""}${set ? `WRITE SET:\n${set}\n` : ""}`);
+  const batch = ({ a1 = "- src/a/**\n- `docs/a notes.md` — owning doc", a2 = "- src/b/\n- docs/b.md", a2Deps = "none.", a2Parallel = "batch 1" } = {}) =>
+    S2_FIXTURE
+      .replace(a1Block, `${member("none.", "batch 1", a1)}## A2 — second${member(a2Deps, a2Parallel, a2)}`)
+      .replace('--> G1{"Goal 1"}', '--> G1{"Goal 1"}\n  IN1 --> A2["A2 — second"] --> G1')
+      .replace("- [ ] A1 slice", "- [ ] A1 slice — batch 1: implementing\n- [ ] A2 second");
+  const batched = validatePlan(batch());
+  if (batched.errors.length || batched.summary.batches !== 1) {
+    throw new Error(`parallel batch fixture failed:\n${batched.errors.join("\n")}`);
+  }
+  expectError(validatePlan(batch({ a2Deps: "none (soft: A1 wording)." })), "joined by a DEPENDS ON path", "dependent batch members");
+  expectError(validatePlan(batch({ a2: "- src/a/x.ts" })), "both claim src/a/** / src/a/x.ts", "file inside a sibling glob");
+  expectError(validatePlan(batch({ a1: "- packages/x/README.md", a2: "- packages/x/" })), "both claim", "file inside a sibling directory");
+  expectError(validatePlan(batch({ a2: "" })), "needs a WRITE SET", "batch member without WRITE SET");
+  expectError(validatePlan(batch({ a2: "<Every path this section may write.>" })), "needs a WRITE SET", "placeholder WRITE SET");
+  expectError(validatePlan(batch({ a2Parallel: "yes" })), 'PARALLEL must be "no" or "batch <label>"', "malformed PARALLEL");
+  expectError(validatePlan(batch({ a2: "- /abs/path.ts" })), "must be repository-relative", "absolute WRITE SET path");
+  for (const [set, needle] of [
+    ["- everything under billing", "one path per line"], ["- src/b/**, tests/shared/**", "one path per line"],
+    ["- `src/b/x.ts`, `src/shared.ts`", "one path per line"], ["- src/shared.ts,", "unsupported punctuation"],
+    ["- src/{b,shared}/**", "unsupported punctuation"], ["- src/**.ts", 'as a whole path segment'],
+    ["- src/b/**\nTESTS:\n- tests/b/**", 'cut short by the label "TESTS:"'],
+  ]) {
+    expectError(validatePlan(batch({ a2: set })), needle, `WRITE SET line: ${set}`);
+  }
+  const tolerated = validatePlan(batch({ a2: "1. src/b/**\n2) ./Makefile\n* `docs/b notes.md` (owning doc)\n- LICENSE - text" }));
+  if (tolerated.errors.length) throw new Error(`valid WRITE SET lines were rejected:\n${tolerated.errors.join("\n")}`);
+  for (const serial of [batch({ a2: "- src/a/x.ts", a2Parallel: "no — applies a migration" }), batch({ a2: "- src/a/x.ts", a2Parallel: "batch 2" }),
+    batch({ a2: "- src/a/x.ts", a2Parallel: "", a2Deps: "A1." }), batch({ a2: "none", a2Parallel: "no" })]) {
+    const result = validatePlan(serial);
+    if (result.errors.length) throw new Error(`sections outside one batch were rejected:\n${result.errors.join("\n")}`);
+  }
+  const chained = [];
+  checkParallelBatches("## A1 — a\nDEPENDS ON:\nnone\nPARALLEL:\nbatch 1\nWRITE SET:\n- a/\n## A2 — b\nDEPENDS ON:\nA1\n" +
+    "## A3 — c\nDEPENDS ON:\nA2\nPARALLEL:\nbatch 1\nWRITE SET:\n- c/\n", chained);
+  expectError({ errors: chained }, "A1 and A3 are joined by a DEPENDS ON path", "transitive dependency inside a batch");
+  for (const [a, b, expected] of [
+    ["src/a.ts", "src/a.ts", true], ["src/a.ts", "src/b.ts", false], ["src/api/", "src/api/handler.ts", true],
+    ["src/api", "src/api/handler.ts", false], ["src/api/", "src/apix/handler.ts", false],
+    ["src/**/*.test.ts", "src/api/handler.ts", false], ["src/**/*.test.ts", "src/api/handler.test.ts", true],
+    ["src/**/*.test.ts", "src/api/", true], ["src/**/*.ts", "src/**/*.md", false], ["src/**/*.ts", "src/**/*.test.ts", true],
+    ["src/a/**", "docs/**", false], ["**/README.md", "packages/x/README.md", true], ["src/a?.ts", "src/ab.ts", true],
+    ["src/*.ts", "src/x/y.ts", false], ["src/*", "src/api/handler.ts", false], ["packages/*/README.md", "packages/x/", true],
+    ["packages/*/README.md", "packages/x/src/a.ts", false], ["src/**", "src/a.ts", true], ["**/*.ts", "docs/a.md", false],
+    [".github/", "**/*.yml", true], ["packages/next.js/", "packages/**/*.test.ts", true], ["packages/*-api/**", "packages/**/*.test.ts", true],
+    ["**/__tests__/*.ts", "src/b/index.ts", false], ["apps/web/**/*.tsx", "apps/web/Dockerfile", false],
+    ["apps/web/**/*.tsx", "apps/api/**/*.ts", false], ["src/*/index.ts", "src/*/main.ts", false], ["src/*/a.ts", "src/x/*.ts", true],
+  ]) {
+    if (entriesOverlap(a, b) !== expected || entriesOverlap(b, a) !== expected) {
+      throw new Error(`WRITE SET overlap(${a}, ${b}) should be ${expected}`);
+    }
+  }
   commitSelfTest();
-  console.log("validate-plan self-test passed (schemas, commit boundaries, real Git commits)");
+  console.log("validate-plan self-test passed (schemas, parallel batches, commit boundaries, real Git commits)");
 }
 
 const args = process.argv.slice(2);
@@ -1103,7 +1437,7 @@ if (args.length === 1 && args[0] === "--self-test") {
   selfTest();
   process.exit(0);
 }
-const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo>] | --self-test";
+const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo> [--write-sets [A1,A2]]] | --self-test";
 let planPath;
 const options = {};
 for (let i = 0; i < args.length; i += 1) {
@@ -1111,6 +1445,9 @@ for (let i = 0; i < args.length; i += 1) {
     options.commitBoundaries = true;
   } else if (args[i] === "--repo-root" && !options.repoRoot && args[i + 1] && !args[i + 1].startsWith("-")) {
     options.repoRoot = resolve(args[++i]);
+  } else if (args[i] === "--write-sets" && !options.writeSets) {
+    options.writeSets = true;
+    if (/^[A-Z][0-9]+(,[A-Z][0-9]+)*$/.test(args[i + 1] ?? "")) options.writeSetIds = args[++i].split(",");
   } else if (!args[i].startsWith("-") && !planPath) {
     planPath = resolve(args[i]);
   } else {
@@ -1118,10 +1455,11 @@ for (let i = 0; i < args.length; i += 1) {
     process.exit(2);
   }
 }
-if (!planPath) {
+if (!planPath || (options.writeSets && !options.repoRoot)) {
   console.error(usage);
   process.exit(2);
 }
+options.planPath = planPath;
 let markdown;
 try {
   markdown = readFileSync(planPath, "utf8");
@@ -1137,5 +1475,18 @@ if (result.errors.length) {
 }
 const s = result.summary;
 console.log(
-  `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
+  `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${s.batches ? `, parallel-batches=${s.batches}` : ""}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
 );
+if (options.writeSets) {
+  const { bySection, digests, outside, shared } = attributeChanges(markdown, options.repoRoot, planPath, options.writeSetIds);
+  const missing = (options.writeSetIds ?? []).filter((id) => !bySection.has(id));
+  if (missing.length) {
+    console.error(`--write-sets: no section with a WRITE SET named ${missing.join(", ")}`);
+    process.exit(2);
+  }
+  const list = (paths) => (paths.length ? paths : ["(none)"]).map((path) => `  ${path}`).join("\n");
+  console.log("Uncommitted paths by WRITE SET (the plan file is left out):");
+  for (const [id, paths] of bySection) console.log(`${id}${digests.has(id) ? ` digest=${digests.get(id)}` : ""}\n${list(paths)}`);
+  console.log(`outside every listed WRITE SET\n${list(outside)}`);
+  if (shared.length) console.log(`in more than one listed WRITE SET\n${list(shared)}`);
+}

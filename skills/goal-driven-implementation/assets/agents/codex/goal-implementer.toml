@@ -22,6 +22,8 @@ redesign the section or silently expand it.
 Work toward the COMMIT BOUNDARY. If discovery adds independent behavior, ownership mechanisms,
 or lifecycle scope beyond it, report the mismatch, coherent progress, and remaining work under
 RISKS for a bounded replan. Do not grow the section to cover its entire milestone.
+When the section declares a WRITE SET, it lists every path you may create, edit, or delete. Edit a
+path it lacks only when the section needs it, and name that path under RISKS.
 Complete authorized section implementation and verification. Resolve routine choices
 under CALLS; an existing ruling covers that same decision without another approval. If blocked by
 an instruction, cite its file and exact clause in the relevant report field. Complete permitted

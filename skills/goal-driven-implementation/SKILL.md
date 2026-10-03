@@ -41,13 +41,47 @@ decomposition within approved scope is an orchestrator decision; only a new floo
 needs the user. Finish and review a coherent subset before committing it, and carry unresolved
 findings into the remaining sections. Splitting cannot relabel a known defect as accepted.
 
+## Parallel batches
+
+Sections run one at a time unless the plan places them in a parallel batch: sections that share
+a `PARALLEL: batch <label>` value and may be implemented at the same time in one checkout. Each
+member declares a `WRITE SET`, the complete list of paths it may create, edit, or delete. A batch
+is valid only when all of these hold:
+
+- **No dependency.** No `DEPENDS ON` path, hard or soft, joins two members. A section depends on
+  another only when it consumes a symbol, schema, state, or artifact the other creates. An
+  edit-order preference or reused wording is not a dependency: put the shared fact in a ruling, a
+  Premise correction, or a context anchor that both sections cite.
+- **Disjoint write sets.** No path is in two members' write sets, counting tests, owning docs,
+  registries, wiring files, lockfiles, and tracked generated artifacts. A file two members would
+  edit is assigned to one of them, or to a join section that depends on both. A tracked
+  generated artifact whose inputs span members is refreshed in a join section.
+- **No shared mutable realm.** No member, in its work or its checks, migrates, resets, or
+  reseeds a database, rebuilds or restarts a running stack, or binds a fixed port that a
+  sibling's work, checks, or reviewers use. A section that does runs outside the batch.
+- **Self-contained checks.** Each member's focused checks can pass before any sibling finishes.
+
+The planner assigns batches and records each batch's check under Graph Findings.
+`validate-plan.mjs` rejects a batch with a `DEPENDS ON` path between members, a missing write
+set, or overlapping write sets. It cannot check a soft dependency recorded elsewhere, the realm,
+or the self-contained checks. The orchestrator may batch unchecked sections of an approved plan,
+narrow a batch, or move a section out of one after making the same checks: record `⇢` and
+re-validate. When a condition is uncertain, the section stays unbatched.
+
+A section with no batch label runs with no other implementer active, and a batch starts only
+after earlier sections and batches are committed. A harness whose routing reference defines no
+parallel implementation runs batch members one at a time through the per-section loop. A section
+that runs alone, with or without a batch label, may edit a path its `WRITE SET` lacks when the
+work needs it: add the path, set the section's `PARALLEL` to `no` when another member's write
+set holds that path, and record `⇢` before review.
+
 ## Role contract
 
 | Role         | Who                     | May                                                                                        | Must never                                                                                  |
 | ------------ | ----------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
 | ORCHESTRATOR | Main session            | Read; direct workers; own rulings, status, ledger, reviews, sign-off, gates, commits       | Edit product source/docs outside the direct lane; silently replace the plan-authoring route |
 | PLANNER      | Goal-organizing session | Define concise goals/order; filter mapper evidence; write plan/graph; check dependencies   | Edit product source/docs; delegate; approve; alter rulings/history; execute; commit         |
-| IMPLEMENTER  | One per section         | Write code in its section; run gates/tests; spawn allowed read-only helpers                | Touch future sections; commit; delegate writing; cross an unruled floor                     |
+| IMPLEMENTER  | One per section         | Write code in its section; run gates/tests; spawn allowed read-only helpers                | Write outside its section or write set; commit; delegate writing; cross an unruled floor    |
 | MAPPER       | Read-only agent         | Map code, tests, conventions, lifecycle couplings                                          | Write files                                                                                 |
 | REVIEWER     | Read-only, one lens     | Review implemented code with `file:line` evidence                                          | Write files; design or approve plans                                                        |
 
@@ -60,8 +94,10 @@ The orchestrator supplies rulings, preflight/evidence, open questions, and artif
 run probes or captures when the planner lacks those tools. Code reviewers may use the planner's
 inspected graph as context for tracing implementation paths; a diagram is not implementation evidence.
 
-Implementation is strictly sequential: only one implementer agent may exist at a time. Mappers and reviewers
-run in parallel within the harness thread cap.
+Implementation is sequential by default: one implementer at a time. Members of a parallel batch
+(**Parallel batches**) may each have an implementer at the same time when the harness routing
+reference defines parallel implementation. A section never has two implementers. Mappers and
+reviewers run in parallel within the harness thread cap.
 
 **Harness routing.** Model, effort, and dispatch mechanics differ per harness and are defined in one
 reference each — read the one for the harness you are running in before the first dispatch:
@@ -334,6 +370,11 @@ evidence, and continue in that lane.
      Apply **Commit-sized sections**: name the milestone and justify each stopping point.
      Check the scope needed to reach the first commit; a PR-sized result must be
      decomposed before dispatch. Group milestone gates separately from section checks.
+   - **Parallel batches**: apply the **Parallel batches** conditions. Where two outcomes can be
+     verified separately, cut them with disjoint write sets and no dependency and give them one
+     batch label; each member gets `PARALLEL` and a complete `WRITE SET`. Mark members
+     `∥<label>` in the graph, write each batch in braces in the recommended order, and record
+     the batch check under Graph Findings.
    - **Base drift policy**: when to re-baseline on `origin/main` and what happens if a stacked
      predecessor merges. Finish upstream merges separately from section commits so incoming
      changes do not become part of the section's acceptance diff.
@@ -397,12 +438,17 @@ that do not block the work.
 realm, service, credential, or toolchain inputs changed; record presence, never secret values.
 Resolve roles per the harness reference and record the evidence. Set `status: executing` before
 the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
-unchecked section whose `DEPENDS ON` are all checked. Confirm no implementer agent exists.
+unchecked section whose `DEPENDS ON` are all checked. When it carries a batch label and the
+harness reference defines parallel implementation, pick every unchecked member of that batch
+whose `DEPENDS ON` are checked and follow **Parallel batch execution** below. Confirm no
+implementer agent exists.
 Before dispatch, verify recorded accepted commits with
 `node <skill-root>/assets/validate-plan.mjs <plan-file> --repo-root <repo>`.
-Compare `git status --short` with the preserved baseline: no completed section's product changes
-may remain staged, unstaged, or untracked. Account for unrelated user changes separately; never
-stage them or hide unfinished section work by adding it to the baseline exclusions.
+Compare `git status --short` with the preserved baseline: no checked section's product changes
+may remain staged, unstaged, or untracked. Unchecked rows that carry batch state notes mean an
+interrupted batch: continue it under **Resume** below. Account for unrelated user changes
+separately; never stage them or hide unfinished section work by adding it to the baseline
+exclusions.
 
 **1. Aggregate.** Skip when the section's context items have verified anchors and the relevant
 symbols and behavior have not changed since mapping. `validate-report.mjs --kind anchors` checks
@@ -416,16 +462,17 @@ replan before implementation. Compare its current writers and acceptance scope w
 boundary; do not carry an oversized section forward merely because it was already approved.
 
 **2. Implement.** Check that the goal, acceptance, and filtered evidence are actionable. Send one
-implementer the section block verbatim, context brief, global gate, preflight,
-baseline, and the **Corrections in force** block (every factual correction accepted in earlier
-sections of this plan). Keep its handle: decision relays and report-validation errors resume the
-same agent, and a rejection goes to the correction carrier chosen in step 6. The implementer's
-report includes a **CLAIMS** block: every prose assertion it added or changed (README, comment,
-docs, OpenAPI description, evidence row) with the anchor that makes it true _at this commit_, and
-a **RETIRES** block that names artifacts removed or explains why none was retired, such as
-additive work with no obsolete artifact or retained compatibility. Validate the report
-(`validate-report.mjs --kind implementer --repo-root <repo>`) before any reviewer is dispatched;
-a hard error goes back to the same agent once.
+implementer the section block verbatim, context brief, global gate, preflight, baseline, the
+PARALLEL BATCH block (`none` when no other section has uncommitted work in the checkout), and
+the **Corrections in force** block (every
+factual correction accepted in earlier sections of this plan). Keep its handle: decision relays and
+report-validation errors resume the same agent, and a rejection goes to the correction carrier
+chosen in step 6. The implementer's report includes a **CLAIMS** block: every prose assertion it
+added or changed (README, comment, docs, OpenAPI description, evidence row) with the anchor that
+makes it true _at this commit_, and a **RETIRES** block that names artifacts removed or explains
+why none was retired, such as additive work with no obsolete artifact or retained compatibility.
+Validate the report (`validate-report.mjs --kind implementer --repo-root <repo>`) before any
+reviewer is dispatched; a hard error goes back to the same agent once.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →
@@ -470,8 +517,9 @@ exit test · scope stayed inside the section · conventions followed · deferral
 tracked. Reject → send the exact gaps to the **correction carrier**: the same implementer by
 default, or a fresh section-correction implementer (prompts reference §5) when the harness routing
 reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
-uncommitted section diff. Never message the first handle again once a fresh agent takes over: one
-implementer exists at a time. Count rounds the same way for either carrier. **Convergence rule:**
+uncommitted section diff. Never message the first handle again once a fresh agent takes over: a
+section has one implementer at a time. Count rounds the same way for either carrier.
+**Convergence rule:**
 in-contract rounds continue while unresolved findings decrease. An unruled floor item goes to the
 user. A repeated defect mechanism or findings that stop decreasing enters **sign-off mode**:
 
@@ -506,6 +554,54 @@ The SHA-only ledger update may accompany the next section commit; commit final l
 milestone closure. A commit cannot contain its own SHA. Add accepted factual corrections to
 **Corrections in force**. If committing or verification fails, resolve that before dispatching
 the next section. Later milestone gates remain pending. Loop to step 0.
+
+**Parallel batch execution.** For a batch picked in step 0, run steps 1–6 for its members at the
+same time, up to the width the harness reference sets. Start members in ledger order, and start
+a waiting member when another is accepted or leaves the batch. The steps change as follows:
+
+- **Dispatch.** Each member's implementer receives the PARALLEL BATCH block: every other section
+  with uncommitted work in the checkout, its state, and its write set. Keep each member's state
+  on its unchecked ledger row: `batch <label>: implementing`; `in review` with the path of the
+  saved validated report; `accepted, commit pending` with the rounds, review, routing, and cost
+  record and the member's digest.
+- **Returns.** Act on each return when it arrives; do not wait for siblings. Run
+  `validate-plan.mjs <plan-file> --repo-root <repo> --write-sets <member IDs>`. It lists each
+  uncommitted path under the member whose write set owns it and prints a digest of each member's
+  paths and contents. Compare the listing with the report's DIFF. A DIFF path outside the
+  member's write set, a listed path its DIFF does not name, and a path outside every write set
+  and the baseline are boundary violations: identify the writer from the reports and send it
+  the gap as a rejection.
+- **Write-set mismatch.** A member that needs a path outside its write set returns
+  `STATUS: blocked` naming it. When no other section with uncommitted work owns the path or
+  reads it in its checks, add it to the member's `WRITE SET`, record `⇢`, and resume the same
+  agent with the write-set relay (prompts reference §6). Otherwise the member leaves the batch:
+  set its `PARALLEL` to `no` and note `left batch <label>: needs <path>` on its row. After the
+  batch commits, add the path and resume the same agent. Its uncommitted work stays in the tree
+  until then, and a join-check failure located only in its paths is handled when it resumes.
+- **Review.** DIFF SCOPE is the member's listed paths. Every other section with uncommitted
+  work goes under BASELINE EXCLUSIONS as in progress. A correction accepted from one member is
+  checked against each sibling's report at that sibling's review, or at batch close for a
+  sibling already accepted, because the sibling started without it.
+- **Accept.** A member that passes the seven checks is accepted with its commit pending. While
+  any implementer in the batch is active, do not commit, stash, switch branches, merge, or run a
+  formatter or generator in the checkout: commit hooks and those commands rewrite files a
+  sibling is editing. Budgeted lifecycle gates wait for batch close. A user ruling, sign-off, or
+  correction round in one member does not stop the others. A bounded replan waits until the
+  other members are committed.
+- **Batch close.** When every remaining member is accepted and no implementer is active, run
+  the listing again. A member whose digest differs from its ledger note was edited after
+  acceptance: review the changed paths before committing it. Then run the join check once on
+  the combined tree: every member check whose inputs include a sibling's write set, such as a
+  shared package's typecheck, lint, or suite. Evidence produced while a sibling was still
+  editing those inputs does not establish the combined result. A failure is a rejection round
+  for the member whose write set holds the defect. Then commit the members one at a time in
+  ledger order, staging exactly the paths listed for each, and record each SHA. The Git-aware
+  validation checks that each commit stays inside its `WRITE SET`.
+- **Resume.** A new session continues an interrupted batch from the ledger notes.
+  `accepted, commit pending`: keep the member when its digest matches the note; otherwise
+  review the changed paths. `in review`: validate the saved report again and dispatch its
+  lenses. `implementing`, or a report that is missing: the agent is lost, so dispatch a new
+  implementer with the section block and the member's listed paths as its starting state.
 
 ## Complete the plan
 
@@ -544,6 +640,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
    amended at completion. Re-render and show it.
 7. **Report** — sections and commits, planned vs actual per gate, available usage per section, Graph
    Findings confirmed / did not occur / missed, deferrals with issue numbers, exit-test evidence.
+   For each parallel batch, report its members and the elapsed time from first dispatch to last
+   commit when the harness exposes it.
    Attribute available usage to planning/mapping/implementation/review and correction rounds;
    include main-session overhead. Use `unknown` for unavailable counters or prices. Tokens alone
    do not establish monetary cost across models; compare total cost per accepted section together
@@ -552,8 +650,11 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
 ## Resources
 
 - `assets/plan-template.md` — plan skeleton (`gdi_schema: 2`).
-- `assets/validate-plan.mjs` — structural validation; `--commit-boundaries` checks stopping-point
-  fields; `--repo-root <repo>` verifies accepted SHAs and dependency ancestry; `--self-test`.
+- `assets/validate-plan.mjs` — structural validation, including parallel batches;
+  `--commit-boundaries` checks stopping-point fields; `--repo-root <repo>` verifies accepted
+  SHAs, dependency ancestry, and that a commit stays inside its `WRITE SET`;
+  `--write-sets [IDs]` lists uncommitted paths by owning section with a digest per section;
+  `--self-test`.
 - `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.

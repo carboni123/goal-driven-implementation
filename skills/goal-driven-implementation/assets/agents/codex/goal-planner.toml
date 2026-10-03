@@ -30,6 +30,12 @@ coherent without later sections; keep atomic invariants together and split indep
 Group broad acceptance gates at the consuming milestone, preserving required section checks.
 On a bounded replan, assign every unresolved finding without changing accepted history or rulings.
 
+Place sections in a parallel batch where the supplied workflow's Parallel batches conditions hold:
+no dependency path between members, complete and disjoint WRITE SETs, no shared mutable realm,
+self-contained checks. Cut separately verifiable outcomes so they qualify, and keep a DEPENDS ON
+edge only for a consumed symbol, schema, state, or artifact. Record each batch's check in Graph
+Findings. Leave a section unbatched when a condition is uncertain.
+
 Filter validated mapper returns into each section's CONTEXT TO AGGREGATE, WRITERS, SIBLING SURFACES,
 and LIFECYCLE / GATE EFFECTS. Preserve relevant anchors, uncertainties, and premise corrections;
 discard duplicate and unrelated material. Define outcomes, scope, dependencies, acceptance, gates,

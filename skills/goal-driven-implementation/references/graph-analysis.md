@@ -95,6 +95,9 @@ budget, preflight, known blockers, section blocks, and ledger. Apply every class
 - Every enforce/gate/block/redact section has a negative-space ruling.
 - Every rejection exit test has a paired admission exit test measured on real client behavior.
 - Every section that writes a new shared value has a reader-sweep entry.
+- Every parallel batch has no dependency path between members, complete and disjoint write sets,
+  no member whose work or checks mutate a realm a sibling uses, and member checks that pass
+  before any sibling finishes.
 - The focused baseline has observed evidence; any broader baseline has a concrete risk or host
   requirement; final gates are explicitly scheduled and not misreported as already passed.
 - No section is L-sized; the invariant-inversion count justifies each section's size.
@@ -134,6 +137,19 @@ under the existing approval rules; do not invent a new approval floor or route i
   useful on their own if execution stops early. _Origin:_ a plan incorrectly claimed that its
   initial sections were independently useful. Tests depended on later sections even though source
   code did not: 58 tests failed across five modules until the middle section was implemented.
+- **Parallel batch** — independent sections chained in sequence, or sections batched that are
+  not independent. For sections with no hard dependency between them, name what keeps them out
+  of one batch: a shared file, a shared mutable realm, or nothing. Replace an edit-order or
+  reused-wording edge with a fact both sections cite, and assign a shared file to one member or
+  to a join section. For every batch, check that no `DEPENDS ON` path joins two members, that
+  each write set is complete (tests, owning docs, registries, wiring files, tracked generated
+  artifacts) and disjoint from its siblings', that no member's work or checks migrate, reseed,
+  rebuild, or bind what a sibling's work, checks, or reviewers use, and that each member's
+  focused checks can pass before any sibling finishes. A generated artifact whose inputs span
+  members goes to a join section. Name the join check: every check whose inputs span members.
+  Record each batch in Graph Findings. _Origin:_ tyxter-messaging #1197 had four
+  sections with no hard dependency and separate target units, joined only by a reused-wording
+  edge; they ran one at a time at about 40 minutes each.
 - **Cycle** — the section DAG must be acyclic. The only legal cycles are the per-section
   correction loop and the final-review correction loop.
 - **Graph/ledger/prose disagreement** — `DEPENDS ON`, the ledger, the recommended order, and

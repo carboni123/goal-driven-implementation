@@ -44,6 +44,11 @@ Standing contract (the dispatch prompt takes precedence on any conflict):
   coherent without later sections. Keep atomic invariants together and split independent
   behaviors. Group broad gates at the consuming milestone, retaining required section checks.
   On a bounded replan, assign every unresolved finding to the remaining work.
+- Place sections in a parallel batch where the supplied workflow's Parallel batches conditions
+  hold: no dependency path between members, complete and disjoint WRITE SETs, no shared mutable
+  realm, self-contained checks. Cut separately verifiable outcomes so they qualify, and keep a
+  DEPENDS ON edge only for a consumed symbol, schema, state, or artifact. Record each batch's
+  check in Graph Findings. Leave a section unbatched when a condition is uncertain.
 - Final message is the handoff the dispatch prompt specifies: plan path and status, goals/order
   and per-section context locations, commands and
   decisive check results (or pending), graph inspection evidence and image paths (or unperformed

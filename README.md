@@ -68,7 +68,8 @@ prints the new snippet and leaves legacy config/files intact. See the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
    (commit section and acceptance evidence, then record and verify its SHA) or sends exact gaps
    back until it converges: to the same implementer, or in Claude Code to a fresh one when the
-   first returned with a large context. Reviewer findings name the trigger that reaches them;
+   first returned with a large context. After a correction, the reviewers that rejected are
+   resumed to rule on their own findings. Reviewer findings name the trigger that reaches them;
    one that no existing caller, writer, client, or deployment failure produces is refuted as
    unreachable. A correction loop that stalls supplies the missing fact, splits an oversized
    section when its boundary no longer holds, and enters **sign-off mode** when review stops

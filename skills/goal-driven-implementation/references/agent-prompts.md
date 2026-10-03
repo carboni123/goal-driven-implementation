@@ -517,7 +517,8 @@ Do not rerun the global gate solely because this is a rejection; keep broader ga
 scheduled stage unless a concrete risk or host rule requires them now.
 Preserve the working-tree baseline.
 Return the full report with RETIRES; explain any `none` entry, including additive work with no
-obsolete artifact where applicable.
+obsolete artifact where applicable. In DIFF, end the line of each file this correction changed
+with `(changed this round)`.
 ```
 
 Fresh section-correction implementer:
@@ -574,11 +575,32 @@ RULES
 - Your final message is the FULL section report with exactly the PRIOR REPORT's labels, in the
   same order, describing the section as it now stands. Start from the PRIOR REPORT, update every
   entry your correction changes, and keep an unchanged entry only after confirming its anchor
-  still resolves. Reviewers see one report.
+  still resolves. Reviewers see one report. In DIFF, end the line of each file this correction
+  changed with `(changed this round)`.
   Explain any `RETIRES: none`, including additive work with no obsolete artifact where applicable.
 ```
 
 Validate the fresh agent's return with `--kind implementer`, as for any section report.
+
+**Re-review.** After the correction report validates, resume each reviewer that rejected with the
+body below. Resume a reviewer that approved only when the correction changed code in its lens.
+Dispatch a fresh reviewer only when the first one is lost: use template §3 (§4 for a final
+review) and put these three fields in CHECK FOR. Validate the return with `--kind reviewer`. A
+final-review correction (§7) is re-reviewed the same way by the reviewers that reported findings,
+validated with `--kind final`; its CHANGED IN THIS ROUND is the correction report's DIFF.
+
+```text
+RE-REVIEW of the same scope and lens after a correction. Read-only, as before.
+
+YOUR FINDINGS SENT FOR CORRECTION: {each finding as relayed; mark any the orchestrator refuted,
+with the reason}
+CORRECTION REPORT: {validated updated report}
+CHANGED IN THIS ROUND: {the DIFF lines the correction report marks `(changed this round)`}
+
+Rule on each finding: resolved or not, with the anchor that shows it. Review the lines changed in
+this round within your lens. Do not repeat the rest of the review. Final message: the same
+VERDICT, EVIDENCE, FINDINGS, and NOTES format as your first return.
+```
 
 Convergence rule: rounds continue while unresolved findings decrease. An unruled floor item goes
 to the user. A repeated defect mechanism or findings that stop decreasing enters orchestrator
@@ -669,7 +691,7 @@ For `STATUS: decision-needed`, provide a substantive decision brief either in a 
 `DECISION BRIEF` field or in the compact field; an empty or `none` brief is invalid. A complete
 correction need not include a decision brief.
 
-Validate the correction report before re-running final review:
+Validate the correction report before the re-review (§5):
 
 ```bash
 node <skill-root>/assets/validate-report.mjs --kind correction --repo-root <repo> --input <report.md>

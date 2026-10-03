@@ -518,8 +518,11 @@ tracked. Reject → send the exact gaps to the **correction carrier**: the same 
 default, or a fresh section-correction implementer (prompts reference §5) when the harness routing
 reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: a
-section has one implementer at a time. Count rounds the same way for either carrier.
-**Convergence rule:**
+section has one implementer at a time. Count rounds the same way for either carrier. After the
+correction report validates, re-review by follow-up to each reviewer that rejected (prompts
+reference §5): it rules on its own findings and the lines the correction changed. A lens that
+approved runs again only when the correction changed code in its scope. Dispatch a fresh reviewer
+for a re-review only when the first one is lost. **Convergence rule:**
 in-contract rounds continue while unresolved findings decrease. An unruled floor item goes to the
 user. A repeated defect mechanism or findings that stop decreasing enters **sign-off mode**:
 
@@ -622,8 +625,9 @@ When every section is checked:
    at HEAD, including adjacent pre-existing sentences; (f) **rollout window** —
    old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
    to one correction implementer scoped to the findings; validate its report with
-   `validate-report.mjs --kind correction --repo-root <repo>` before re-running final review; commit
-   additively; repeat until clean or signed off by the orchestrator under step 6. Required
+   `validate-report.mjs --kind correction --repo-root <repo>`, then re-review by follow-up to the
+   reviewers that reported findings (prompts reference §5); commit additively; repeat until clean
+   or signed off by the orchestrator under step 6. Required
    corrections and gates still have to pass. In the
    bounded-fix lane the section review already served as the final review: skip the separate review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate

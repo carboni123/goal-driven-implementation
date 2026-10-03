@@ -199,7 +199,8 @@ For configuration inheritance, see the official
 - Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`. Codex
   has no correction-carrier rule: every rejection uses the same-implementer body of prompts
   reference §5. In sign-off mode, the orchestrator sends only the required corrections and
-  verifies the result itself; the implementer stays on its usual route.
+  verifies the result itself; the implementer stays on its usual route. A re-review resumes the
+  same reviewer with `followup_task` and the re-review body of §5.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - One implementer at a time: this reference defines no parallel implementation. Members of a
   parallel batch run one after another in ledger order through the per-section loop, and each is

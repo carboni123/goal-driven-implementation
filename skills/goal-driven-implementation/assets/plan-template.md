@@ -429,8 +429,9 @@ The SHA-only ledger update may accompany the next section commit; commit final l
 at milestone closure. This avoids requiring a commit to contain its own SHA. Git validation
 checks identity and ancestry; the orchestrator still verifies diff ownership and test evidence.
 On rejection, send exact `file:line` gaps to the correction carrier (the same
-implementer, or a fresh section-correction implementer under the harness carrier rule) and continue
-under the convergence rule. When review stops converging, the orchestrator applies SKILL.md step
+implementer, or a fresh section-correction implementer under the harness carrier rule), re-review
+by follow-up to the reviewers that rejected, and continue under the convergence rule.
+When review stops converging, the orchestrator applies SKILL.md step
 6's sign-off mode: preserve original verdicts, record every disposition and its evidence in Graph
 Findings, send real gaps for correction at the usual route, and accept only after all seven checks
 pass. Use `review: sign-off (<reason>)` on the ledger row. Refute a reviewer finding against the

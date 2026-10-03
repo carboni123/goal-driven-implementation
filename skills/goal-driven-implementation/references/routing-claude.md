@@ -116,9 +116,9 @@ Reuse the routing record while the definition files and environment are unchange
   tools and send the image paths to the **same** planner for the visual pass.
 - Follow-ups go to the **same** agent via `SendMessage` (load it with
   `ToolSearch select:SendMessage`): decision relays, report-validation errors, planner captures,
-  and a rejection unless the correction-carrier rule below sends it to a fresh agent. Never
-  replace an implementer whose section work is in progress; if the agent is lost, record it and
-  resume with a new one given the full prior report.
+  re-reviews, and a rejection unless the correction-carrier rule below sends it to a fresh
+  agent. Never replace an implementer whose section work is in progress; if the agent is lost,
+  record it and resume with a new one given the full prior report.
 - Reports carry no `ROUTING` line in Claude Code: the harness exposes no routing metadata to the
   child, and the type named at dispatch identifies the definition. Routing evidence lives in the
   plan's table under the protocol above.

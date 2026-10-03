@@ -93,6 +93,23 @@ Timings are the dispatch and completion-notification timestamps in the session t
   value. The completion report now records each batch's elapsed time, and the Claude ledger
   `cost:` field records `duration_ms`, so a later retrospective can measure them.
 
+### Changed — re-review by follow-up to the rejecting reviewers
+
+**Plans #1179 and #1197, same transcripts.** The full loop had no rule for re-review after a
+correction; only the direct lane sent the diff back to the same reviewer. In #1179 the
+orchestrator resumed the rejecting reviewers and each re-review returned in 20 to 69 seconds.
+In #1197 it dispatched fresh reviewers for the same job and they took 268 and 293 seconds.
+
+- `SKILL.md` step 6 and the final-review step re-review by follow-up to each reviewer that
+  rejected or reported findings. That reviewer rules on its own findings and the lines the
+  correction changed. A lens that approved runs again only when the correction changed code in
+  its scope, and a fresh reviewer is dispatched only when the first one is lost.
+- Prompts §5 adds the re-review body. A correction report marks the DIFF lines of the files it
+  changed, which gives the re-review its scope. The plan template's acceptance protocol, both
+  routing references, and the README name the rule. Verdict words and report labels are
+  unchanged.
+- Not yet measured: whether a resumed reviewer misses defects a fresh one would find.
+
 ## 0.9.0 — 2026-10-01 (tag `v0.9.0`)
 
 ### Changed — concise goals, inherited planner, current workers, orchestrator sign-off

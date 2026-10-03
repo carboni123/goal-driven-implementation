@@ -105,6 +105,13 @@ reference each — read the one for the harness you are running in before the fi
 - Claude Code: `references/routing-claude.md` — role resolution and dispatch mechanics.
 - Codex CLI: `references/routing-codex.md` — role resolution and dispatch mechanics.
 
+**Dispatch by file.** Each role's rules and report format are in `assets/prompts/<role>.md`, and
+the role reads that file itself. `assets/section-brief.mjs` writes a section's assignment file
+from the plan and prints the dispatch stubs for it. Where the harness allows, an agent writes its
+report to the plan's run directory and validates it before returning. A dispatch message names
+files; do not retype a section block, a rule list, or another agent's report into one.
+`references/agent-prompts.md` holds the stubs, the run directory layout, and the validation rule.
+
 Resolve every role during preflight, **before** preparing the plan for approval, and record
 `requested / role-confirmed / model-confirmed` per role in the plan. If the reviewer role cannot be
 dispatched, use a generic read-only agent at the reviewer's effort. Main-session review of the
@@ -153,9 +160,9 @@ decision with `⇢` and a one-line rationale in the plan's Recorded calls table.
   lane. When the plan would be longer than the diff, check the direct lane before writing one.
 - **Approval.** A plan whose analysis pass finds a floor item (any `⚠` section, any ruling in the
   floor table) waits for the user to rule on exactly those rulings. A plan with no floor item, in a
-  repository that declares its ruling floor, starts EXECUTE immediately and posts the rendered graph
-  and Graph Findings as its notification; the user can stop it at any section. In a repository with
-  no declared floor, wait for approval.
+  repository that declares its ruling floor, starts EXECUTE immediately and posts the plan
+  presentation (PLAN step 9) as its notification; the user can stop it at any section. In a
+  repository with no declared floor, wait for approval.
 
 Before resuming an older plan that lacks `gdi_schema: 2` fields, add the plan-only fields
 (frontmatter, preflight, gate budget, rulings split, ledger schema, deferrals table) without
@@ -238,7 +245,7 @@ Inside the lane:
   preflight row per gate realm, a Known blockers row `None` when none applies, and an empty
   gate-budget table when no expensive gate is budgeted. Validate. Rendering is optional; the raw
   Mermaid in the message is enough.
-- **EXECUTE.** No aggregation step. One implementer with the standard template. Two review
+- **EXECUTE.** No aggregation step. One implementer with the standard stub. Two review
   lenses: convention/scope and doc-truth. The orchestrator verifies the affected test evidence
   named in the gate budget, reads the full diff, and applies the same seven checks and the same
   convergence and sign-off rules in EXECUTE step 6.
@@ -270,7 +277,7 @@ Inside the lane:
 2. Write the change and run the owning unit's checks. Classify every path the change edits or
    adds, new files included: `node <skill-root>/assets/scout-repo.mjs <repo> --classify
    <path,path,...>` reports one owning unit and no shared kernel.
-3. Dispatch one independent reviewer with the section reviewer template (prompts reference §3):
+3. Dispatch one independent reviewer with the direct-lane stub (prompts reference §3):
    `LENS: doc-truth and convention/scope`, both checklists, on the doc-truth reviewer route, with
    the orchestrator's change summary and a CLAIMS block (every assertion the diff adds, with its
    anchor) in place of the implementer report. Validate the return (`--kind reviewer`) and apply
@@ -305,14 +312,15 @@ evidence, and continue in that lane.
    `node <skill-root>/assets/scout-repo.mjs <repo> --out <plan-dir>/<slug>-feature-map.yml`.
    The map lists apps, feature slices, and shared kernels with the description each unit's own
    README gives it. Read it before mapping: it is the repository's vocabulary and its ownership
-   structure. Then, if the code is unfamiliar, dispatch 2–4 read-only mappers (mapper template),
-   one per unit the inputs touch, named from the map, and validate each return with
-   `validate-report.mjs --kind mapper` before merging. A flat repository (`features: 0`) maps as
+   structure. Create the plan's run directory (prompts reference). Then, if the code is
+   unfamiliar, dispatch 2–4 read-only mappers (mapper stub), one per unit the inputs touch, named
+   from the map, and validate each return with `validate-report.mjs --kind mapper --fix` before
+   using it. A flat repository (`features: 0`) maps as
    one unit. The map is a working file: list it under baseline exclusions unless host conventions
    keep generated plan artifacts.
 3. After the required PLAN-mode mapper returns validate, dispatch the harness's plan-authoring
-   route from its routing reference, using the §0 planner prompt. The orchestrator supplies the
-   validated mapper brief (or verified anchors under the mapping exception), open questions,
+   route from its routing reference, using the §0 planner stub. The orchestrator supplies the
+   validated mapper report files (or verified anchors under the mapping exception), open questions,
    existing rulings, scope, preflight/evidence, plan/graph paths, and resolved workflow/template/
    checklist paths.
    The planner inherits the orchestrator's model and effort under the harness routing reference.
@@ -349,10 +357,15 @@ evidence, and continue in that lane.
    - **Rulings**: two tables. _Floor rulings_ the user owns (options + recommendation), including
      any new stable error code by exact string (or "none — reuse `<family>`"), and the **terminal
      action** (commit / push / PR / comment / deploy / none). _Recorded calls_ the orchestrator
-     rules under the floor with rationale, user-vetoable. For any section whose verb is enforce,
+     rules under the floor with rationale, user-vetoable. A call that delivers less than the
+     inputs asked, or something different, starts with `narrows:` (a requirement met in part, a
+     control left out, a behavior chosen where the inputs were silent). For any section whose
+     verb is enforce,
      gate, block, redact, suspend, or pause, pre-rule the **negative space**: operations that must
      remain available, paths needed to finish or stop existing work, and routes whose request
      bodies identify or contain restricted resources or operations.
+   - **Out of scope**: every part of the inputs the plan does not deliver, each with where it
+     goes instead (a deferral row, another issue, another repository) or why it is dropped.
    - **Goals**: observable exit tests. Every clause that asserts something is _rejected_ gets a
      paired clause asserting legitimate use is _admitted_, measured on real client behavior (one
      page view, one legitimate request burst), never an arbitrary count. A plan that changes a
@@ -364,7 +377,9 @@ evidence, and continue in that lane.
      intermediate result when the requested outcome is removal of duplication. Preserve distinct
      behavior checks; a shared fixture does not prove that each caller uses it correctly.
    - **Sections**: one commit-sized outcome each, with scope, dependencies, acceptance, and
-     relevant mapper evidence. For any invariant a section changes,
+     relevant mapper evidence. The implementer receives the section block verbatim and nothing
+     else from the mapping, so the block carries every anchor it needs. REVIEW names the
+     section's lenses by the names in EXECUTE step 4. For any invariant a section changes,
      list its **writers** as well as its readers. TARGET names the owning unit from the
      feature map; a section that writes into a shared kernel says so there.
      Apply **Commit-sized sections**: name the milestone and justify each stopping point.
@@ -398,8 +413,8 @@ evidence, and continue in that lane.
 6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file> --commit-boundaries`.
    This checks populated stopping-point fields; the planner still judges their coherence.
    Fix errors; never waive them in prose.
-7. Render the generated Mermaid: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>
-   --no-open`. Open the resulting HTML with an available browser tool, wait for Mermaid to finish,
+7. Render the generated Mermaid: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>`.
+   Open the resulting HTML with an available browser tool, wait for Mermaid to finish,
    and capture readable screenshots of every graph. The script generates HTML, not screenshots.
    Keep renders and images outside tracked plan files. Follow **Rendered graph inspection** in
    `references/graph-analysis.md` for capture, the visual checklist, and unavailable-tool handling.
@@ -413,8 +428,10 @@ evidence, and continue in that lane.
    Fix concrete findings, update Graph Findings, and re-validate, re-render, and re-inspect affected
    graphs after corrections.
    Record unavailable visual inspection explicitly; never turn missing images into an approval.
-9. Present the inspected graph and Graph Findings. If rendering is unavailable, show raw Mermaid
-   and the inspection limitation; raw code is not visual evidence.
+9. Present the plan in this order: what the user will get, one line per goal; the **Out of
+   scope** list; every `narrows:` call, so the user can veto it before work is built on it; then
+   the inspected graph and Graph Findings. If rendering is unavailable, show raw Mermaid and the
+   inspection limitation; raw code is not visual evidence.
    Apply the approval rule from **Select a mode**. On approval or auto-start, set `status`,
    record the approval evidence, and re-validate.
 
@@ -425,7 +442,7 @@ Do not dispatch a planner for an EXECUTE resume when no replan is needed.
 
 ## EXECUTE mode — per-section loop
 
-Read `references/agent-prompts.md` before the first dispatch; use its templates verbatim.
+Read `references/agent-prompts.md` before the first dispatch; use its stubs verbatim.
 
 Run the loop without pausing between steps or sections. Accept a section and dispatch the next
 one in the same turn, and put status notes in the message that carries the next action. Stop
@@ -437,7 +454,10 @@ that do not block the work.
 **0. Preflight.** Validate the plan. Re-run affected environment probes when their worktree,
 realm, service, credential, or toolchain inputs changed; record presence, never secret values.
 Resolve roles per the harness reference and record the evidence. Set `status: executing` before
-the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. Pick the first
+the first dispatch. Capture `git status` as the baseline; preserve unrelated changes. The first
+`section-brief.mjs` call stores that baseline in the run directory, and every assignment lists it;
+a session that resumes with section work uncommitted first writes the unrelated changes alone
+into `<run-dir>/baseline.txt`. Pick the first
 unchecked section whose `DEPENDS ON` are all checked. When it carries a batch label and the
 harness reference defines parallel implementation, pick every unchecked member of that batch
 whose `DEPENDS ON` are checked and follow **Parallel batch execution** below. Confirm no
@@ -454,25 +474,35 @@ exclusions.
 symbols and behavior have not changed since mapping. `validate-report.mjs --kind anchors` checks
 file and line existence only; re-read changed context and its defining search before reusing it.
 Otherwise dispatch ≤2 mappers for the unanchored or stale items, validate each return, and apply
-the follow-up rule from the prompts reference. Filter refreshed facts into this section's brief;
+the follow-up rule from the prompts reference. Filter refreshed facts into this section's
+ADDITIONAL CONTEXT;
 use the same planner for a bounded replan only if goals or execution order need to change.
 
 If the first unchecked section has become a milestone-sized assignment, request the bounded
 replan before implementation. Compare its current writers and acceptance scope with its commit
 boundary; do not carry an oversized section forward merely because it was already approved.
 
-**2. Implement.** Check that the goal, acceptance, and filtered evidence are actionable. Send one
-implementer the section block verbatim, context brief, global gate, preflight, baseline, the
-PARALLEL BATCH block (`none` when no other section has uncommitted work in the checkout), and
-the **Corrections in force** block (every
-factual correction accepted in earlier sections of this plan). Keep its handle: decision relays and
+**2. Implement.** Check that the goal, acceptance, and filtered evidence are actionable. Write
+the assignment file and send one implementer the IMPLEMENTER stub that the script prints (prompts
+reference §2):
+
+```bash
+node <skill-root>/assets/section-brief.mjs <plan-file> <ID> --run-dir <run-dir> --repo-root <repo>
+```
+
+The assignment carries the section block verbatim, the rulings that apply to it, the global gate,
+the preflight and known blockers, the working-tree baseline, the PARALLEL BATCH block (`none` when
+no other section has uncommitted work in the checkout), and the **Corrections in force** block
+(every factual correction accepted in earlier sections of this plan). Put facts verified after the
+plan was written under ADDITIONAL CONTEXT. Keep the agent's handle: decision relays and
 report-validation errors resume the same agent, and a rejection goes to the correction carrier
 chosen in step 6. The implementer's report includes a **CLAIMS** block: every prose assertion it
 added or changed (README, comment, docs, OpenAPI description, evidence row) with the anchor that
 makes it true _at this commit_, and a **RETIRES** block that names artifacts removed or explains
 why none was retired, such as additive work with no obsolete artifact or retained compatibility.
-Validate the report (`validate-report.mjs --kind implementer --repo-root <repo>`) before any
-reviewer is dispatched; a hard error goes back to the same agent once.
+Validate the report (`validate-report.mjs --kind implementer --repo-root <repo> --input <report
+file> --fix`) and read it before any reviewer is dispatched; a hard error goes back to the same
+agent once.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →
@@ -481,30 +511,36 @@ a report that validates: until then its context is the only record of the sectio
 decision relay always resumes the same agent. If the agent is lost, record it and resume with a
 new one given the full prior report.
 
-**4. Review.** Launch the applicable lenses in one message (templates in the prompts reference):
+**4. Review.** As soon as the report validates, run `section-brief.mjs` for the section again, so
+the assignment carries every ruling and recorded call made since the dispatch, and launch the
+applicable lenses in one message, each with the REVIEWER stub it prints (prompts reference §3):
 security/authz · data/migration · contract/API · failure-mode/reliability · convention/scope ·
 **doc-truth** (every claim in the diff traced to code) · **capacity/false-positive** (only when the
 diff touches a limiter, quota, timeout, or admission policy) · **evaluator soundness** (only for
-journey/proof sections, using the proportionate-verification policy). Rules: never fewer
-than three lenses outside the bounded-fix lane (which runs convention/scope and doc-truth); `⚠`
-sections get the full set; keep security whenever tenancy, auth, limits, resolvers, or hooks are
-touched; doc-truth always. Each returns APPROVE or REJECT with anchors and an evidence tag per
-finding; approvals cite 2–5 anchors too. Validate each return (`--kind reviewer`). A reviewer can
-be wrong — refute a finding against the code and record the refutation rather than implementing
-it; a REJECT whose findings are all `evidence: inference` is verified by the orchestrator first
-and reaches the implementer only with an upgraded tag or not at all. Every finding names its
-`trigger:`, meaning the input, caller, stored state, or deployment failure that reaches the defect
-at this commit, or `static` with the rule or claim it breaks. A finding whose trigger no existing
-client, caller, writer, or deployment failure produces is refuted on the record as `unreachable`
-and does not reach the implementer.
-For section or final reviews where cross-section dependencies, shared-state paths, or integration
-gates matter, include a relevant part of the planner-inspected graph as optional context using the
-review prompt's GRAPH CONTEXT field. Reuse the existing images; do not require a new render or a
-diagram for every review. Findings still need code/test evidence within the assigned lens.
+journey/proof sections, using the proportionate-verification policy).
 
-**5. Verify evidence.** Review the section's commands, results, tested worktree state, and relevant
-environment. Run missing or invalidated section checks; do not repeat valid runs because another
-agent executed them. New or changed tests due at this stage must actually run. Later-stage tests
+- **Which lenses.** Never fewer than three lenses outside the bounded-fix lane (which runs
+  convention/scope and doc-truth); `⚠` sections get the full set; keep security whenever tenancy,
+  auth, limits, resolvers, or hooks are touched; doc-truth always.
+- **Returns.** Each returns APPROVE or REJECT with anchors and an evidence tag per finding;
+  approvals cite anchors too. Validate each return (`--kind reviewer`) and read the report file.
+- **Refutation.** A reviewer can be wrong: refute a finding against the code and record the
+  refutation rather than implementing it. A REJECT whose findings are all `evidence: inference`
+  is verified by the orchestrator first and reaches the implementer only with an upgraded tag or
+  not at all. Every finding names its `trigger:`, meaning the input, caller, stored state, or
+  deployment failure that reaches the defect at this commit, or `static` with the rule or claim
+  it breaks. A finding whose trigger no existing client, caller, writer, or deployment failure
+  produces is refuted on the record as `unreachable` and does not reach the implementer.
+- **Graph context.** For section or final reviews where cross-section dependencies, shared-state
+  paths, or integration gates matter, include a relevant part of the planner-inspected graph as
+  optional context using the stub's GRAPH CONTEXT field. Reuse the existing images; do not
+  require a new render or a diagram for every review. Findings still need code/test evidence
+  within the assigned lens.
+
+**5. Verify evidence.** Do this while the reviewers run; do not hold their dispatch for it.
+Review the section's commands, results, tested worktree state, and relevant environment. Run
+missing or invalidated section checks; do not repeat valid runs because another agent executed
+them. New or changed tests due at this stage must actually run. Later-stage tests
 and broader gates stay pending until due and block plan completion until passed. Before trusting
 live or browser evidence, confirm the running stack includes the tested changes and matching
 relevant inputs. Read the full
@@ -514,7 +550,9 @@ pattern elsewhere in the repository and record hits under RISKS or as a filed is
 **6. Accept or reject.** All seven checks: section gate evidence valid and passing · required section
 DB / integration / e2e tests actually ran · no floor crossed without a ruling · acceptance maps to an
 exit test · scope stayed inside the section · conventions followed · deferrals explicit, safe, and
-tracked. Reject → send the exact gaps to the **correction carrier**: the same implementer by
+tracked.
+
+**Reject.** Send the exact gaps to the **correction carrier**: the same implementer by
 default, or a fresh section-correction implementer (prompts reference §5) when the harness routing
 reference's carrier rule applies. The handoff to a fresh agent is the validated report plus the
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: a
@@ -522,9 +560,11 @@ section has one implementer at a time. Count rounds the same way for either carr
 correction report validates, re-review by follow-up to each reviewer that rejected (prompts
 reference §5): it rules on its own findings and the lines the correction changed. A lens that
 approved runs again only when the correction changed code in its scope. Dispatch a fresh reviewer
-for a re-review only when the first one is lost. **Convergence rule:**
-in-contract rounds continue while unresolved findings decrease. An unruled floor item goes to the
-user. A repeated defect mechanism or findings that stop decreasing enters **sign-off mode**:
+for a re-review only when the first one is lost.
+
+**Convergence rule.** In-contract rounds continue while unresolved findings decrease. An unruled
+floor item goes to the user. A repeated defect mechanism or findings that stop decreasing enters
+**sign-off mode**:
 
 1. The orchestrator takes over review and acceptance. Read each unresolved finding against the
    current diff, original goal, recorded rulings, and verification evidence; use a targeted probe
@@ -546,27 +586,35 @@ user. A repeated defect mechanism or findings that stop decreasing enters **sign
 Do not change a worker's model or effort to resolve a stalled review. Round count or token use
 alone does not trigger sign-off or a blocker. Preserve unresolved findings and their history
 through a split. Record environment retries separately (`⚙×n`); they never count as rounds.
-Accept →
-append the ledger record (schema in the template: sha, `rounds: n` with one
-`R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
-return exposed, per the harness reference, never an estimate). Stage only the reviewed section
-diff and its acceptance evidence, then commit with the section's message before further product
-work. Read the committed diff against the section baseline; verify it matches the reviewed and
-tested candidate. Record the resulting SHA in the ledger and run the Git-aware validation above.
-The SHA-only ledger update may accompany the next section commit; commit final ledger updates at
-milestone closure. A commit cannot contain its own SHA. Add accepted factual corrections to
-**Corrections in force**. If committing or verification fails, resolve that before dispatching
-the next section. Later milestone gates remain pending. Loop to step 0.
+
+**Accept.** In this order:
+
+1. Append the ledger record (schema in the template: sha, `rounds: n` with one
+   `R<n> <class>: <reason>` line per round, `review:`, `routing:`, `cost:` — the usage each agent
+   return exposed, per the harness reference, never an estimate).
+2. Stage only the reviewed section diff and its acceptance evidence, then commit with the
+   section's message before further product work.
+3. Read the committed diff against the section baseline; verify it matches the reviewed and
+   tested candidate.
+4. Record the resulting SHA in the ledger and run the Git-aware validation above. The SHA-only
+   ledger update may accompany the next section commit; commit final ledger updates at milestone
+   closure. A commit cannot contain its own SHA.
+5. Add accepted factual corrections to **Corrections in force**.
+
+If committing or verification fails, resolve that before dispatching the next section. Later
+milestone gates remain pending. Loop to step 0.
 
 **Parallel batch execution.** For a batch picked in step 0, run steps 1–6 for its members at the
 same time, up to the width the harness reference sets. Start members in ledger order, and start
 a waiting member when another is accepted or leaves the batch. The steps change as follows:
 
-- **Dispatch.** Each member's implementer receives the PARALLEL BATCH block: every other section
-  with uncommitted work in the checkout, its state, and its write set. Keep each member's state
-  on its unchecked ledger row: `batch <label>: implementing`; `in review` with the path of the
-  saved validated report; `accepted, commit pending` with the rounds, review, routing, and cost
-  record and the member's digest.
+- **Dispatch.** Keep each member's state on its unchecked ledger row: `batch <label>:
+  implementing`; `in review` with the path of the validated report; `accepted, commit pending`
+  with the rounds, review, routing, and cost record and the member's digest. Write
+  `implementing` on every picked member's row before generating any assignment:
+  `section-brief.mjs` builds the PARALLEL BATCH block from those rows, and each member's
+  implementer receives every other section with uncommitted work in the checkout, its state, and
+  its write set.
 - **Returns.** Act on each return when it arrives; do not wait for siblings. Run
   `validate-plan.mjs <plan-file> --repo-root <repo> --write-sets <member IDs>`. It lists each
   uncommitted path under the member whose write set owns it and prints a digest of each member's
@@ -581,10 +629,10 @@ a waiting member when another is accepted or leaves the batch. The steps change 
   set its `PARALLEL` to `no` and note `left batch <label>: needs <path>` on its row. After the
   batch commits, add the path and resume the same agent. Its uncommitted work stays in the tree
   until then, and a join-check failure located only in its paths is handled when it resumes.
-- **Review.** DIFF SCOPE is the member's listed paths. Every other section with uncommitted
-  work goes under BASELINE EXCLUSIONS as in progress. A correction accepted from one member is
-  checked against each sibling's report at that sibling's review, or at batch close for a
-  sibling already accepted, because the sibling started without it.
+- **Review.** DIFF SCOPE is the member's listed paths. The assignment regenerated for the review
+  lists every other section with uncommitted work under PARALLEL BATCH as in progress. A correction
+  accepted from one member is checked against each sibling's report at that sibling's review, or at
+  batch close for a sibling already accepted, because the sibling started without it.
 - **Accept.** A member that passes the seven checks is accepted with its commit pending. While
   any implementer in the batch is active, do not commit, stash, switch branches, merge, or run a
   formatter or generator in the checkout: commit hooks and those commands rewrite files a
@@ -604,7 +652,8 @@ a waiting member when another is accepted or leaves the batch. The steps change 
   `accepted, commit pending`: keep the member when its digest matches the note; otherwise
   review the changed paths. `in review`: validate the saved report again and dispatch its
   lenses. `implementing`, or a report that is missing: the agent is lost, so dispatch a new
-  implementer with the section block and the member's listed paths as its starting state.
+  implementer with the member's assignment, and name the member's listed paths under ADDITIONAL
+  CONTEXT as its starting state.
 
 ## Complete the plan
 
@@ -623,29 +672,40 @@ When every section is checked:
    branch writes into a shared column, enum, event type, or registry, checked against every reader
    in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
    at HEAD, including adjacent pre-existing sentences; (f) **rollout window** —
-   old binary × new schema during replacement. Validate each return (`--kind final`). Findings go
-   to one correction implementer scoped to the findings; validate its report with
-   `validate-report.mjs --kind correction --repo-root <repo>`, then re-review by follow-up to the
-   reviewers that reported findings (prompts reference §5); commit additively; repeat until clean
-   or signed off by the orchestrator under step 6. Required
-   corrections and gates still have to pass. In the
-   bounded-fix lane the section review already served as the final review: skip the separate review.
+   old binary × new schema during replacement. Use the final-review stub (prompts reference §4)
+   and validate each return (`--kind final`). Findings go to one correction implementer scoped to
+   the findings (prompts reference §7); validate its report with `validate-report.mjs --kind
+   correction --repo-root <repo>`, then re-review by follow-up to the reviewers that reported
+   findings (prompts reference §5); commit additively; repeat until clean or signed off by the
+   orchestrator under step 6. Required corrections and gates still have to pass. In the
+   bounded-fix lane the section review already served as the final review: skip the separate
+   review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
    in the budgeted order. Reuse valid results; run missing or invalidated checks once and record
    `actual runs`. Record any `>1.5×` overrun as a missed finding in Graph
    Findings.
-4. **Deferrals** — file the tracking issue for every deferral row that has none (`gh issue
-create` or the host's equivalent) or give it a machine-checkable re-entry gate. A deferral with
-   neither is a validation error.
+4. **Deferrals** — file the tracking issue for every deferral row that has none
+   (`gh issue create` or the host's equivalent) or give it a machine-checkable re-entry gate. A
+   deferral with neither is a validation error.
 5. **Status** — `verified`, `shipped`, `verification_blocked`, or `externally_deferred`.
 6. **Annotate the graph from the ledger** — the validator refuses a graph whose marks disagree
    with the ledger. Marks: `✅` accepted · `🔁×n` rounds · `⚠→` a brief reached a human (note the
    ruling) · `⇢` orchestrator-ruled inside the floor · `⚙×n` environment retries · `✎` goal or scope
    amended at completion. Re-render and show it.
-7. **Report** — sections and commits, planned vs actual per gate, available usage per section, Graph
-   Findings confirmed / did not occur / missed, deferrals with issue numbers, exit-test evidence.
-   For each parallel batch, report its members and the elapsed time from first dispatch to last
-   commit when the harness exposes it.
+7. **Report** — in this order:
+   - **Outcome.** For each thing the inputs asked for, in the user's words: delivered, delivered
+     in part, or not delivered, with the evidence and what is missing. Say what still has to
+     happen before the user has what they asked for (a deploy, a change in another repository, a
+     deferral).
+   - **Calls and omissions.** Every `narrows:` call, including those recorded during
+     execution, the **Out of scope** list, and the deferrals with issue numbers.
+   - **Size.** Lines added and removed from `git diff --numstat <base>...HEAD`, split into
+     product code, tests, documentation, the plan file, and generated files.
+   - **Process record.** Sections and commits, planned vs actual per gate, available usage per
+     section, Graph Findings confirmed / did not occur / missed, exit-test evidence. For each
+     parallel batch, report its members and the elapsed time from first dispatch to last commit
+     when the harness exposes it.
+
    Attribute available usage to planning/mapping/implementation/review and correction rounds;
    include main-session overhead. Use `unknown` for unavailable counters or prices. Tokens alone
    do not establish monetary cost across models; compare total cost per accepted section together
@@ -659,11 +719,19 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
   SHAs, dependency ancestry, and that a commit stays inside its `WRITE SET`;
   `--write-sets [IDs]` lists uncommitted paths by owning section with a digest per section;
   `--self-test`.
-- `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML.
+- `assets/section-brief.mjs` — writes a section's assignment file from the plan (section block,
+  applicable rulings, corrections in force, gates, preflight, parallel batch, baseline) and prints
+  its dispatch stubs; `--round <n>` for a correction round; `--self-test`.
+- `assets/validate-report.mjs` — structural check of mapper, reviewer, final-review, implementer,
+  and correction returns, and of anchors in any text; `--fix` expands short anchors that resolve
+  to one file; `--self-test`.
+- `assets/prompts/` — the rules and report format each role reads: `planner.md`, `mapper.md`,
+  `implementer.md`, `reviewer.md` (section lens checklists), `final-reviewer.md` (lenses a–f),
+  `correction.md`.
+- `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML; `--open`
+  opens it in a browser.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.
-- `assets/validate-report.mjs` — structural check of mapper, reviewer, final-review, implementer,
-  and correction returns, and of anchors in any text; `--self-test`.
 - `assets/VERSION` — the skill release stamped into `gdi_version`.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
@@ -673,8 +741,8 @@ create` or the host's equivalent) or give it a machine-checkable re-entry gate. 
   inherits the orchestrator's model and effort and writes only plan and graph artifacts.
 - `assets/agents/codex/goal-implementer.toml` — Codex implementation role; model and effort are
   configuration, independent of its name.
-- `references/agent-prompts.md` — mapper, implementer, reviewer lenses, final-review, rejection,
-  decision relay, and correction implementer templates; optional graph context for code review.
+- `references/agent-prompts.md` — dispatch stubs for every role, the run directory and report
+  files, validation handling, rejection and re-review follow-ups, decision and write-set relays.
 - `references/graph-analysis.md` — structural and rendered-image inspection checklists, capture
   and correction procedure, and the failure each class prevented.
 - `references/routing-claude.md`, `references/routing-codex.md` — per-harness role resolution.

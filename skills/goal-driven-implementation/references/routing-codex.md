@@ -91,7 +91,7 @@ Keep three facts distinct and record them separately in the plan's Harness routi
 - **Requested** — the role, model, and effort the orchestrator tried to select.
 - **Role-confirmed** — tool/runtime metadata identifies the selected role. Without that evidence,
   record `unknown`; accepting a requested selector or echoing a label does not prove the loaded
-  custom profile. A generic fallback receives its role contract in the dispatch prompt.
+  custom profile. A generic fallback receives its role contract from the prompt file its stub names.
 - **Model-confirmed** — tool/runtime metadata identifies the effective model and effort. A TOML,
   an attestation, or a self-description does not prove the runtime model. An explicit supported
   pin may still be requested when metadata is hidden, but record model-confirmed as `unknown`.
@@ -118,7 +118,8 @@ Use an explicit bounded fork (`fork_turns: "none"` or a small integer) to supply
 context; inherited model/effort does not require inheriting the conversation. Do not rely on the
 default fork. Try `agent_type` naming the current registered role first. For a planner, omit
 model/effort overrides unless needed to match the parent against global defaults. The generic
-planner fallback uses that same parent route and the full §0 contract. Worker fallbacks use
+planner fallback uses that same parent route and the planner contract in
+`assets/prompts/planner.md`. Worker fallbacks use
 direct `model` + `reasoning_effort` only when the schema declares them, read from:
 
 - Implementer: `goal-implementer.toml`.
@@ -126,18 +127,17 @@ direct `model` + `reasoning_effort` only when the schema declares them, read fro
   route. A built-in role name alone does not establish the pin.
 - Reviewer: `goal-reviewer.toml`.
 
-A generic child receives the role's scope, write restrictions, and report contract from the
-dispatch template; report `attestation=none` unless a profile actually supplies one. Do not put
-attestation literals in a fallback prompt. If no supported planner child can use the parent's
-route, the orchestrator authors under the §0 contract and records `fallback: main-session planner`
-in Harness routing and the loss of a separate author in Graph Findings. If neither
-route (registered role or direct pin) is available for the
-**implementer**, stop before product edits. If neither route is available for a **mapper**, the
-orchestrator may gather the same anchored context itself and record the fallback. For the
-**reviewer**, use a generic read-only child at the reviewer's pins before falling back to
-main-session review; main-session review requires `review: self (<reason>)` on the ledger row and an accepted
-risk in Graph Findings, and the final review must then be independent. The implementer pin has
-no automatic substitute.
+A generic child receives the role's scope, write restrictions, and report contract from the prompt
+file its stub names; report `attestation=none` unless a profile actually supplies one. Do not put
+attestation literals in a fallback prompt. If no supported planner child can use the parent's route,
+the orchestrator authors under that planner contract and records `fallback: main-session planner` in
+Harness routing and the loss of a separate author in Graph Findings. If neither route (registered
+role or direct pin) is available for the **implementer**, stop before product edits. If neither
+route is available for a **mapper**, the orchestrator may gather the same anchored context itself
+and record the fallback. For the **reviewer**, use a generic read-only child at the reviewer's pins
+before falling back to main-session review; main-session review requires `review: self (<reason>)`
+on the ledger row and an accepted risk in Graph Findings, and the final review must then be
+independent. The implementer pin has no automatic substitute.
 
 ## Codex prompt wrapper
 
@@ -150,9 +150,8 @@ For PLAN mode, use the §0 planner body only after the required mapper returns v
 receives a fresh merged context and writes only the named plan/graph artifacts. A bounded replan
 preserves completed history; an EXECUTE resume without a replan does not dispatch it again.
 
-For a generic correction implementer, also include the RULES from template §2; a fresh child
-does not inherit them. Apply those rules to the listed findings, with template §7 defining the
-correction scope, required gates, and report format instead of a section's IMPLEMENT outcomes.
+A generic correction implementer reads `assets/prompts/correction.md` like the installed role;
+that file carries its rules, correction scope, required gates, and report format.
 
 ```text
 Complete the assigned task and provide the required evidence and report. Use prior user instructions
@@ -171,11 +170,16 @@ when installed and the language is supported; otherwise use rg and targeted file
 searches to the assigned paths. Planner, mapper, and reviewer use ast-grep only for search.
 Implementer rewrites stay within the section's allowed edit scope; inspect the resulting diff.
 
-Apply SKILL.md's proportionate-verification policy: focused reproduction per defect mechanism,
+Apply the proportionate-verification policy: focused reproduction per defect mechanism,
 sensitivity checks for concrete vacuity risks, and reuse of valid evidence across roles. Run
 checks at their scheduled stage and repeat only missing or invalidated checks or a targeted
 probe for a finding. Preserve explicit user and host-repository requirements; pending gates
 are not successes.
+
+Begin your final report with this line, filling in what you can observe:
+ROUTING: requested=<the role or model this task asked for>; attestation=<the role label your
+profile instructions give, or none>; runtime=<the model and effort your runtime metadata shows,
+or unknown>
 
 Keep the requested report labels and evidence. Write concise, readable findings and agent
 messages; do not append a second summary. A follow-up refines the active task unless it explicitly
@@ -193,6 +197,21 @@ Apply the wrapper's authorization guidance when
 orchestrating too: request only unresolved rulings, with the exact instruction and evidence.
 For configuration inheritance, see the official
 [Codex subagent documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#custom-agents).
+
+## Run directory and reports
+
+- **Run directory.** `<system temp dir>/gdi/<repo-name>/<plan-slug>/`, created by the root in PLAN
+  preflight and recorded in the plan header. It holds `baseline.txt`, the assignment files, and
+  the reports the root saves.
+- **Prompt files.** Every role reads the prompt file its stub names under
+  `<skill-root>/assets/prompts/`, and the implementer and reviewers read the section's assignment
+  file. Give absolute paths; a read-only sandbox can read them.
+- **Reports.** Codex stubs carry `REPORT FILE: none`: `goal-explorer` and `goal-reviewer` run in
+  a read-only sandbox and cannot write to the run directory, and no Codex run has shown that
+  the implementer's sandbox can. Each role returns its report as its final message, after the
+  `ROUTING` line. The root saves that message to the run directory under the name in the prompts
+  reference, then validates it with `--fix`. `section-brief.mjs` prints `REPORT FILE: none` when
+  the plan's `harness` is `codex`.
 
 ## Dispatch mechanics
 

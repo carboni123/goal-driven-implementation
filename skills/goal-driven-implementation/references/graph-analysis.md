@@ -32,7 +32,7 @@ to the goal planner.
 
 ### Prepare the images
 
-1. Render the current plan with `assets/render-plan-graph.mjs <plan-file> --no-open`. Open the
+1. Render the current plan with `assets/render-plan-graph.mjs <plan-file>`. Open the
    returned HTML in a browser available to the harness. Wait until each Mermaid block is a rendered
    diagram, not a loading placeholder, raw source, or an error panel. HTML creation alone does not
    prove that the browser loaded Mermaid or rendered every block.
@@ -91,7 +91,8 @@ budget, preflight, known blockers, section blocks, and ledger. Apply every class
   anchors --repo-root <repo> --input <plan>` and read the errors. Every named symbol, scope,
   column, or export exists as claimed.
 - Every `DEPENDS ON` edge is buildable: no workspace cycle or import in an impossible direction.
-- Every input clause reaches a section or the out-of-scope list.
+- Every input clause reaches a section or the **Out of scope** list; every call that narrows an
+  input is marked `narrows:`.
 - Every enforce/gate/block/redact section has a negative-space ruling.
 - Every rejection exit test has a paired admission exit test measured on real client behavior.
 - Every section that writes a new shared value has a reader-sweep entry.
@@ -167,9 +168,11 @@ under the existing approval rules; do not invent a new approval floor or route i
   codebase had barely shrunk (commit `062811da3`, 819 net lines removed).
 - **Dropped or partially consumed input** — an input node that reaches no section, _or an input
   whose clauses are only partly served_. Every clause reaches a section or is named in the
-  out-of-scope list. _Origin:_ a plan folded one clause of a sibling issue, passed the dropped-input
-  check, and left two-thirds of that issue unbuilt; a second plan then repeated the migration,
-  build, acceptance run, whole-branch review, and conformance updates across six packages.
+  plan's **Out of scope** list, and every recorded call that delivers less than an input asked
+  starts with `narrows:`. _Origin:_ a plan folded one clause of a sibling issue, passed the
+  dropped-input check, and left two-thirds of that issue unbuilt; a second plan then repeated
+  the migration, build, acceptance run, whole-branch review, and conformance updates across six
+  packages.
 - **Sibling surface** — the same job pattern, guard, or resolver exists in another module. Check
   it or exclude it by name. _Origin:_ a submit-retry race fixed in one module remained in another
   module with the same pattern; a customer found it.

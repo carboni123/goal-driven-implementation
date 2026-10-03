@@ -42,8 +42,10 @@ node goal-driven-implementation/scripts/install.mjs --only codex
 ```
 
 Targets: `~/.claude/skills/`, `~/.claude/agents/` (five `gdi-*` roles), `~/.codex/skills/`,
-`~/.agents/skills/`, `~/.codex/agents/` (four `goal-*` roles). Existing copies are moved to a
-`.bak-<timestamp>` sibling.
+`~/.agents/skills/`, `~/.codex/agents/` (four `goal-*` roles). Existing copies are moved to
+`~/.gdi-backups/<timestamp>/`, outside the directories a harness scans, so a backup is never
+loaded as a second skill. `.bak-<timestamp>` copies left beside the targets by an earlier
+installer are moved there too. An unknown flag is an error and installs nothing.
 
 For an existing `goal-implementer-terra` installation, migrate its config registration and other
 references to `goal-implementer`, retire the old registration/file, and reload Codex. The installer
@@ -63,7 +65,11 @@ prints the new snippet and leaves legacy config/files intact. See the
    user's ruling on floor items or start. The plan author is a dedicated role in both harnesses
    (`gdi-planner`, `goal-planner`); the orchestrator checks its write boundary and re-validates.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
-   eight review lenses in parallel, every agent return validated structurally
+   eight review lenses in parallel. Dispatch is by file: `assets/section-brief.mjs` writes the
+   section's assignment from the plan (section block, rulings, corrections in force, gates,
+   preflight, baseline) and prints short dispatch stubs; each role reads its rules from
+   `assets/prompts/`. In Claude Code an agent writes its report to the plan's run directory and
+   validates it before returning. Every return is validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
    (commit section and acceptance evidence, then record and verify its SHA) or sends exact gaps
@@ -88,7 +94,9 @@ prints the new snippet and leaves legacy config/files intact. See the
 3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
    coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
-   the ledger, report.
+   the ledger, report. The report leads with the outcome in the user's terms (delivered, in
+   part, not delivered), then the calls that narrowed the request and what is out of scope, then
+   the size of the change by kind, then the process record.
 
 A change that is one section, touches nothing on the floor, and writes nothing into shared state
 runs the **bounded-fix lane** instead: same plan file and implementer, two review lenses, the
@@ -138,9 +146,12 @@ skills/goal-driven-implementation/
     VERSION                      release stamped into every plan as gdi_version
     plan-template.md             gdi_schema: 2 plan skeleton
     validate-plan.mjs            structural, batch, boundary, and Git commit checks (--self-test)
+    section-brief.mjs            plan → one section's assignment file and dispatch stubs (--self-test)
     render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
     scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
-    validate-report.mjs          structural check of agent returns and anchors (--self-test)
+    validate-report.mjs          structural check of agent returns and anchors; --fix (--self-test)
+    prompts/*.md                 rules and report format each role reads (planner, mapper,
+                                 implementer, reviewer, final-reviewer, correction)
     agents/claude/gdi-*.md       pinned Claude Code roles (planner, implementer, mapper, two reviewers)
     agents/codex/goal-*.toml     Codex custom agents
       goal-planner.toml         plan-authoring role
@@ -148,13 +159,14 @@ skills/goal-driven-implementation/
       goal-explorer.toml        read-only mapper role
       goal-reviewer.toml        read-only reviewer role
   references/
-    agent-prompts.md             mapper, implementer, reviewer lenses, final review, relays
+    agent-prompts.md             dispatch stubs, run directory and reports, follow-ups, relays
     graph-analysis.md            the analysis checklist, each class with the failure it prevents
     routing-claude.md            role resolution and dispatch in Claude Code
     routing-codex.md             role resolution and dispatch in Codex CLI
 scripts/install.mjs              local installer
-claude/, codex/                  the two forks as they were on 2026-09-01 (baseline, unchanged)
 ```
+
+The pre-unification Claude and Codex forks are in Git history: `git show v0.6.1:claude/...`.
 
 ## Versioning
 
@@ -171,11 +183,14 @@ the legacy rules; resuming one adds the schema-2 surfaces without touching appro
 node skills/goal-driven-implementation/assets/validate-plan.mjs --self-test
 node skills/goal-driven-implementation/assets/scout-repo.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-report.mjs --self-test
+node skills/goal-driven-implementation/assets/section-brief.mjs --self-test
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --commit-boundaries
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo --write-sets A1,A2
-node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md --no-open
+node skills/goal-driven-implementation/assets/section-brief.mjs path/to/plan.md A1 --run-dir /tmp/run --repo-root path/to/repo
+node skills/goal-driven-implementation/assets/validate-report.mjs --kind reviewer --repo-root path/to/repo --input report.md --fix
+node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md
 node skills/goal-driven-implementation/assets/scout-repo.mjs path/to/repo --out feature-map.yml
 ```
 

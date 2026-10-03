@@ -3,7 +3,10 @@
 // and progress ledger.
 //
 // Usage:
-//   node render-plan-graph.mjs <plan.md> [--out <file.html>] [--no-open]
+//   node render-plan-graph.mjs <plan.md> [--out <file.html>] [--open]
+//
+// The page is written and its path printed. --open also opens it in the default browser; an
+// agent captures the page with its own browser tool instead. --no-open is accepted and ignored.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,12 +16,14 @@ import { spawn } from 'node:child_process';
 const args = process.argv.slice(2);
 let planArg;
 let outArg;
-let noOpen = false;
+let open = false;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
-  if (arg === '--no-open') {
-    noOpen = true;
+  if (arg === '--open') {
+    open = true;
+  } else if (arg === '--no-open') {
+    open = false;
   } else if (arg === '--out') {
     outArg = args[index + 1];
     if (!outArg) {
@@ -38,7 +43,7 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 if (!planArg) {
-  console.error('Usage: node render-plan-graph.mjs <plan.md> [--out <file.html>] [--no-open]');
+  console.error('Usage: node render-plan-graph.mjs <plan.md> [--out <file.html>] [--open]');
   process.exit(1);
 }
 
@@ -106,9 +111,18 @@ const findings = extractSection(/^#{2,4}\s+Graph Findings/i);
 const ledger = [];
 const ledgerStart = lines.findIndex((line) => /^#{1,4}\s+(?:\d+\.\s+)?Progress ledger/i.test(line));
 if (ledgerStart !== -1) {
+  // The record schema inside a code fence is an example, not a ledger row.
+  let fenced = false;
   for (let index = ledgerStart + 1; index < lines.length; index += 1) {
     if (/^##\s+Completion\b/i.test(lines[index])) {
       break;
+    }
+    if (/^\s*(```|~~~)/.test(lines[index])) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) {
+      continue;
     }
     const match = lines[index].match(/^\s*(?:-\s+)?\[( |x|X)\]\s+(.+)$/);
     if (match) {
@@ -339,7 +353,7 @@ console.log(
     `${findings ? ', findings shown' : ''})`,
 );
 
-if (!noOpen) {
+if (open) {
   const [command, commandArgs] =
     process.platform === 'win32'
       ? ['cmd', ['/c', 'start', '', outputPath]]

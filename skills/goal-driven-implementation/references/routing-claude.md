@@ -45,14 +45,19 @@ to 50k tokens; a role on the same machine with a six-tool allowlist started at 7
 The definitions are included at `assets/agents/claude/gdi-*.md`. Claude Code loads agents
 from `~/.claude/agents/` (user scope) or `.claude/agents/` (project scope); on a name clash the
 project copy wins. If a `gdi-*` type is not listed in the session's available agents, copy the
-five files there and start a new session:
+five files there:
 
 ```bash
 cp <skill-root>/assets/agents/claude/gdi-*.md ~/.claude/agents/
 ```
 
-Do this in PLAN mode preflight, before preparing the plan for approval. Record the outcome in the
-plan's Harness routing table.
+Do this in PLAN mode preflight, before preparing the plan for approval, then dispatch the type.
+Claude Code picks up a definition added during the session. If the dispatch still rejects the
+type as unknown, use the fallback below for this session and record it. Record the outcome in the
+plan's Harness routing table. _Origin:_ a run found no `gdi-*` definitions, recorded that
+installing them needed a new session, and ran every role on the `general-purpose` fallback: its
+first-round reviews took 103 to 516 seconds. In the next run the definitions were installed
+mid-session and dispatched three minutes later; `gdi-reviewer` first-round reviews took 52 to 90.
 
 ## Verification protocol (before the first dispatch)
 
@@ -64,12 +69,13 @@ Keep three facts distinct and record them per role in the plan's Harness routing
   it, **and** the loaded definition is current. Listing alone is not enough: `diff` the installed
   file (`.claude/agents/` in the project when present, else `~/.claude/agents/`) against the
   skill's copy. A project copy that differs only by a recorded `tools` host override (Tool
-  allowlists above) is current. Any other differing file is a stale role: reinstall and start a
-  new session, or record `role-confirmed: stale (<what differs>)` and treat the standing contract
-  as absent, so the dispatch prompt must carry every rule. _Origin:_ on 2026-09-13 the installed
-  `gdi-implementer.md` on the maintainer's machine predated 0.4.0 and lacked the RETIRES,
-  sensitivity, and evidence-reuse rules the source definition carries; every Claude run since had
-  dispatched to the older contract while its plan recorded the current release.
+  allowlists above) is current. Any other differing file is a stale role: reinstall it, or record
+  `role-confirmed: stale (<what differs>)`. A stale role still reads the current rules from its
+  prompt file; what stays stale is its model, effort, and tool allowlist. _Origin:_ on
+  2026-09-13 the installed `gdi-implementer.md` on the maintainer's machine predated 0.4.0 and
+  lacked the RETIRES, sensitivity, and evidence-reuse rules the source definition carries; every
+  Claude run since had dispatched to the older contract while its plan recorded the current
+  release.
 - **Model-confirmed** — the Agent tool result reports neither the model nor the effort that ran.
   The user can read the model on the agent's row in `/tasks` (and the effort when the definition
   pins one); record that when they report it. Otherwise record
@@ -80,22 +86,45 @@ Reuse the routing record while the definition files and environment are unchange
 
 ## Fallback (recorded, never silent)
 
-- Plan author: the main session authors the plan under the same §0 contract. It is the model the
+- Plan author: the main session authors the plan under the planner contract in
+  `assets/prompts/planner.md`. It is the model the
   user selected, so this is not a downgrade, but the author and the approver are then the same
   session; record `fallback: main-session planner` in the routing table and name that risk in
   Graph Findings.
 - Mapper → `Explore` with `model: "sonnet"` (read-only by construction); record its session-default
   effort if the fallback cannot select medium.
-- Implementer and reviewers → `general-purpose` with `model: "claude-opus-5-5"` per call.
+- Implementer and reviewers → `general-purpose` with `model: "opus"` per call. The Agent tool's
+  `model` parameter takes a family alias (`opus`, `sonnet`, `haiku`, and any others its schema
+  lists) and rejects a full model ID; full IDs belong in definition frontmatter only.
   Effort cannot be set per call and runs at the session default. Use this only when session effort matches
-  the role's frontmatter or an explicit user override covers the deviation; otherwise prepare
-  the role definition and reload before dispatch. A generic child has no standing contract and can
-  write files: the dispatch template is its only contract, so send the full RULES and, for a
-  reviewer or mapper, an explicit read-only instruction. Record the fallback model and effort in
-  the routing table and on every affected ledger row.
+  the role's frontmatter or an explicit user override covers the deviation; otherwise install
+  the role definition first. A generic child has no standing contract and can write files: the
+  prompt file named in the stub is its contract, so add, for a reviewer or mapper, an explicit
+  instruction that it writes nothing except its REPORT FILE. Record the fallback model and effort
+  in the routing table and on every affected ledger row.
 - If no read-only reviewer can be dispatched at all, the orchestrator may review a section itself
   only with `review: self (<reason>)` on the row and an accepted risk in Graph Findings; the final
   review must then run with an independent agent, or the run stops.
+
+## Run directory and reports
+
+- **Run directory.** Use `<session scratchpad>/gdi/<plan-slug>/` when the session has a
+  scratchpad or temporary directory, otherwise `<system temp dir>/gdi/<repo-name>/<plan-slug>/`.
+  Create it in PLAN preflight and record the absolute path in the plan header. Subagents share the
+  session's filesystem and write their reports there.
+- **Reports.** Every `gdi-*` role and every fallback writes its report to the `REPORT FILE` the
+  stub names, runs the `VALIDATE` command, and returns a pointer. `gdi-mapper` and the reviewers
+  have no `Write` tool; they write that one file with a shell heredoc. The plan author returns a
+  free-form handoff and has no report file.
+- **Orchestrator.** When a completion notification arrives, run the validator on the report file
+  with `--fix` and read the file. The notification's `<result>` is the pointer, not the report. If
+  an agent returned its report in the final message instead of the file, save that message to the
+  report path with one shell command and validate it; do not send it back for the file alone.
+
+_Origin:_ the skill named no place for an agent's return, so one run wrote its own `jq` script
+over the harness's task output to get each return into a file. Across three runs the
+orchestrator typed 103 dispatch prompts, 533k characters: on average 12k per implementer (the
+section block, the rules, and the corrections in force) and 3.7k per reviewer.
 
 ## Dispatch mechanics
 
@@ -117,8 +146,9 @@ Reuse the routing record while the definition files and environment are unchange
 - Follow-ups go to the **same** agent via `SendMessage` (load it with
   `ToolSearch select:SendMessage`): decision relays, report-validation errors, planner captures,
   re-reviews, and a rejection unless the correction-carrier rule below sends it to a fresh
-  agent. Never replace an implementer whose section work is in progress; if the agent is lost,
-  record it and resume with a new one given the full prior report.
+  agent. A follow-up that asks for a new report names a new `REPORT FILE`. Never replace an
+  implementer whose section work is in progress; if the agent is lost, record it and resume with
+  a new one given the prior report file.
 - Reports carry no `ROUTING` line in Claude Code: the harness exposes no routing metadata to the
   child, and the type named at dispatch identifies the definition. Routing evidence lives in the
   plan's table under the protocol above.
@@ -154,8 +184,9 @@ being rejected:
 
 - **150k or less, or no usage block** → resume the same implementer with `SendMessage` and the
   first body of prompts reference §5.
-- **Above 150k** → dispatch a fresh `gdi-implementer` with the second body of §5. Never message
-  the first handle again in this section. Later rounds apply the same test to the fresh agent.
+- **Above 150k** → dispatch a fresh `gdi-implementer` with the carrier stub that
+  `section-brief.mjs --round <n>` prints (prompts reference §5). Never message the first handle
+  again in this section. Later rounds apply the same test to the fresh agent.
 
 Decision relays, write-set relays, and report-validation errors always resume the same agent,
 whatever its size.

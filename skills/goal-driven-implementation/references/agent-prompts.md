@@ -1,22 +1,89 @@
-# Agent Prompt Templates
+# Dispatch Reference
 
-Substitute `{...}` placeholders and keep everything else intact. Dispatch mechanics (agent
-names, model/effort, follow-up calls, routing evidence) are harness-specific — read
-`references/routing-claude.md` or `references/routing-codex.md` and use its dispatch wrapper
-around these bodies. For Codex, prepend its prompt wrapper on initial dispatches, corrections,
-and follow-ups. Where a harness exposes routing metadata, begin the report with its specified
-`ROUTING` header (Codex: `requested`, `attestation`, `runtime`); omit it where it does not.
+Each role's rules and report format are in a prompt file under `assets/prompts/`. The role reads
+that file itself. A dispatch message is a short stub: it names the files to read and carries the
+fields only the orchestrator knows. Name a file instead of pasting it: do not put a prompt file, a
+section block, or another agent's report into a dispatch message.
+
+Substitute `{...}` placeholders and keep everything else intact. Dispatch mechanics (agent names,
+model and effort, follow-up calls, routing evidence, where the run directory lives) are
+harness-specific: read `references/routing-claude.md` or `references/routing-codex.md`. For
+Codex, prepend its prompt wrapper on initial dispatches, corrections, and follow-ups. Where a
+harness exposes routing metadata, a report begins with its `ROUTING` header (Codex: `requested`,
+`attestation`, `runtime`).
 
 Contents:
 
-0. [Planner](#0-planner)
-1. [Mapper](#1-mapper)
-2. [Implementer](#2-implementer)
-3. [Section reviewer + lens checklists](#3-section-reviewer)
-4. [Final-review reviewer (whole branch)](#4-final-review-reviewer)
-5. [Rejection follow-up](#5-rejection-follow-up)
-6. [Decision relay](#6-decision-relay)
-7. [Correction implementer](#7-correction-implementer)
+- [Run directory and reports](#run-directory-and-reports)
+- [0. Planner](#0-planner)
+- [1. Mapper](#1-mapper)
+- [2. Implementer](#2-implementer)
+- [3. Section reviewer](#3-section-reviewer)
+- [4. Final-review reviewer](#4-final-review-reviewer)
+- [5. Rejection follow-up](#5-rejection-follow-up)
+- [6. Decision relay](#6-decision-relay)
+- [7. Correction implementer](#7-correction-implementer)
+
+| Prompt file                         | Read by                                                   |
+| ----------------------------------- | --------------------------------------------------------- |
+| `assets/prompts/planner.md`         | plan author                                               |
+| `assets/prompts/mapper.md`          | mapper                                                    |
+| `assets/prompts/implementer.md`     | section implementer, first dispatch and correction rounds |
+| `assets/prompts/reviewer.md`        | section reviewer; holds the eight lens checklists         |
+| `assets/prompts/final-reviewer.md`  | whole-branch reviewer; holds lenses a–f                   |
+| `assets/prompts/correction.md`      | final-review correction implementer                       |
+
+---
+
+## Run directory and reports
+
+**Run directory.** One directory per plan, outside the repository, that the session and its
+agents can write. The harness routing reference says where it goes. It holds `baseline.txt`, one
+`<ID>.assignment.md` per section, and every agent report. Record its path in the plan header. A
+later session reuses it while it exists; a report that is missing from it is a lost return.
+
+**Assignment file.** `assets/section-brief.mjs` writes `<run-dir>/<ID>.assignment.md` from the
+plan: the section block verbatim, the rulings that apply to it, Corrections in force, the global
+gate, the preflight with known blockers, the PARALLEL BATCH block, and the working-tree baseline.
+It also prints the implementer and reviewer stubs for that section with every path filled in.
+Run it again before dispatching the section's reviewers and before a fresh correction carrier, so
+the file carries any ruling, recorded call, write-set change, correction in force, or batch state
+recorded since the implementer was dispatched.
+
+**Report delivery.** Where the harness lets a role write to the run directory, the stub names a
+`REPORT FILE` and the `VALIDATE` command. The agent writes its report there, runs the validator,
+corrects what it prints, and returns a pointer of two or three lines. Where it does not, the stub
+says `REPORT FILE: none` and has no `VALIDATE` line, the agent's final message is the report, and
+the orchestrator saves that message to the run directory before validating it.
+
+| Report                                     | File name in the run directory                    | `--kind`      |
+| ------------------------------------------ | ------------------------------------------------- | ------------- |
+| Mapper                                     | `map-<area>.md`                                   | `mapper`      |
+| Section implementer, first report          | `<ID>-impl.md`                                    | `implementer` |
+| Section implementer, correction round n    | `<ID>-impl-r<n>.md`                               | `implementer` |
+| Section reviewer; its re-review, round n   | `<ID>-rev-<lens>.md`; `<ID>-rev-<lens>-r<n>.md`   | `reviewer`    |
+| Final reviewer; its re-review, round n     | `final-<lenses>.md`; `final-<lenses>-r<n>.md`     | `final`       |
+| Final-review correction, round n           | `final-correction-r<n>.md`                        | `correction`  |
+
+In a file name, `<lens>` is the lens name in lowercase with every run of other characters
+replaced by `-` (`contract/API` → `contract-api`), `<lenses>` is the final reviewer's lens
+letters (`final-ab.md`), and `<area>` is a short slug of the mapper's AREA that no other report in
+the run directory uses.
+
+**Validation.** The agent's `VALIDATION` line is a claim. Before acting on any report, run
+
+```bash
+node <skill-root>/assets/validate-report.mjs --kind <kind> --repo-root <repo> --input <report file> --fix
+```
+
+and then read the report file. `--fix` rewrites a short anchor such as `meter.ts:42` to the
+repository-relative path when exactly one file matches. A hard error goes back to the **same**
+agent once, with the error list pasted and the same `REPORT FILE`; reviewers and the planner see
+only a report that validates. Hard errors: a missing label, an anchor whose file or line does not
+exist, a short anchor that matches several files, SYMBOLS with no anchor, a CLAIMS item or a
+finding without an anchor, a finding without an evidence tag or a `trigger:`, a REJECT with no
+findings, a bare or unexplained `RETIRES: none`, empty GATE EVIDENCE, `decision-needed` without a
+brief.
 
 ---
 
@@ -28,15 +95,13 @@ Codex; a harness fallback is recorded, never silent). It runs in a fresh context
 delegate.
 
 ```text
-Define concise goals, organize execution, and filter mapper evidence in the assigned plan. Write only
-the named plan and graph paths; read source as needed. Do not edit product source or product docs,
-approve the plan, change floor rulings, update completed ledger history, execute sections, run final
-gates, commit, or delegate.
+Read {skill-root}/assets/prompts/planner.md in full before anything else. It holds your rules and
+the handoff format.
 
 PLAN ARTIFACT: {plan path}
 GRAPH ARTIFACTS: {render or image paths, or "none"}
-MAPPED CONTEXT: {merged VALIDATED mapper findings, or verified orchestrator anchors under the
-mapping exception}
+MAPPED CONTEXT: {the validated mapper report files in the run directory, or verified orchestrator
+anchors under the mapping exception}
 OPEN QUESTIONS: {unresolved facts and the owner of each answer}
 SCOPE AND SOURCES: {allowed plan inputs, exclusions, and source paths}
 RULINGS: {existing floor rulings and recorded calls}
@@ -44,46 +109,10 @@ WORKFLOW AND RESOURCES: {absolute paths to SKILL.md, plan-template.md, graph-ana
 SKILL ROOT AND PROVENANCE: {resolved skill root, source revision/release, installed or repository copy}
 PREFLIGHT AND GATES: {status, baseline SHA, scheduled gates, and valid evidence}
 COMPLETION: {plan validation, structural/visual graph checks, and handoff criteria}
-
-Read the supplied workflow, template, and checklist at their resolved paths. Define observable
-goals, scope, dependencies, execution order, acceptance, gates, and applicable rulings. Leave
-implementation design and step-by-step task lists to the implementer. Keep every required field;
-fields with nothing to record take one line.
-
-Filter validated mapper evidence into each section's CONTEXT TO AGGREGATE, WRITERS, SIBLING
-SURFACES, and LIFECYCLE / GATE EFFECTS. Keep relevant anchors, uncertainties, and premise
-corrections; remove duplicate and unrelated material. The orchestrator forwards those fields
-to the implementer rather than forwarding all raw mapper returns.
-Use mapped facts and read narrowly when needed; report contradictions instead of silently
-expanding scope. Own goal grouping and structural/visual graph checks. Inspect supplied
-images only when they are actual captures; if images or image tools are unavailable, report visual
-inspection as unperformed and name the affected graph and cause. Preserve approved scope and
-completed history on a bounded replan. The orchestrator owns probes/capture when needed, rulings,
-approval/status, ledger history, execution, review, gates, and commit.
-
-Make each section one coherent local commit and group related sections into milestones. Fill
-MILESTONE and COMMIT BOUNDARY: why the result stands without the next section, which goal clause
-or usable internal capability it establishes, and what remains. Separate independent behaviors;
-keep changes required by the same invariant together. Schedule broad gates at their consuming
-milestone, retaining required section checks. An S/M label does not justify a subsystem-sized
-assignment. On a replan, preserve accepted work and explicitly assign every unresolved finding.
-Validate populated boundary fields with `validate-plan.mjs <plan-file> --commit-boundaries`;
-this structural check does not judge whether a proposed boundary is coherent.
-
-Place sections in a parallel batch where the workflow's Parallel batches conditions hold. Where
-two outcomes can be verified separately, cut them with disjoint write sets and no dependency;
-keep a DEPENDS ON edge only where a section consumes a symbol, schema, state, or artifact another
-creates. Assign a file two members would edit to one of them or to a join section. Give each
-member PARALLEL and a complete WRITE SET, mark members `∥<label>` in the graph, write each batch
-in braces in the recommended order, and record each batch's check in Graph Findings. Leave a
-section unbatched when a condition is uncertain.
-
-Return a concise free-form handoff, after the ROUTING line where the harness specifies one.
-Include the plan path and status, concise goals and execution order, each section's filtered-context
-location, commands and decisive check results (or pending), graph
-inspection evidence and image paths (or unperformed/cause), remaining open questions, and the
-next step for the orchestrator.
 ```
+
+The planner returns a free-form handoff. Its claims about validation are checked by running the
+plan validator and the anchors check yourself.
 
 ---
 
@@ -94,47 +123,27 @@ changed since the plan was written. Cap 2 per section; all in one message. In PL
 mapper per unit the inputs touch, named from the feature map.
 
 ```text
-Map one area of this codebase for an upcoming implementation section. Read-only — do not modify
-anything, do not delegate.
+Read {skill-root}/assets/prompts/mapper.md in full before anything else. It holds your rules and
+report format.
 
 AREA: {context item}
 SECTION GOAL: {one-line goal}
 FEATURE MAP: {path to the scout map, or "none — flat repository"}
 UNIT: {unit name and path from the map that owns this area, or "n/a"}
 BOUNDARY: {specific questions, relevant paths, and exclusions}
-
-If a feature map is given, read it first: confirm which unit owns the area, use the map's names
-for units, and report under UNCERTAINTIES any way the area's framing disagrees with the map.
-Stay within AREA; follow a cross-unit dependency only far enough to verify the requested boundary.
-Report other candidate work under UNCERTAINTIES instead of expanding the mapping assignment.
-Verify every anchor by opening the file at that line before reporting it. Anchors are
-repository-relative `path:line`; confirm the cited symbol and behavior, not just the line number.
-Return, densely:
-SYMBOLS: relevant symbols with file:line anchors
-PATTERN: the existing convention to copy and its exemplar file
-TESTS: existing tests to extend and the exact command that runs them
-WRITERS: every writer of the state this section changes (not only readers)
-COUPLINGS: flags, config, migrations, generated code, fail-closed registries in other packages
-LIFECYCLE: artifacts/config/credentials produced; build-time vs runtime binding; gates affected
-SIBLINGS: other modules/routes implementing the same pattern (job, guard, resolver)
-UNCERTAINTIES: claims you could not verify, stated as such
+REPORT FILE: {run-dir}/map-{area}.md   (or "none — return the report as your final message", without the next line)
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind mapper --repo-root {repo} --input {report file} --fix
 ```
 
-Validate every return before merging:
-
-```bash
-node <skill-root>/assets/validate-report.mjs --kind mapper --repo-root <repo> --input <return.md>
-```
-
-A hard error (missing label, unanchored SYMBOLS, an anchor whose file or line does not exist)
-goes back to the **same** mapper once with the error list pasted; a second failure is recorded
+Validate every return before using it. A second hard error from the same mapper is recorded
 under **Premise corrections** as an unmapped area; do not retry again. A `thin` or `soft` warning
 allows at most one targeted follow-up per section: a narrower AREA limited to symbols with
 insufficient evidence. Record any remaining evidence gaps as an accepted risk in Graph Findings.
 
-Merge validated returns for the planner to filter into per-section context. On an EXECUTE refresh
-without a replan, the orchestrator filters the new evidence into the current section's brief.
-Record any correction to the plan's premise under **Premise corrections**.
+Give the planner the validated mapper report files to filter into per-section context. On an
+EXECUTE refresh without a replan, the orchestrator filters the new evidence into the current
+section's ADDITIONAL CONTEXT. Record any correction to the plan's premise under **Premise
+corrections**.
 
 ---
 
@@ -144,344 +153,117 @@ A section has one implementer at a time, and only members of one parallel batch 
 time. Keep each handle: decision relays (§6) and report-validation errors resume that agent; a
 rejection goes to the correction carrier (§5).
 
-```text
-You are the sole implementation agent for ONE section of a goal-driven implementation plan. No
-other agent writes code for this section. Do not delegate writing.
-
-=== SECTION (verbatim from the plan) ===
-{full section block}
-
-=== CONTEXT BRIEF ===
-{planner-filtered evidence for this section, including relevant uncertainties and corrections;
-or "none — the plan's anchored context fields are the brief"}
-
-=== TASK BOUNDARY ===
-{goal, allowed scope, invariants, exclusions, acceptance checks, and applicable rulings;
-reference the section fields rather than duplicating them}
-
-=== CORRECTIONS IN FORCE ===
-{every factual correction accepted in earlier sections of this plan, or "none yet"}
-
-=== WORKING-TREE BASELINE ===
-{pre-existing changed/untracked files to preserve and exclude}
-
-=== PARALLEL BATCH ===
-{"none — no other section has uncommitted work in this checkout", or every other section with
-uncommitted work here: ID, title, state (implementing, in review, accepted, left the batch), and
-WRITE SET}
-
-=== GLOBAL GATE ===
-{final verification command and scheduled stage; existing valid evidence, if any}
-
-=== EXECUTION-ENVIRONMENT PREFLIGHT ===
-{status, baseline SHA, realm, known blockers with pre-approved handling}
-
-RULES
-- Read the repository instruction files and every touched module's README first.
-- Choose the design and implementation steps that satisfy GOAL, IMPLEMENT outcomes, and
-  ACCEPTANCE using the filtered context. No detailed task plan is required. No future sections,
-  unrelated refactors, or unrelated fixes; report unrelated findings under RISKS.
-- Before your first edit, re-run the section's defining search (the symbols in CONTEXT and
-  WRITERS) and report any delta from the plan's anchors under ANCHOR DELTA.
-- The plan's behavior claims are hypotheses. If one does not resolve against the code, report the
-  correction instead of implementing the wording. If the assignment cannot fit the allowed
-  boundary, return the concrete mismatch and permitted independent progress; do not redesign
-  the section or silently expand it.
-- Work toward the section's COMMIT BOUNDARY. If discovery adds an independent behavior,
-  ownership mechanism, or lifecycle beyond that boundary, report it under RISKS and return the
-  coherent progress and remaining work for a bounded replan. Do not grow the IMPLEMENT list or
-  substitute future milestone gates for the assigned section checks. The orchestrator owns
-  acceptance and commits; do not commit incomplete work yourself.
-- WRITE SET: when the section declares one, it lists every path you may create, edit, or delete.
-  With PARALLEL BATCH `none`, edit a path it lacks only when the section needs it and name the
-  path under RISKS. When PARALLEL BATCH lists sections, their uncommitted work is in this
-  checkout and other implementers may be editing it now: do not edit a path outside your WRITE
-  SET. Finish what it allows and return STATUS: blocked naming the path and the edit it needs.
-  Run no command that changes Git state or writes outside your WRITE SET: no `git stash`,
-  `checkout`, `restore`, `reset`, `clean`, `add`, or `commit`; no formatter, fixer, generator,
-  or codemod whose output leaves your WRITE SET; no database migration, reset, or reseed and no
-  stack rebuild or restart that the section does not assign. A check that fails only in a
-  listed section's WRITE SET is that section's work in progress: do not edit it; rerun the
-  check once, then record the command and output under ENV and continue.
-- RULING FLOOR: if the work requires an unruled change on the floor named in CONTRACT DECISION —
-  ESCALATE, stop before writing that code and return STATUS: decision-needed with a brief. Do not
-  implement a temporary version. Anything not on the floor: decide, note it under CALLS, continue.
-- Work until the section's checks pass or a stop in these rules applies. STATUS: blocked means no
-  further in-scope progress is possible: a contradicted preflight assumption, a dependency
-  outside the boundary, or a boundary mismatch. A difficult defect inside the section is not a
-  blocker. Do not return a progress-only report, an offer to continue, or options that do not
-  block the work; decide those under CALLS.
-- For every error path you add or touch, name the related unhandled case — raw/non-domain throw past
-  an instanceof gate, timeout, partial write, crash between two writes, replay, concurrent
-  writer, the same defect in the next operation — and handle it or list it under RISKS.
-- After fixing a defect, search for the same defect pattern elsewhere in the repository; report hits under
-  SIBLINGS (do not fix outside your section).
-- Every prose claim you write or change (README, comment, docs page, OpenAPI description,
-  evidence row, UI copy) must be true at THIS commit, not at branch end. Absolute words
-  ("every", "always", "no longer", "only") need an anchor. Fix or flag any existing sentence
-  your diff makes false, including ones you did not write.
-- Extend existing tests and fixtures; each addition needs a distinct behavior or failure mode.
-  For a defect fix, obtain a focused failure before and pass after when practical; an existing
-  observed reproduction counts. Group assertions for the same mechanism. Record any obstacle to
-  before evidence and the alternative evidence; do not create infrastructure just for the report.
-- For consolidation, report the planned retirements and caller adoption under RETIRES and
-  ACCEPTANCE. A replacement helper alone does not establish reduced duplication. Preserve each
-  distinct regression check; separate product, test, and planning changes in any size comparison.
-- Add a sensitivity check for a concrete risk of a bypassed path, vacuous assertion, or misplaced
-  fault injection; using a mock alone is not a trigger. Confirm the expected behavioral failure.
-  Inject the relevant implementation defect; do not merely change a test's expected value or
-  make the test throw unconditionally, which does not prove it detects the defect.
-  Use a local temporary edit or disposable fixture, never a rollback of applied state, a revert
-  of committed work, or a separate rebuild/deploy solely to manufacture failing output.
-- Run the section's focused checks and any host-required checks due now; broader and live/e2e
-  gates run at their scheduled stage. Reuse valid evidence and rerun only missing or invalidated
-  checks or a targeted probe needed to resolve a finding. Preserve checks for auth/tenancy,
-  persistence, concurrency, and public contracts where required. Confirm the running stack
-  includes the tested changes and matching relevant inputs before trusting live evidence.
-  Paste real output and identify the tested state; pending gates are not successes.
-- Refresh affected tracked generated artifacts with their canonical generators before returning
-  for review; include them in DIFF and LIFECYCLE EFFECTS. Test imports and file moves may invalidate
-  dependency graphs or inventories even when product behavior is unchanged. If a generated file
-  falls outside the assigned boundary, report that dependency for the orchestrator to resolve.
-- Treat a contradicted preflight assumption as a blocker; do not improvise a different database,
-  network realm, credential, or lifecycle path. Known blockers have pre-approved handling; use it
-  and record it under ENV.
-- Do not commit. Do not edit the plan ledger.
-
-Your final message is exactly this report:
-STATUS: complete | blocked | decision-needed
-ANCHOR DELTA: anchors that moved or symbols that did not exist, or "none"
-DIFF: one line per changed file — what and why
-RETIRES: actual files/exports/flags removed, or none — justified: additive work leaves no obsolete artifact,
-  retained compatibility, or another concrete reason
-CLAIMS: one line per prose claim added or changed — claim → file:line that makes it true
-CALLS: non-floor decisions you made, one line each with rationale
-GATE EVIDENCE: command + decisive output + tested state; reused evidence reference or pending stage
-TESTS RUN: suites and results; defect reproduction evidence; targeted sensitivity checks if needed
-LIVE FLOW: steps, tested stack, observed result; or not required / scheduled stage
-ENV: known-blocker handling used, or "none"
-LIFECYCLE EFFECTS: produced/invalidated gate inputs; did the plan's prediction hold
-ACCEPTANCE: the exit-test clause this satisfies
-SIBLINGS: matching implementation patterns elsewhere, or "none"
-DEFERRALS: omitted work and why deferral is safe
-RISKS: what a reviewer should scrutinize; unrelated issues noticed
-DECISION BRIEF: product effect; 2–4 options; consequences; recommendation; evidence (only if needed)
-```
-
-Validate the report before any reviewer is dispatched:
+Write the assignment file and get the stubs:
 
 ```bash
-node <skill-root>/assets/validate-report.mjs --kind implementer --repo-root <repo> --input <report.md>
+node <skill-root>/assets/section-brief.mjs <plan-file> <ID> --run-dir <run-dir> --repo-root <repo>
 ```
 
-A hard error (missing label, bare or unexplained `RETIRES: none`, a CLAIMS line without an anchor,
-an anchor that does not resolve, empty GATE EVIDENCE, `decision-needed` without a brief) goes back
-to the same implementer once as a rejection with the error list; reviewers see only a report that
-validates.
+Send the IMPLEMENTER stub it prints as the dispatch message:
+
+```text
+Read {skill-root}/assets/prompts/implementer.md and {run-dir}/{ID}.assignment.md in full before anything else.
+The first holds your rules and report format. The second is your assignment.
+REPORT FILE: {run-dir}/{ID}-impl.md
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind implementer --repo-root {repo} --input {run-dir}/{ID}-impl.md --fix
+ADDITIONAL CONTEXT: {facts verified after the plan was written: an EXECUTE-time mapper refresh,
+a decision made since, a sibling surface the previous section reported; or "none"}
+```
+
+The first call stores the uncommitted paths in `<run-dir>/baseline.txt`, and later calls read
+that file. The script captures nothing when section work may already be in the tree, which is at
+a correction round or while a ledger row carries batch state: it prints `NOT CAPTURED`, and you
+write to `baseline.txt` the `git status --porcelain` lines that are not plan work (an empty file
+when there are none) and run it again. Edit the file the same way when unrelated changes appear
+in the checkout later.
+
+For a parallel batch, write every picked member's state on its ledger row before generating any
+member's assignment: the PARALLEL BATCH block lists the other sections whose unchecked rows
+carry batch state. Check the `parallel batch:` line the script prints.
 
 ---
 
 ## 3. Section reviewer
 
-Read-only, one lens each, all applicable lenses launched in one message after the implementer
-reports. Never fewer than three lenses outside the bounded-fix lane, which runs exactly
-convention/scope and doc-truth. The direct lane runs one reviewer with `LENS: doc-truth and
-convention/scope`, both checklists, and the orchestrator's change summary and CLAIMS block as
-IMPLEMENTER REPORT. `⚠` sections get the full set. Security stays whenever tenancy, auth, limits,
-resolvers, or hooks are touched. Doc-truth always runs.
+Read-only, one lens each, all applicable lenses launched in one message after the implementer's
+report validates. Never fewer than three lenses outside the bounded-fix lane, which runs exactly
+convention/scope and doc-truth. `⚠` sections get the full set. Security stays whenever tenancy,
+auth, limits, resolvers, or hooks are touched. Doc-truth always runs. The lens names are
+security/authz, data/migration, contract/API, failure-mode/reliability, convention/scope,
+doc-truth, capacity/false-positive, and evaluator soundness; their checklists are in
+`assets/prompts/reviewer.md`.
 
-For section and final reviews, graph context is optional: include an existing planner-inspected
+Run `section-brief.mjs` again for the section, then send the REVIEWER stub it prints, once per
+lens:
+
+```text
+Read {skill-root}/assets/prompts/reviewer.md, {run-dir}/{ID}.assignment.md, and the implementer report {run-dir}/{ID}-impl.md in full before anything else.
+LENS: {lens name}
+DIFF SCOPE: {the uncommitted changes the report's DIFF lists, or a commit range; in a parallel
+batch, the member's paths from the --write-sets listing}
+GRAPH CONTEXT: {planner-inspected image/crop + relevant node IDs + plan state, or "none"}
+REPORT FILE: {run-dir}/{ID}-rev-{lens}.md
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind reviewer --repo-root {repo} --input {run-dir}/{ID}-rev-{lens}.md --fix
+```
+
+Graph context is optional for section and final reviews: include an existing planner-inspected
 image or relevant crop only when it clarifies cross-section dependencies, shared-state paths, or
 integration gates inside the lens. Label the relevant nodes and matching plan state; use `none`
 for a local review that gains nothing from a diagram. The plan-authoring planner owns graph
-inspection and the orchestrator manages the existing plan-approval flow; missing graph context does
-not block code review.
+inspection; missing graph context does not block code review.
+
+The direct lane has no plan and no assignment file. It runs one reviewer with both checklists and
+gives the fields in the message:
 
 ```text
-You are a focused, read-only reviewer for one section of an implementation plan. Do not modify
-files, do not delegate, do not review outside your lens.
-
-LENS: {lens name}
+Read {skill-root}/assets/prompts/reviewer.md in full before anything else.
+LENS: doc-truth and convention/scope
 SECTION GOAL: {one-line goal}
-ACCEPTANCE AND INVARIANTS: {relevant exit clauses, behavior to preserve, and applicable rulings}
-DIFF SCOPE: {changed files or commit range}
-WRITE SET: {the section's WRITE SET as amended, or "none declared"}
-BASELINE EXCLUSIONS: {pre-existing changes; also every other section with uncommitted work in
-the checkout and its WRITE SET, marked "in progress"}
-CHECK FOR: {lens checklist}
-IMPLEMENTER REPORT: {validated section report}
-GRAPH CONTEXT: {planner-inspected image/crop + relevant node IDs + plan state, or "none"}
-
-Review implementation code. If graph context is supplied, view it to orient your trace of the
-relevant producers, consumers, and gates, then verify those paths in code and tests. It depicts
-plan intent, not proof of correctness. If it is unavailable or stale, note the limitation and
-continue from acceptance and code. Send diagram-only discrepancies to the planner in NOTES;
-do not redesign or approve the plan. Code findings still require file:line evidence in your lens.
-
-Read the report, diff, and enough surrounding code to judge them in context. Verify the actual
-behavior against acceptance and invariants, including assumptions supplied by the planner;
-the implementation following its brief does not by itself establish correctness. `RETIRES` must name
-artifacts actually removed, or explain why none was retired — for example, additive work leaves no
-obsolete artifact or a compatibility facade remains. Do not require deletion merely to fill the
-field. Reject a missing, bare, empty, or unsupported entry. The validator checks the field's shape
-only — the reviewer judges whether its rationale is true. Review supplied verification evidence
-before running checks. Run a targeted probe for a concrete gap or uncertain validity; do not
-repeat valid runs solely for independent review. Never modify the tree. A path under BASELINE
-EXCLUSIONS marked in progress belongs to another section whose work is not committed yet: do not
-review it, and report a check that fails only there under NOTES with its output. A finding must
-be concrete and anchored; default to APPROVE when no concrete issue is found. Approvals cite
-anchors too.
-
-Report a finding only when a trigger that exists at this commit reaches it: a request any client
-can send (for security, a hostile client too), a caller in the repository, a state some writer in
-the repository produces, or a failure the deployment can produce (a dependency timeout or error,
-a process restart, concurrent writers, old and new binaries during a rollout). Name that trigger
-in the finding. A defect that needs a state no writer produces, a caller that does not exist, or
-repository code breaking a contract that no code breaks goes under NOTES, with the missing
-precondition. For a convention, scope, doc-claim, or generated-artifact finding, the trigger is
-`static` followed by the rule or claim it breaks.
-
-Final message:
-VERDICT: APPROVE | REJECT
-EVIDENCE: 2–5 file:line anchors — what each establishes
-FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
-NOTES: non-blocking observations
+ACCEPTANCE AND INVARIANTS: {what the change must state or preserve}
+DIFF SCOPE: {changed files}
+WRITE SET: none declared
+BASELINE EXCLUSIONS: {pre-existing changes}
+IMPLEMENTER REPORT: {the orchestrator's change summary and CLAIMS block: every assertion the diff
+adds, with its anchor}
+GRAPH CONTEXT: none
+REPORT FILE: {a path outside the repository, or "none — return the report as your final message", without the next line}
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind reviewer --repo-root {repo} --input {report file} --fix
 ```
 
-Evidence tags, strongest first: `test` a test asserts the behavior or its absence; `code`
-readable from the cited implementation; `partial` the happy path was read, the edge not traced;
-`config` supported by a flag, environment value, or stub rather than runtime code; `inference`
-deduced from naming, structure, or pattern. Validate each return:
+After validation, two more checks apply to a REJECT before it reaches the implementer:
 
-```bash
-node <skill-root>/assets/validate-report.mjs --kind reviewer --repo-root <repo> --input <return.md>
-```
-
-A hard error (REJECT with no findings, a finding without an anchor, tag, or `trigger:`, a dead
-anchor) goes back to the same reviewer once. A REJECT whose findings are all `evidence: inference`
-does not reach the implementer as-is: the orchestrator verifies each against the code and either
-upgrades the tag with its own anchor or refutes it on the record. A finding whose named trigger
-does not exist in the repository or deployment (no such caller, writer, or client request) is
-refuted on the record as `unreachable` and is not relayed.
-
-Lens checklists:
-
-1. **Security/authz** — authz on every new path; validation at trust boundaries; secrets never in
-   code or logs; injection surfaces; **every restriction the client enforces is also enforced
-   server-side**; tenant or ownership scoping on every raw read where the repository has such a
-   boundary; restricted resources or operations identified or included in request bodies, inline
-   media, links, headers, and nested payloads, not only the route prefix.
-2. **Data/migration correctness** — additive and reversible; existing rows and legacy branches;
-   constraints and indexes; **existing CHECKs, triggers, and allowlists admit any widened value**;
-   **what writes this data in production** (a seed is not a rollout); rollback compatibility with
-   the currently deployed binary.
-3. **Contract/API compatibility** — public data structures unchanged unless ruled; old clients and data;
-   **every new value written into a shared enum, column, event type, or registry has every reader
-   enumerated and handled** (search the whole repository); update every affected artifact for
-   SDK-visible changes (type mirror, parity test, CHANGELOG, README example, conformance row, OpenAPI).
-4. **Failure-mode/reliability** — sane error states; timeouts and retries on external calls;
-   partial failure and idempotency; races between the writers listed in the section; **who else
-   already traverses any shared limiter, queue, or table this change re-scopes, and their
-   per-interaction demand**; no orphaned state on the unhappy path.
-5. **Convention/scope** — naming, layering, test placement; change stays inside the section and
-   inside its WRITE SET when it declares one; no dead code or unrelated changes; **test doubles use
-   the current row structure**, not a legacy structure; defect reproduction and any needed
-   sensitivity checks address the actual mechanism, with obstacles and alternative evidence stated.
-   Require a concrete coverage gap before asking for more tests or fixtures; mocks alone do not
-   justify mutation checks. No proof reverts committed or applied state; **no unjustified
-   configuration key** — a new environment variable or other host-set key is a finding unless the
-   section names who sets it, on which host, and what breaks at the default (numeric parameters are
-   named constants in the owning module, runtime-changed values are config rows, env is for
-   secrets, endpoints, and per-host selectors; a Zod default is not a justification); compare
-   **RETIRES** against the diff and reject a missing or unsupported retirement rationale. For a
-   reduction goal, check caller adoption and remaining duplication against the promised outcome;
-   distinguish shared setup from each caller's behavior coverage. Do not demand deletion for
-   additive work or reject a correct implementation merely to prefer a different abstraction. Check
-   affected tracked generated artifacts against their canonical generation inputs, including test
-   imports and moved files, before sending the candidate to broader gates.
-6. **Doc-truth** — for every claim in the CLAIMS block and every sentence the diff touches or
-   makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
-   UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is
-   a REJECT. A count, version, route list, evidence claim, or RETIRES rationale must trace to a
-   serialized artifact or the diff.
-7. **Capacity/false-positive** — run only when the diff touches a limiter, quota, timeout, or
-   admission policy. Enumerate every legitimate client of the governed surface, including the
-   product's own first-party traffic, and its highest per-interaction request count you can find in
-   the repository (prefetch requests, polling cadence, batch sizes). Prove one legitimate interaction is
-   admitted; an arbitrary "under-limit" count is not evidence.
-8. **Evaluator soundness** — run only for journey/proof sections. New or changed evaluators must
-   detect the relevant failure; inject a targeted fault when detection is uncertain. Reuse valid
-   soundness evidence for unchanged evaluators. A crash before the first check must not write a
-   pass artifact; timestamps written before the work cannot prove completion; recipients and
-   identifiers are distinct per run.
+- A REJECT whose findings are all `evidence: inference` does not reach the implementer as-is: the
+  orchestrator verifies each against the code and either upgrades the tag with its own anchor or
+  refutes it on the record.
+- A finding whose named trigger does not exist in the repository or deployment (no such caller,
+  writer, or client request) is refuted on the record as `unreachable` and is not relayed.
 
 ---
 
 ## 4. Final-review reviewer
 
 Dispatched at completion, 2–3 in one message, over the branch **merged onto current
-`origin/main`**. Integration lenses, not section lenses.
+`origin/main`**. Integration lenses, not section lenses; they are defined in
+`assets/prompts/final-reviewer.md`: (a) seams and late obligations, (b) whole-surface contract and
+conformance coherence, (c) plan conformance, deferrals, debris, (d) reader sweep of the diff's
+complement, (e) claim decay, (f) rollout window.
 
 ```text
-You are a read-only whole-branch reviewer for a completed goal-driven implementation plan. Do
-not modify files or delegate.
+Read {skill-root}/assets/prompts/final-reviewer.md in full before anything else. It holds your
+rules, the lens definitions, and the report format.
 
-LENS: {one of a–f below}
+LENS: {one or more of a–f, by letter and name}
 BRANCH: {merged tree / commit range}
 PLAN: {plan path}
 BASELINE EXCLUSIONS: {pre-existing changes}
-CORRECTION REPORTS: {validated correction reports, or "none"}
+CORRECTION REPORTS: {validated correction report files, or "none"}
 GRAPH CONTEXT: {planner-inspected image/crop + relevant node IDs + plan state, or "none"}
-
-Review the implemented branch. If graph context is supplied, view it to locate cross-section
-seams, producers/consumers, and expected integration gates, then trace them in code and tests.
-It depicts plan intent, not proof that an edge works or a gate passed. If it is unavailable or
-stale, note the limitation and continue from the plan and code. Send diagram-only discrepancies
-to the planner in NOTES; do not redesign or approve the plan. Findings require code/test anchors.
-
-Read the correction reports, whole branch, and enough of the repository to judge them in context.
-For each correction report, accept a concrete no-retirement reason when additive work leaves no
-obsolete artifact or a compatibility facade remains; do not require deletion merely to fill the
-field. Reject a missing, bare, empty, or unsupported RETIRES entry. The validator checks its shape
-only, not whether the rationale is true. Findings must be concrete and anchored, and each names
-the trigger that reaches it at this commit: a client request, a caller, a state a writer produces,
-or a deployment failure, or `static` with the rule or claim it breaks. A defect with no existing
-trigger goes under NOTES with the missing precondition. Approvals cite anchors. Review supplied
-verification evidence first; run targeted checks for concrete gaps or
-uncertain validity, not to repeat valid evidence solely for independent review. Final gates
-scheduled after this review remain pending; they must pass before plan completion.
-
-Final message:
-VERDICT: CLEAN | FINDINGS
-EVIDENCE: 2–8 anchors — what each establishes
-FINDINGS: none | one line each: file:line — issue — trigger: <how it is reached, or static: rule> — impact — required correction — evidence: test|code|partial|config|inference
-NOTES: non-blocking observations
+REPORT FILE: {run-dir}/final-{lenses}.md   (or "none — return the report as your final message", without the next line)
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind final --repo-root {repo} --input {report file} --fix
 ```
 
-Validate each return with `validate-report.mjs --kind final --repo-root <repo>`; the same
-re-prompt-once, all-inference, and unreachable-trigger rules as the section reviewer apply.
-
-Lenses:
-
-- **(a) Seams and late obligations** — state one section writes and another consumes: races,
-  double handling, dropped obligations. For every seam a later section introduced (trace
-  propagation, an idempotency check, a release marker), enumerate all call sites across the branch
-  and prove each satisfies it; a partial rollout is a finding.
-- **(b) Whole-surface contract and conformance coherence** — consistency across routes, error
-  codes, SDK, OpenAPI, documentation, and conformance table.
-- **(c) Plan conformance, deferrals, debris** — deferrals really deferred and still reachable;
-  work assigned to later sections completed; no scaffolding, stray files, or violations of plan rules
-  (commit subjects, ids, naming). For consolidation, verify the promised retirements and caller
-  adoption actually occurred; report measured reduction separately from added support artifacts.
-- **(d) Reader sweep of the diff's complement** — every value this branch writes into a shared
-  column, enum, event type, or registry, checked against every reader in the repository,
-  especially fail-closed registries and reports in other packages. This lens reads files the diff
-  did not touch.
-- **(e) Claim decay** — every claim written by an earlier section re-verified at HEAD, including
-  adjacent pre-existing sentences and comments in files changed by earlier sections.
-- **(f) Rollout window** — during replacement, the old binary runs against the new schema and the
-  new binary may see old rows: does either write a state the other cannot interpret; does a
-  migration backfill run before the old worker is gone.
+The same re-prompt-once, all-inference, and unreachable-trigger rules as the section reviewer
+apply.
 
 ---
 
@@ -493,10 +275,10 @@ rule always uses the same implementer.
 
 - **Same implementer (default).** Resume it with the first body below.
 - **Fresh section-correction implementer.** When the carrier rule applies, dispatch a new
-  implementer with the second body and never message the first handle again in this section: a
-  section has one implementer at a time. Append `(carrier: fresh)` to the round line. The validated
-  prior report and the uncommitted section diff are the whole handoff, so send the report verbatim;
-  a paraphrase drops the CALLS and CLAIMS the new agent must honor.
+  implementer and never message the first handle again in this section: a section has one
+  implementer at a time. Append `(carrier: fresh)` to the round line. The validated prior report
+  and the uncommitted section diff are the whole handoff, so the stub names the prior report's
+  file; a paraphrase drops the CALLS and CLAIMS the new agent must honor.
 
 Decision relays (§6) and report-validation errors always resume the same agent. They arrive
 before a validated report exists, when that agent's context is the only record of the section's
@@ -505,101 +287,48 @@ work.
 Same implementer:
 
 ```text
-REVIEW RESULT: rejected. Fix exactly these gaps — nothing else — then send the full report again
-in the same format:
+REVIEW RESULT: rejected. Apply CORRECTION ROUND in your rules file. Fix exactly these gaps,
+nothing else:
 
 1. {file:line — gap — required fix}
 2. {...}
 
-Identify which check inputs this correction changes. Run missing or invalidated checks and any
-targeted probe needed for the findings; retain valid results with their evidence references.
-Do not rerun the global gate solely because this is a rejection; keep broader gates at their
-scheduled stage unless a concrete risk or host rule requires them now.
-Preserve the working-tree baseline.
-Return the full report with RETIRES; explain any `none` entry, including additive work with no
-obsolete artifact where applicable. In DIFF, end the line of each file this correction changed
-with `(changed this round)`.
+REPORT FILE: {run-dir}/{ID}-impl-r{n}.md   (or "none — return the full report as your final message", without the next line)
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind implementer --repo-root {repo} --input {run-dir}/{ID}-impl-r{n}.md --fix
 ```
 
-Fresh section-correction implementer:
+Fresh section-correction implementer: run `section-brief.mjs <plan-file> <ID> --run-dir
+<run-dir> --repo-root <repo> --round <n>` and send the FRESH CORRECTION CARRIER stub it prints,
+with the gaps filled in:
 
 ```text
-You are the sole implementation agent for ONE section of a goal-driven implementation plan, taking
-over at a correction round. The section's first implementer has returned and will not be resumed.
-Its work is in the working tree, uncommitted. No other agent writes code for this section. Do not
-delegate writing.
-
-=== SECTION (verbatim from the plan) ===
-{full section block}
-
-=== TASK BOUNDARY ===
-{as sent to the first implementer}
-
-=== CORRECTIONS IN FORCE ===
-{every factual correction accepted in earlier sections of this plan, or "none yet"}
-
-=== WORKING-TREE BASELINE ===
-{pre-existing changed/untracked files to preserve and exclude. Every other uncommitted change is
-this section's work in progress, or a sibling's under PARALLEL BATCH: keep it}
-
-=== PARALLEL BATCH ===
-{"none — no other section has uncommitted work in this checkout", or every other section with
-uncommitted work here: ID, title, state (implementing, in review, accepted, left the batch), and
-WRITE SET}
-
-=== PRIOR REPORT (validated, verbatim) ===
-{the first implementer's full report, or the latest full report if this is a later round}
-
-=== REVIEW RESULT: rejected ===
-Fix exactly these gaps — nothing else:
-
+Read {skill-root}/assets/prompts/implementer.md and {run-dir}/{ID}.assignment.md in full before anything else.
+You take over this section at a correction round: follow CORRECTION ROUND in the rules file.
+PRIOR REPORT: {run-dir}/{the latest validated report of this section}
+REVIEW RESULT: rejected. Fix exactly these gaps, nothing else:
 1. {file:line — gap — required fix}
-2. {...}
-
-=== GATES ===
-{global gate and scheduled stage; evidence in the prior report that stays valid; preflight status
-and known blockers with pre-approved handling}
-
-RULES
-- The section implementer RULES apply in full: ruling floor, write set and parallel batch, claims
-  true at this commit, related unhandled cases, focused reproduction and targeted sensitivity
-  checks, real gate output, no commit, no ledger edits. {generic fallback child: paste the RULES
-  block of template §2 here}
-- Orient from the PRIOR REPORT's DIFF and `git diff` over those paths, then the lines each gap
-  cites. Do not re-map the area. A decision recorded under CALLS stands unless a gap contradicts it.
-- The earlier work is accepted except for the listed gaps. Do not restyle, reorder, or rewrite it.
-- Identify which check inputs this correction changes. Run missing or invalidated checks and any
-  targeted probe needed for the findings; retain valid results with their evidence references.
-  Do not rerun the global gate solely because this is a rejection; keep broader gates at their
-  scheduled stage unless a concrete risk or host rule requires them now.
-- Your final message is the FULL section report with exactly the PRIOR REPORT's labels, in the
-  same order, describing the section as it now stands. Start from the PRIOR REPORT, update every
-  entry your correction changes, and keep an unchanged entry only after confirming its anchor
-  still resolves. Reviewers see one report. In DIFF, end the line of each file this correction
-  changed with `(changed this round)`.
-  Explain any `RETIRES: none`, including additive work with no obsolete artifact where applicable.
+REPORT FILE: {run-dir}/{ID}-impl-r{n}.md
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind implementer --repo-root {repo} --input {run-dir}/{ID}-impl-r{n}.md --fix
 ```
-
-Validate the fresh agent's return with `--kind implementer`, as for any section report.
 
 **Re-review.** After the correction report validates, resume each reviewer that rejected with the
 body below. Resume a reviewer that approved only when the correction changed code in its lens.
-Dispatch a fresh reviewer only when the first one is lost: use template §3 (§4 for a final
-review) and put these three fields in CHECK FOR. Validate the return with `--kind reviewer`. A
-final-review correction (§7) is re-reviewed the same way by the reviewers that reported findings,
-validated with `--kind final`; its CHANGED IN THIS ROUND is the correction report's DIFF.
+Dispatch a fresh reviewer only when the first one is lost: use the §3 stub with the correction
+report in place of the implementer report (for a final review, the §4 stub with it under
+CORRECTION REPORTS), and add the first and third fields below. Validate the return with `--kind
+reviewer`. A final-review correction (§7) is re-reviewed the same way by the reviewers that
+reported findings, with the final reviewer's file name and `--kind final`; its CHANGED IN THIS
+ROUND is the correction report's DIFF.
 
 ```text
-RE-REVIEW of the same scope and lens after a correction. Read-only, as before.
+RE-REVIEW of the same scope and lens after a correction. Apply RE-REVIEW in your rules file.
 
 YOUR FINDINGS SENT FOR CORRECTION: {each finding as relayed; mark any the orchestrator refuted,
 with the reason}
-CORRECTION REPORT: {validated updated report}
+CORRECTION REPORT: {the validated correction report file}
 CHANGED IN THIS ROUND: {the DIFF lines the correction report marks `(changed this round)`}
-
-Rule on each finding: resolved or not, with the anchor that shows it. Review the lines changed in
-this round within your lens. Do not repeat the rest of the review. Final message: the same
-VERDICT, EVIDENCE, FINDINGS, and NOTES format as your first return.
+REPORT FILE: {run-dir}/{the re-review file name: {ID}-rev-{lens}-r{n}.md, or final-{lenses}-r{n}.md}   (or "none — return the report as your final message", without the next line)
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind {reviewer, or final for a final review} --repo-root {repo} --input {report file} --fix
 ```
 
 Convergence rule: rounds continue while unresolved findings decrease. An unruled floor item goes
@@ -622,7 +351,7 @@ After a ruling (user for floor items; orchestrator for non-floor items, recorded
 DECISION on your brief: {chosen option, verbatim constraints}
 
 Proceed under this decision. It covers exactly this change; anything else on the ruling floor
-still requires a new brief. Return the full report when finished.
+still requires a new brief. Deliver the full report as before when finished.
 ```
 
 Write-set relay, after the orchestrator amends a `WRITE SET` for a member that returned
@@ -633,66 +362,29 @@ WRITE SET amended: {paths added}. You may now edit them.
 
 PARALLEL BATCH: {the current block}
 
-Finish the section under the amended WRITE SET and return the full report.
+Finish the section under the amended WRITE SET and deliver the full report as before.
 ```
 
 ---
 
 ## 7. Correction implementer
 
-One agent, scoped to the final-review findings. Same rules as the implementer.
+One agent, scoped to the final-review findings.
 
 ```text
-You are the sole correction implementer for findings from a whole-branch final review. You may
-change product code only for the listed findings. Do not commit, edit the plan, or clean up
-unrelated code.
+Read {skill-root}/assets/prompts/correction.md in full before anything else. It holds your rules
+and report format.
 
-=== APPROVED PLAN ===
-{path + relevant rulings}
-
-=== FINDINGS (verbatim) ===
-{anchored findings}
-
-=== BRANCH AND BASELINE ===
-{merged tree; pre-existing changes to preserve}
-
-=== TASK BOUNDARY ===
-{files needed for the findings; mechanism and invariants; relevant exemplars and rulings;
-excluded work — preserve accepted behavior beyond the listed corrections}
-
-=== REQUIRED GATES ===
-{affected checks, scheduled final gates, reusable evidence with tested state}
-
-RULES
-- Fix exactly the listed findings; do not redesign accepted sections or cross the ruling floor.
-- A correction that needs an unruled floor change stops with STATUS: decision-needed.
-- Every prose claim you touch follows the CLAIMS requirements. Apply the implementer's focused
-  reproduction and targeted sensitivity rules; extend existing tests and fixtures first.
-- Identify invalidated evidence, run the affected checks due now, and cite valid reused results.
-  Keep broader gates at their scheduled stage; paste real output and identify the tested state.
-
-Return:
-STATUS: complete | blocked | decision-needed
-DIFF: one line per file
-RETIRES: actual files/exports/flags removed, or none — justified: additive work leaves no obsolete artifact,
-  retained compatibility, or another concrete reason
-FINDINGS RESOLVED: finding — evidence
-CLAIMS: claim → anchor
-GATE EVIDENCE: command + output + tested state; reused evidence reference or pending stage
-TESTS RUN: suites, results, defect reproduction; targeted sensitivity checks if needed
-EXIT TESTS: steps and observed results
-DEFERRALS / RISKS / DECISION BRIEF: as applicable
+APPROVED PLAN: {path + relevant rulings}
+FINDINGS: {the validated final-review report files, with any finding the orchestrator refuted
+quoted and marked "refuted — do not fix"; or the anchored findings verbatim}
+BRANCH AND BASELINE: {merged tree; pre-existing changes to preserve}
+TASK BOUNDARY: {files needed for the findings; mechanism and invariants; relevant exemplars and
+rulings; excluded work — preserve accepted behavior beyond the listed corrections}
+REQUIRED GATES: {affected checks, scheduled final gates, reusable evidence with tested state}
+REPORT FILE: {run-dir}/final-correction-r{n}.md   (or "none — return the report as your final message", without the next line)
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind correction --repo-root {repo} --input {report file} --fix
 ```
 
-Use the compact combined field above, or separate applicable `DEFERRALS`, `RISKS`, and
-`DECISION BRIEF` labels.
-
-For `STATUS: decision-needed`, provide a substantive decision brief either in a separate
-`DECISION BRIEF` field or in the compact field; an empty or `none` brief is invalid. A complete
-correction need not include a decision brief.
-
-Validate the correction report before the re-review (§5):
-
-```bash
-node <skill-root>/assets/validate-report.mjs --kind correction --repo-root <repo> --input <report.md>
-```
+Validate the correction report before the re-review (§5). A later round resumes the same agent
+with the remaining findings and a new REPORT FILE.

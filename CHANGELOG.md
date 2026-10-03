@@ -5,6 +5,136 @@ executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 corre
 
 ## Unreleased
 
+### Changed — dispatch by file, reports validated before they return, a tolerant report validator
+
+**Maintainer request, 2026-10-03: "improve the skill the best you can", with no constraint from
+this repository's floor.** The changes below come from the transcripts of three Claude Code runs
+in tyxter-messaging: #1179 (2026-10-02), #1197 and #1201 (2026-10-03). Figures are as recorded
+at 16:45 UTC on 2026-10-03, with #1201 still running.
+
+- **35% of agent reports failed validation for format.** The orchestrator ran
+  `validate-report.mjs` 88 times on agent returns and 31 failed. Of the 232 errors, 166 (72%)
+  were a basename-only anchor such as `hooks.ts:140`, 20 a partial path, 21 a label the
+  validator did not recognize, 17 a CLAIMS line whose anchor was on its wrapped continuation
+  line, 6 a finding split over several lines, and 2 a line past the end of a file. In #1197 each
+  resend took 25 to 104
+  seconds. In #1201 all five first-round returns from the installed `gdi-reviewer` and
+  `gdi-convention-reviewer` roles failed validation, and the orchestrator went on without
+  resending them.
+- **The orchestrator typed every dispatch.** 103 dispatch prompts in the three runs, 533k
+  characters: 12k on average per implementer (the section block, the rule list, and corrections
+  in force, retyped each time) and 3.7k per reviewer. The five reviewers of #1197's A3 took 63
+  seconds to dispatch.
+- **No place for a return.** In #1197 the orchestrator wrote its own `jq` script over the
+  harness's task output to get each return into a file it could validate.
+- **The plan validator rejected valid plans.** Three first validations failed because a table
+  header was matched with exact spacing and the plan had padded columns, as the template does.
+  Two failed because the template's example ledger row inside a code fence was read as a second
+  `A1` row. In #1197 and #1201 the orchestrator read the validator's source to find the cause.
+- **Wrong per-call model.** `routing-claude.md` told the fallback to pass
+  `model: "claude-opus-5-5"`; the Agent tool rejected it (#1201) and the 11k dispatch was typed
+  again.
+- **Missing roles.** #1197 found no `gdi-*` definitions, recorded that installing them needed a
+  new session, and ran every role on `general-purpose`: first-round reviews took 103 to 516
+  seconds. In #1201 the definitions were installed during the session and dispatched three
+  minutes later; `gdi-reviewer` first-round reviews took 52 to 90 seconds.
+- **The completion report did not answer the user.** After #1179's report of commits, gates, and
+  evidence, the user asked whether the two things they needed had been achieved and why one
+  endpoint took 3.7k lines. The answer named two parts that were not delivered and one control
+  the orchestrator had decided against.
+- **The installer's backup is loaded as a skill.** A `.bak-<timestamp>` copy beside the skill
+  directory appears in Claude Code's skill list as a second skill with the same description.
+
+What changed:
+
+- **Prompt files** (`assets/prompts/planner.md`, `mapper.md`, `implementer.md`, `reviewer.md`,
+  `final-reviewer.md`, `correction.md`). Each role's rules and report format moved here from
+  the templates in `agent-prompts.md`, and the role reads its file. No rule, checklist item,
+  label, or verdict word was removed. A generic fallback and a stale installed role read the
+  same file, so the "paste the RULES for a generic child" cases are gone.
+- **Assignment file** (`assets/section-brief.mjs`, new). It copies a section's block, the
+  rulings whose Section cell names it, `all`, or a range that covers it, Corrections in force, the global gate, the
+  preflight with known blockers, the PARALLEL BATCH block built from ledger rows, and the
+  working-tree baseline into `<run-dir>/<ID>.assignment.md`, and prints the implementer and
+  reviewer stubs with every path filled in. `--round <n>` prints the stub for a fresh correction
+  carrier. For #1197's A4 the assignment is 21k characters that the orchestrator no longer
+  types. All 243 sections of the 65 plans in tyxter-messaging produce an assignment.
+- **Dispatch stubs** (`references/agent-prompts.md`, rewritten). A dispatch names the prompt
+  file, the assignment, the report file, and the validate command, and carries only the fields
+  the orchestrator knows. The file went from 41k to 20k characters.
+- **Run directory and report files.** One directory per plan outside the repository holds the
+  baseline, assignments, and reports; the plan header records it. In Claude Code an agent writes
+  its report there, runs the validator, corrects what it prints, and returns a pointer of two or
+  three lines. The orchestrator validates again and reads the file. Codex stubs carry
+  `REPORT FILE: none` and its roles return the report as before: its mapper and reviewer run in a
+  read-only sandbox.
+- **`validate-report.mjs`.** A short anchor resolves when exactly one existing repository file
+  ends with it at a directory boundary and the cited line exists in that file. `--fix` writes
+  the full path into the report, and each resolution is printed as a NOTE so the author sees
+  which file was taken. A short anchor that matches several files is an error that lists the
+  candidates. A FINDINGS or CLAIMS item is one bullet with its wrapped and nested lines. A known
+  label is accepted as a Markdown heading or bold line, without the colon, or with a
+  parenthetical before it (`GATE EVIDENCE (tested state: ...):`). A bold `**Evidence:** code`
+  tag counts, and a host with a port (`127.0.0.1:5432`) is no longer read as an anchor. The
+  upper bound on EVIDENCE anchors is gone: 62 of the 77 reviewer returns drew that warning.
+  Replayed over the 115 returns in the three transcripts, 102 pass where 73 passed before, and
+  none that passed before fails. The 13 that still fail have an ambiguous short anchor, an
+  anchor to a file that does not exist, a line past the end of a file, or a CLAIMS item with no
+  anchor at all.
+- **`validate-plan.mjs`.** Table headers are compared cell by cell, whatever the padding. Fenced
+  code in the ledger is skipped. Read-only Git calls pass `--no-optional-locks`, so a listing
+  never holds the index lock while a batch implementer runs its own Git command. The CLI runs
+  only when the file is the entry script, and the parsers are exported for `section-brief.mjs`.
+  Over the 65 plans in tyxter-messaging, 6 that failed only on table padding now pass and the
+  other 59 print the same result. The template's example row uses `<ID>`.
+- **Plan presentation and completion report** (`SKILL.md` PLAN step 9, Complete step 7,
+  template). A plan lists what it does not deliver under **Out of scope**, and a recorded call
+  that delivers less than the inputs asked starts with `narrows:`. The plan is presented with
+  the goals, the out-of-scope list, and the `narrows:` calls before the graph. The completion
+  report leads with each requested outcome as delivered, delivered in part, or not delivered,
+  then the `narrows:` calls and omissions, then the size of the change by kind, then the
+  process record.
+- **Loop** (`SKILL.md`). Reviewers are dispatched as soon as the implementer's report
+  validates, and the orchestrator's evidence review and diff read run while they work. Steps 4
+  and 6 are split into labeled parts; their rules are unchanged.
+- **Codex routing.** The prompt wrapper states the `ROUTING` line format, which a worker could
+  not see before because only the routing reference defined it, and it no longer points workers
+  at `SKILL.md` for the verification policy it already summarizes.
+- **Claude routing.** The per-call fallback model is the alias `opus`. A missing role is
+  installed and dispatched in the same session; the fallback is for a session that still
+  rejects the type.
+- **Installer.** A replaced target moves to `~/.gdi-backups/<timestamp>/`. A link at the target,
+  which the skills CLI creates, is removed and its target left alone. `.bak-*` copies from the
+  earlier installer are moved out of the scanned directories. An unknown flag is a usage error:
+  a misspelled `--dry-run` used to run a real install.
+- **Renderer.** It opens a browser only with `--open`; `--no-open` is accepted and ignored. The
+  fenced example row is no longer counted in the ledger (#1197 rendered "4/5 done" for 3 of 4).
+
+Two independent agents reviewed the first version of this change. The script review
+reproduced twelve defects, and each is fixed with a fixture or a reproduced case: `--no-backup`
+could delete the checkout through a linked skills directory (the installer now refuses when a
+target resolves to its own source, and when a parent is a dangling link); a second install in
+the same millisecond could overwrite a backup; an anchor to a file deleted and not staged
+crashed the validator; `--fix` expanded an anchor to a file its line did not exist in; a full
+path cited elsewhere in a report could settle an ambiguous short anchor on the wrong file (the
+rule is removed); a whole-line bold label failed; a ruling whose Section cell was a range
+(`B1-B3`) was left out of an assignment and a table under a later `####` heading was read as
+recorded calls; a baseline could capture a section's own work (nothing is captured at a
+correction round or with batch state in the ledger); lens names were guessed from any sentence
+that mentioned one; and a script run through a renamed link exited 0 without running. The prose
+review found thirteen mismatches between the stubs, the prompt files, and the role definitions,
+all corrected.
+
+Checked with a one-section plan in a scratch repository, using the role definitions installed
+from 0.9.0 and the new prompt files: a mapper (15 s), an implementer (53 s), two reviewers (24 s
+and 23 s), a correction round by follow-up to the same implementer (24 s), and a re-review by
+follow-up to the same reviewer (13 s). Each agent read the files its stub named, wrote its
+report, validated it, and returned the pointer. All six reports passed the orchestrator's own
+validation on the first run.
+
+Not yet measured: a full plan run on these mechanics, the resend rate with self-validation, and
+whether Codex roles follow a prompt file as reliably as a pasted prompt.
+
 ### Changed — parallel batches in Claude Code
 
 **Maintainer report and ruling, 2026-10-03.** The maintainer reported that the skill makes Claude

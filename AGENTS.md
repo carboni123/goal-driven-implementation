@@ -7,7 +7,7 @@ and run the skill; this file is for whoever edits it.
 
 One skill, `goal-driven-implementation`, for Claude Code and OpenAI Codex CLI. There is no
 package manifest, no dependency, no build, and no CI. The product is Markdown that an agent reads
-and acts on at run time, plus dependency-free Node ESM scripts: four under `assets/` and the
+and acts on at run time, plus dependency-free Node ESM scripts: five under `assets/` and the
 installer. A wrong sentence under `skills/` is a bug in the product.
 
 ## Layout
@@ -17,7 +17,9 @@ Everything shipped lives under `skills/goal-driven-implementation/` (called `<sk
 | Path                                      | What it is                                                                               |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `<skill>/SKILL.md`                        | The workflow. Loaded whenever the skill triggers; must read correctly in both harnesses. |
-| `<skill>/references/agent-prompts.md`     | Dispatch templates the orchestrator uses verbatim.                                       |
+| `<skill>/references/agent-prompts.md`     | Dispatch stubs the orchestrator sends, run directory, report handling, follow-ups.       |
+| `<skill>/assets/prompts/*.md`             | Rules and report format per role. The dispatched role reads its file; stubs name it.     |
+| `<skill>/assets/section-brief.mjs`        | Plan → one section's assignment file and its dispatch stubs.                             |
 | `<skill>/references/graph-analysis.md`    | Graph checklist; each check cites the failure it prevents.                               |
 | `<skill>/references/routing-claude.md`    | Claude Code role resolution, tool allowlists, dispatch mechanics.                        |
 | `<skill>/references/routing-codex.md`     | Codex role resolution and dispatch mechanics. Names no model.                            |
@@ -25,7 +27,7 @@ Everything shipped lives under `skills/goal-driven-implementation/` (called `<sk
 | `<skill>/assets/validate-plan.mjs`        | Plan validator: batches and write sets; `--repo-root` checks section commits in Git.     |
 | `<skill>/assets/validate-report.mjs`      | Validator for mapper, reviewer, final, implementer, correction returns and anchors.      |
 | `<skill>/assets/scout-repo.mjs`           | Repository → feature map; `--classify` maps changed paths to units.                      |
-| `<skill>/assets/render-plan-graph.mjs`    | Plan → HTML (graphs, findings, budget, ledger). No fixtures.                             |
+| `<skill>/assets/render-plan-graph.mjs`    | Plan → HTML (graphs, findings, budget, ledger). No fixtures. Opens nothing unless `--open`. |
 | `<skill>/assets/agents/claude/gdi-*.md`   | Claude Code role definitions; model, effort, and tools in the frontmatter.               |
 | `<skill>/assets/agents/codex/goal-*.toml` | Codex role definitions; `model` and `model_reasoning_effort` in the TOML.                |
 | `<skill>/agents/openai.yaml`              | Codex display metadata for the skill. Codex requires this exact path.                    |
@@ -58,12 +60,19 @@ copies in the same commit.
   `Agent` for its read-only helpers and `TaskStop` for background commands.
 - **Plan schema.** `plan-template.md`, `validate-plan.mjs`, and the schema description in
   `SKILL.md`. A new required surface goes into all three.
-- **Report formats.** Labels and verdict words in `agent-prompts.md` are what
+- **Report formats.** Labels and verdict words in `assets/prompts/*.md` are what
   `validate-report.mjs` checks, and the role definitions restate them so a role does not learn
-  its format only from the dispatch prompt. Change all three plus the validator fixtures.
-- **Reviewer lenses.** The lens list in `agent-prompts.md`, the `gdi-reviewer` description, and
-  the lens names `SKILL.md` dispatches by.
-- **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts §2 and §5, the acceptance
+  its format only from its prompt file. Change all three plus the validator fixtures.
+- **Dispatch stubs.** `agent-prompts.md` documents the stubs that `section-brief.mjs` prints;
+  the two must name the same files, fields, and report file names.
+- **Role rules.** A rule a role must follow lives in its `assets/prompts/<role>.md`, which every
+  dispatch names, so it reaches installed roles, stale installs, and generic fallbacks alike. The
+  role definition restates the rules that still matter when a dispatch omits the file.
+- **Reviewer lenses.** The checklists in `assets/prompts/reviewer.md` and
+  `final-reviewer.md`, the lens names in `agent-prompts.md` and `SKILL.md` step 4, the names
+  `section-brief.mjs` reads from a section's REVIEW field, and the `gdi-reviewer` description.
+- **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts §2 and §5, the CORRECTION ROUND
+  block of `assets/prompts/implementer.md`, the carrier stub in `section-brief.mjs`, the acceptance
   protocol in `plan-template.md`, the carrier rule in `routing-claude.md`, and the README's run
   description. Codex has no carrier rule and stays resume-only until a Codex run yields per-role
   usage.
@@ -94,7 +103,8 @@ S=skills/goal-driven-implementation/assets
 node $S/validate-plan.mjs --self-test
 node $S/validate-report.mjs --self-test
 node $S/scout-repo.mjs --self-test
-node $S/render-plan-graph.mjs <plan.md> --no-open --out /tmp/plan.html
+node $S/section-brief.mjs --self-test
+node $S/render-plan-graph.mjs <plan.md> --out /tmp/plan.html
 node scripts/install.mjs --dry-run
 ```
 
@@ -104,9 +114,11 @@ node scripts/install.mjs --dry-run
 - After changing the scout's exclusions or detection, also run it on a real monorepo. The fixture
   cannot reproduce a nested worktree or a package store, and both have inflated a map thirtyfold.
 - The renderer has no fixtures. After changing it, render a real plan and open the HTML.
-- Always pass `--no-open` to the renderer; without it the script opens a browser.
+- The renderer opens a browser only with `--open`; do not pass it.
 - Never run `install.mjs` without `--dry-run` unless the user asks. It writes to the user's home
-  directory.
+  directory. To exercise a real install, point `HOME` at a temporary directory.
+- After changing a validator, run the old and the new one over real plans or real agent returns
+  when they are available and compare the results; fixtures show the rule, not its hit rate.
 - Do not edit `plan-template.md` to make it pass the validator. It contains placeholders.
 
 ## Writing the skill's prose
@@ -115,14 +127,15 @@ Files under `skills/` are read by an agent under a context budget, on every load
 reader.
 
 - **Know the reader.** The orchestrator reads `SKILL.md`, `references/`, and the plan template. A
-  dispatched role reads only its own definition and its dispatch prompt. Keep a sentence only if
+  dispatched role reads its own definition, its `assets/prompts/` file, the dispatch stub, and
+  the files the stub names. Keep a sentence only if
   it changes what that reader does or settles a case the rule leaves open.
 - **A role definition holds only what the role can act on.** A role cannot change its tools,
   model, effort, or install location, and skill-relative paths do not resolve where it runs.
   Host and installer guidance goes in the routing reference.
 - **Harness differences go in `references/routing-<harness>.md`**, not in `SKILL.md`.
-- **Change the template, not the prose around it.** `agent-prompts.md` templates are pasted into
-  dispatches verbatim.
+- **Change the prompt file, not the prose around it.** A role acts on `assets/prompts/<role>.md`
+  and on the stub; text elsewhere in `agent-prompts.md` reaches only the orchestrator.
 - **Use the literal phrase.** No metaphor, aphorism, or contrast written for effect; the reading
   agent may act on connotations the writer did not intend.
 - **Keep the history out.** Sample sizes, dates, how a threshold was derived, rejected options,

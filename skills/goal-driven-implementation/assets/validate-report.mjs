@@ -4,24 +4,26 @@
 // exists. Pattern taken from the aiq-lite code-research subagent validator.
 //
 //   node validate-report.mjs --kind <mapper|reviewer|final|implementer|correction|anchors>
-//                            [--input <file>] [--repo-root <dir>] [--json]
+//                            [--input <file>] [--repo-root <dir>] [--fix] [--json]
 //   <agent output> | node validate-report.mjs --kind reviewer --repo-root .
 //   node validate-report.mjs --self-test
 //
 // Exit 0 = valid (warnings allowed), 1 = hard errors, 2 = usage or IO error.
+// --fix rewrites the --input file so every short anchor that resolves to one file carries its
+// repository-relative path. It changes nothing else.
 //
-// Kinds (report formats are the ones in references/agent-prompts.md):
+// Kinds (report formats are the ones in assets/prompts/*.md):
 //   mapper       SYMBOLS PATTERN TESTS WRITERS COUPLINGS LIFECYCLE SIBLINGS UNCERTAINTIES
 //                labels present; SYMBOLS carries at least one anchor. Warns "thin" under three
 //                anchors and "soft" when UNCERTAINTIES bullets outnumber anchors.
-//   reviewer     VERDICT: APPROVE|REJECT; EVIDENCE with 2–5 anchors; FINDINGS none or one
-//                anchored line each carrying a `trigger:` segment and an evidence tag
+//   reviewer     VERDICT: APPROVE|REJECT; EVIDENCE with at least 2 anchors; FINDINGS none or one
+//                anchored item each carrying a `trigger:` segment and an evidence tag
 //                (test|code|partial|config|inference).
 //                REJECT with FINDINGS: none is an error. All-inference findings are a warning the
 //                orchestrator verifies before relaying.
-//   final        as reviewer with VERDICT: CLEAN|FINDINGS and 2–8 evidence anchors.
+//   final        as reviewer with VERDICT: CLEAN|FINDINGS.
 //   implementer  STATUS: complete|blocked|decision-needed; report labels present; every CLAIMS
-//                line anchored; RETIRES non-empty and a `none` entry is explained; GATE EVIDENCE
+//                item anchored; RETIRES non-empty and a `none` entry is explained; GATE EVIDENCE
 //                non-empty; decision-needed carries a DECISION BRIEF.
 //   correction   correction report labels present; STATUS vocabulary and CLAIMS anchors checked;
 //                RETIRES non-empty and a `none` entry is explained; GATE EVIDENCE non-empty;
@@ -30,17 +32,32 @@
 //
 // An anchor is `path/with.ext:N` or `path/with.ext:N-M`, optionally in backticks. Absolute paths
 // are errors; with --repo-root the file must exist and N (and M) must not exceed its line count.
+// A short anchor (`hooks.ts:14`, `billing/hooks.ts:14`) resolves when exactly one existing
+// repository file ends with that path at a directory boundary and the cited line exists in it.
+// Each resolution is printed as a NOTE so the author can see which file was taken. A short anchor
+// that matches several files, or none, is an error. A host with a port (`127.0.0.1:5432`,
+// `api.example.com:443`) is not an anchor.
+//
+// A label is a line that starts with the label and a colon. A known label is also accepted as a
+// Markdown heading or bold line, with or without the colon, and with a parenthetical before the
+// colon (`GATE EVIDENCE (tested state: ...):`). A FINDINGS or CLAIMS item is one
+// bullet with its wrapped and nested lines; without bullets, each unindented line is an item.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ANCHOR_RE =
-  /(?<![\w.])`?((?:[A-Za-z]:)?[\\/]?(?:[\w.@+-]+[\\/])*[\w.@+-]+\.[A-Za-z0-9]{1,12}):(\d+)(?:-(\d+))?`?(?![\w:])/g;
+  /(?<![\w.])`?((?:[A-Za-z]:)?[\\/]?(?:[\w.@+-]+[\\/])*[\w.@+-]+\.(?=\d*[A-Za-z])[A-Za-z0-9]{1,12}):(\d+)(?:-(\d+))?`?(?![\w:])/g;
+// A bare host name with a port, when no file of that name exists.
+const HOST_RE = /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|dev|app|ai|co|cloud|local|internal|test|example|invalid)$/i;
 const URL_RE = /\b[a-z][a-z0-9+.-]*:\/\/\S+/gi;
-const EVIDENCE_TAG_RE = /\bevidence:\s*(test|code|partial|config|inference)\b/i;
+const EVIDENCE_TAG_RE = /\bevidence:(?:\*\*|__)?\s*[`*_]*(test|code|partial|config|inference)\b/i;
 const TRIGGER_RE = /\btrigger:\s*\S/i;
-const LABEL_RE = /^([A-Z][A-Z0-9 /_-]{1,40}):[ \t]*(.*)$/;
+const LABEL_RE = /^([A-Z][A-Z0-9 /_-]{1,40}?)(?:\*\*|__)?:(?:\*\*|__)?[ \t]*(.*)$/;
+const LABEL_NOTE_RE = /^([A-Z][A-Z0-9 /_-]{1,40}?)\s*(\([^)]*\))(?:\*\*|__)?:(?:\*\*|__)?[ \t]*(.*)$/;
 
 const MAPPER_LABELS = ["SYMBOLS", "PATTERN", "TESTS", "WRITERS", "COUPLINGS", "LIFECYCLE", "SIBLINGS", "UNCERTAINTIES"];
 const IMPLEMENTER_LABELS = [
@@ -52,18 +69,41 @@ const CORRECTION_LABELS = [
   "EXIT TESTS",
 ];
 const REVIEW_LABELS = ["VERDICT", "EVIDENCE", "FINDINGS"];
+// Labels accepted without a colon when the line holds nothing else (`## SYMBOLS`, `**NOTES**`).
+const KNOWN_LABELS = new Set([
+  ...MAPPER_LABELS, ...IMPLEMENTER_LABELS, ...CORRECTION_LABELS, ...REVIEW_LABELS,
+  "NOTES", "LIVE FLOW", "ENV", "LIFECYCLE EFFECTS", "DECISION BRIEF",
+  "DEFERRALS / RISKS / DECISION BRIEF", "ROUTING",
+]);
+// Directories never searched when a short anchor is resolved outside a Git worktree.
+const SKIP_DIRS = new Set([".git", "node_modules", "dist", "build", "out", "target", "vendor", ".next", ".venv", "__pycache__"]);
 
 // ---------- parsing ----------
+
+function labelOf(raw) {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("-")) return null;
+  const unheaded = trimmed.replace(/^#{1,6}\s+/, "");
+  // `**VERDICT: APPROVE**` is bold as a whole; `**TESTS:** none` closes the bold after the label.
+  const wholeBold = /^(\*\*|__)(?:(?!\1).)+\1$/.test(unheaded);
+  const line = (wholeBold ? unheaded.slice(0, -2) : unheaded).replace(/^(?:\*\*|__)/, "");
+  const m = LABEL_RE.exec(line);
+  if (m) return { label: m[1].trim(), rest: m[2].replace(/^(?:\*\*|__)\s*/, "") };
+  // `GATE EVIDENCE (tested state: HEAD plus this diff):` keeps the parenthetical as content.
+  const noted = LABEL_NOTE_RE.exec(line);
+  if (noted && KNOWN_LABELS.has(noted[1].trim())) return { label: noted[1].trim(), rest: `${noted[2]} ${noted[3]}`.trim() };
+  const bare = line.replace(/(?:\*\*|__)$/, "").trim();
+  return KNOWN_LABELS.has(bare) ? { label: bare, rest: "" } : null;
+}
 
 function sections(text) {
   const out = new Map();
   let current = null;
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/^\*\*|\*\*$/g, "");
-    const m = LABEL_RE.exec(line.trim());
-    if (m && !line.trim().startsWith("-")) {
-      current = m[1].trim();
-      out.set(current, out.has(current) ? `${out.get(current)}\n${m[2]}` : m[2]);
+    const m = labelOf(raw);
+    if (m) {
+      current = m.label;
+      out.set(current, out.has(current) ? `${out.get(current)}\n${m.rest}` : m.rest);
       continue;
     }
     if (current !== null) out.set(current, `${out.get(current)}\n${raw}`);
@@ -71,12 +111,39 @@ function sections(text) {
   return out;
 }
 
+// URLs are blanked at the same length so every match index is an index into `text`.
 function anchorsIn(text) {
   const found = [];
-  for (const m of text.replace(URL_RE, " ").matchAll(ANCHOR_RE)) {
-    found.push({ path: m[1], lo: Number(m[2]), hi: m[3] ? Number(m[3]) : null, raw: m[0] });
+  for (const m of text.replace(URL_RE, (u) => " ".repeat(u.length)).matchAll(ANCHOR_RE)) {
+    found.push({
+      path: m[1], lo: Number(m[2]), hi: m[3] ? Number(m[3]) : null, raw: m[0],
+      index: m.index + m[0].indexOf(m[1]),
+    });
   }
   return found;
+}
+
+const BULLET_RE = /^(\s*)(?:[-*\u2022]|\d+[.)])\s+(.*)$/;
+
+// One entry per item: a bullet with its wrapped and nested lines. A body without bullets has one
+// item per unindented line.
+function items(body) {
+  const lines = body.split(/\r?\n/).filter((l) => l.trim() && l.trim() !== "none");
+  const bulleted = lines.some((l) => BULLET_RE.test(l));
+  const out = [];
+  let base = null;
+  for (const line of lines) {
+    const b = BULLET_RE.exec(line);
+    if (b && (base === null || b[1].length <= base)) {
+      base ??= b[1].length;
+      out.push(b[2].trim());
+    } else if (out.length && (bulleted || /^\s/.test(line))) {
+      out[out.length - 1] += ` ${line.trim()}`;
+    } else {
+      out.push(line.trim());
+    }
+  }
+  return out;
 }
 
 const bullets = (body) =>
@@ -90,8 +157,42 @@ const hasNoneExplanation = (body) => {
 
 // ---------- checks ----------
 
+// Every file under the repo root, repository-relative with forward slashes. Git lists tracked and
+// untracked files and honors ignore rules; outside a worktree the tree is walked instead.
+function repoFiles(repoRoot) {
+  try {
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
+    return execFileSync("git", ["--no-optional-locks", "-C", repoRoot, "ls-files", "-co", "--exclude-standard", "-z"], {
+      encoding: "utf8", env, stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024,
+    }).split("\0").filter(Boolean);
+  } catch {
+    const out = [];
+    const walk = (dir, rel) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (out.length >= 200_000) return;
+        if (e.isDirectory()) {
+          if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name), rel ? `${rel}/${e.name}` : e.name);
+        } else if (e.isFile()) out.push(rel ? `${rel}/${e.name}` : e.name);
+      }
+    };
+    walk(repoRoot, "");
+    return out;
+  }
+}
+
+// Checks every anchor and returns the short anchors that resolved, as { anchor, full }.
 function checkAnchors(anchors, repoRoot, errors) {
   const lineCounts = new Map();
+  const resolved = [];
+  let files = null;
+  const isFile = (rel) => statSync(join(repoRoot, rel), { throwIfNoEntry: false })?.isFile() ?? false;
+  const lineCount = (rel) => {
+    if (!lineCounts.has(rel)) {
+      const content = readFileSync(join(repoRoot, rel), "utf8");
+      lineCounts.set(rel, content.length === 0 ? 0 : content.split(/\r?\n/).length - (content.endsWith("\n") ? 1 : 0));
+    }
+    return lineCounts.get(rel);
+  };
   for (const a of anchors) {
     if (isAbsolute(a.path) || /^[A-Za-z]:[\\/]/.test(a.path) || /^[\\/]/.test(a.path)) {
       errors.push(`anchor is absolute, not repo-relative: ${a.raw}`);
@@ -99,20 +200,43 @@ function checkAnchors(anchors, repoRoot, errors) {
     }
     if (a.hi !== null && a.hi < a.lo) errors.push(`anchor has an inverted range: ${a.raw}`);
     if (!repoRoot) continue;
-    const abs = join(repoRoot, a.path);
-    if (!existsSync(abs) || !statSync(abs).isFile()) {
-      errors.push(`anchor file not found under repo root: ${a.raw}`);
-      continue;
+    let rel = a.path;
+    const short = !isFile(rel);
+    if (short) {
+      const want = a.path.replace(/\\/g, "/").replace(/^\.\//, "");
+      files ??= repoFiles(repoRoot);
+      // Git also lists a file that was deleted and not staged; only an existing file can match.
+      const matches = files.filter((f) => (f === want || f.endsWith(`/${want}`)) && isFile(f));
+      if (matches.length === 0) {
+        if (!want.includes("/") && HOST_RE.test(want)) continue;
+        errors.push(`anchor file not found under repo root: ${a.raw}`);
+        continue;
+      }
+      if (matches.length > 1) {
+        const shown = matches.slice(0, 4).join(", ");
+        errors.push(`short anchor matches ${matches.length} files (${shown}${matches.length > 4 ? ", …" : ""}); write the repository-relative path: ${a.raw}`);
+        continue;
+      }
+      rel = matches[0];
     }
-    if (!lineCounts.has(abs)) {
-      const content = readFileSync(abs, "utf8");
-      const n = content.length === 0 ? 0 : content.split(/\r?\n/).length - (content.endsWith("\n") ? 1 : 0);
-      lineCounts.set(abs, n);
-    }
-    const n = lineCounts.get(abs);
+    const n = lineCount(rel);
     const top = a.hi ?? a.lo;
-    if (top > n) errors.push(`anchor line ${top} is past the end of ${a.path} (${n} lines): ${a.raw}`);
+    if (top > n) {
+      errors.push(`anchor line ${top} is past the end of ${rel} (${n} lines)${short ? "; if that is not the file you meant, write the repository-relative path" : ""}: ${a.raw}`);
+    } else if (short) {
+      resolved.push({ anchor: a, full: rel });
+    }
   }
+  return resolved;
+}
+
+// The text with every resolved short anchor replaced by its repository-relative path.
+function expandAnchors(text, resolved) {
+  let out = text;
+  for (const { anchor, full } of [...resolved].sort((x, y) => y.anchor.index - x.anchor.index)) {
+    out = `${out.slice(0, anchor.index)}${full}${out.slice(anchor.index + anchor.path.length)}`;
+  }
+  return out;
 }
 
 function requireLabels(sec, labels, errors) {
@@ -131,17 +255,17 @@ function checkMapper(text, sec, errors, warnings) {
     warnings.push(`soft: ${unc} uncertainty bullets against ${all.length} anchors — consider one targeted follow-up`);
 }
 
-function checkReview(sec, errors, warnings, { verdicts, minEvidence, maxEvidence, rejecting }) {
+function checkReview(sec, errors, warnings, { verdicts, minEvidence, rejecting }) {
   requireLabels(sec, REVIEW_LABELS, errors);
   const verdict = (sec.get("VERDICT") ?? "").trim().split(/\s+/)[0]?.toUpperCase() ?? "";
   if (sec.has("VERDICT") && !verdicts.includes(verdict))
     errors.push(`VERDICT must be one of ${verdicts.join("|")}, got ${JSON.stringify(verdict)}`);
   const ev = anchorsIn(sec.get("EVIDENCE") ?? "");
   if (sec.has("EVIDENCE") && ev.length === 0) errors.push("EVIDENCE carries no file:line anchor");
-  else if (ev.length && (ev.length < minEvidence || ev.length > maxEvidence))
-    warnings.push(`EVIDENCE has ${ev.length} anchors (template asks ${minEvidence}–${maxEvidence})`);
+  else if (ev.length && ev.length < minEvidence)
+    warnings.push(`EVIDENCE has ${ev.length} anchor (template asks at least ${minEvidence})`);
   const findingsBody = sec.get("FINDINGS") ?? "";
-  const findings = isNone(findingsBody) ? [] : bullets(findingsBody);
+  const findings = isNone(findingsBody) ? [] : items(findingsBody);
   if (verdict === rejecting && findings.length === 0)
     errors.push(`VERDICT: ${rejecting} with no findings — a rejection must name at least one anchored finding`);
   if (verdict !== rejecting && verdict && findings.length)
@@ -184,7 +308,7 @@ function checkRetires(sec, errors) {
 function checkClaims(sec, errors) {
   const claimsBody = sec.get("CLAIMS") ?? "";
   if (sec.has("CLAIMS") && !isNone(claimsBody)) {
-    for (const c of bullets(claimsBody))
+    for (const c of items(claimsBody))
       if (anchorsIn(c).length === 0) errors.push(`CLAIMS line without an anchor: ${short(c)}`);
   }
 }
@@ -226,10 +350,10 @@ export function validate(text, kind, repoRoot) {
       checkMapper(text, sec, errors, warnings);
       break;
     case "reviewer":
-      checkReview(sec, errors, warnings, { verdicts: ["APPROVE", "REJECT"], minEvidence: 2, maxEvidence: 5, rejecting: "REJECT" });
+      checkReview(sec, errors, warnings, { verdicts: ["APPROVE", "REJECT"], minEvidence: 2, rejecting: "REJECT" });
       break;
     case "final":
-      checkReview(sec, errors, warnings, { verdicts: ["CLEAN", "FINDINGS"], minEvidence: 2, maxEvidence: 8, rejecting: "FINDINGS" });
+      checkReview(sec, errors, warnings, { verdicts: ["CLEAN", "FINDINGS"], minEvidence: 2, rejecting: "FINDINGS" });
       break;
     case "implementer":
       checkImplementer(sec, errors, warnings);
@@ -243,13 +367,15 @@ export function validate(text, kind, repoRoot) {
       throw new Error(`unknown kind: ${kind}`);
   }
   const anchors = anchorsIn(text);
-  checkAnchors(anchors, repoRoot, errors);
+  const resolved = checkAnchors(anchors, repoRoot, errors);
   return {
     ok: errors.length === 0,
     kind,
     errors,
     warnings,
-    stats: { anchors: anchors.length, labels: [...sec.keys()] },
+    stats: { anchors: anchors.length, short: resolved.length, labels: [...sec.keys()] },
+    resolutions: [...new Map(resolved.map((r) => [`${r.anchor.path}\0${r.full}`, { short: r.anchor.path, full: r.full }])).values()],
+    fixed: resolved.length ? expandAnchors(text, resolved) : text,
   };
 }
 
@@ -288,6 +414,9 @@ function selfTest() {
     const reviewerBad = validate("VERDICT: REJECT\nEVIDENCE: a.ts:1\nFINDINGS: none", "reviewer", dir);
     assert(reviewerBad.errors.some((e) => e.includes("REJECT with no findings")), "reject without findings");
     assert(reviewerBad.warnings.some((w) => w.includes("EVIDENCE has 1")), "evidence count warning");
+    const reviewerManyAnchors = validate(
+      "VERDICT: APPROVE\nEVIDENCE: a.ts:1, a.ts:2, a.ts:3, a.ts:4, a.ts:5, b.md:1, b.md:2\nFINDINGS: none", "reviewer", dir);
+    assert(reviewerManyAnchors.ok && reviewerManyAnchors.warnings.length === 0, "evidence has no upper bound");
     const reviewerUntagged = validate(
       "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — impact — fix", "reviewer", dir);
     assert(reviewerUntagged.errors.some((e) => e.includes("evidence tag")), "finding without evidence tag");
@@ -402,6 +531,114 @@ function selfTest() {
 
     const noRoot = validate("VERDICT: APPROVE\nEVIDENCE: nowhere/x.ts:1, y.ts:2\nFINDINGS: none", "reviewer", null);
     assert(noRoot.ok, "without --repo-root, existence is not checked");
+
+    // Short anchors: one matching file resolves; several need the full path cited in the text.
+    mkdirSync(join(dir, "src", "billing"), { recursive: true });
+    mkdirSync(join(dir, "src", "usage"), { recursive: true });
+    mkdirSync(join(dir, "node_modules", "pkg"), { recursive: true });
+    writeFileSync(join(dir, "src", "billing", "hooks.ts"), "h1\nh2\nh3\n");
+    writeFileSync(join(dir, "src", "usage", "hooks.ts"), "u1\nu2\n");
+    writeFileSync(join(dir, "src", "billing", "meter.use-case.ts"), "m1\nm2\nm3\nm4\n");
+    writeFileSync(join(dir, "node_modules", "pkg", "vendored.ts"), "v1\n");
+    const shortUnique = validate("see `meter.use-case.ts:3` and billing/meter.use-case.ts:1-2", "anchors", dir);
+    assert(shortUnique.ok && shortUnique.stats.short === 2, `unique short anchors resolve: ${shortUnique.errors}`);
+    assert(
+      shortUnique.fixed === "see `src/billing/meter.use-case.ts:3` and src/billing/meter.use-case.ts:1-2",
+      `short anchors expanded: ${shortUnique.fixed}`,
+    );
+    const shortPastEnd = validate("meter.use-case.ts:9", "anchors", dir);
+    assert(shortPastEnd.errors.some((e) => e.includes("past the end of src/billing/meter.use-case.ts")), "resolved anchor keeps the line check");
+    const shortAmbiguous = validate("hooks.ts:2", "anchors", dir);
+    assert(shortAmbiguous.errors.some((e) => e.includes("matches 2 files")), "ambiguous short anchor is an error");
+    const shortCited = validate("The hook lives in `src/billing/hooks.ts`.\nIt reads the balance at hooks.ts:2.", "anchors", dir);
+    assert(shortCited.errors.some((e) => e.includes("matches 2 files")), "a full path cited elsewhere does not settle an ambiguous short anchor");
+    const shortWrongFile = validate("see meter.use-case.ts:9 and meter.use-case.ts:2", "anchors", dir);
+    assert(shortWrongFile.errors.length === 1 && shortWrongFile.fixed === "see meter.use-case.ts:9 and src/billing/meter.use-case.ts:2",
+      `an anchor whose line check fails is not expanded: ${shortWrongFile.fixed}`);
+    assert(shortUnique.resolutions.length === 2 && shortUnique.resolutions[0].full === "src/billing/meter.use-case.ts", "resolutions are reported");
+    const hosts = validate("the pool at 127.0.0.1:5432, api.example.com:443 and db.internal:5432; missing.ts:3", "anchors", dir);
+    assert(hosts.errors.length === 1 && hosts.errors[0].includes("missing.ts:3"), `host:port is not an anchor: ${hosts.errors}`);
+    writeFileSync(join(dir, "example.com"), "one\n");
+    assert(validate("example.com:1", "anchors", dir).ok && validate("example.com:5", "anchors", dir).errors.length === 1, "a file named like a host is still an anchor");
+    const shortSkipped = validate("vendored.ts:1", "anchors", dir);
+    assert(shortSkipped.errors.some((e) => e.includes("not found")), "ignored directories are not searched");
+    const fullUntouched = validate("a.ts:1 and src/usage/hooks.ts:2", "anchors", dir);
+    assert(fullUntouched.ok && fullUntouched.stats.short === 0 && fullUntouched.fixed === "a.ts:1 and src/usage/hooks.ts:2", "full anchors are left alone");
+    const urlBefore = validate("docs at https://x.io/a/b.ts:3 then meter.use-case.ts:1", "anchors", dir);
+    assert(urlBefore.fixed === "docs at https://x.io/a/b.ts:3 then src/billing/meter.use-case.ts:1", `URL keeps offsets: ${urlBefore.fixed}`);
+
+    // In a Git worktree, a file that was deleted and not staged is still listed by Git.
+    const repo = join(dir, "repo");
+    mkdirSync(join(repo, "src"), { recursive: true });
+    writeFileSync(join(repo, "src", "gone.ts"), "g1\ng2\n");
+    writeFileSync(join(repo, "src", "kept.ts"), "k1\n");
+    let inGit = true;
+    try {
+      const run = (...args) => execFileSync("git", ["-C", repo, ...args], { stdio: "ignore" });
+      run("init", "-q");
+      run("add", "-A");
+    } catch {
+      inGit = false;
+    }
+    rmSync(join(repo, "src", "gone.ts"));
+    for (const text of ["src/gone.ts:1", "gone.ts:2"]) {
+      const gone = validate(text, "anchors", repo);
+      assert(gone.errors.length === 1 && gone.errors[0].includes("not found"), `deleted file is reported, not read (git=${inGit}): ${gone.errors}`);
+    }
+    assert(validate("kept.ts:1", "anchors", repo).ok, "a short anchor resolves through the Git listing");
+
+    // Labels written as Markdown headings or bold lines.
+    const mapperMarkdown = validate(
+      ["## SYMBOLS", "- foo at a.ts:1", "**PATTERN**", "copy b.md:1", "**TESTS:** none yet", "### WRITERS:", "a.ts:5",
+       "**COUPLINGS**: none", "LIFECYCLE", "none", "__SIBLINGS__", "none", "#### UNCERTAINTIES", "none"].join("\n"),
+      "mapper", dir);
+    assert(mapperMarkdown.ok, `markdown labels failed: ${mapperMarkdown.errors}`);
+    const implNoted = validate(
+      implementerReport("none — additive work leaves no obsolete artifact").replace(
+        "GATE EVIDENCE: npm test → 3 passed", "GATE EVIDENCE (tested state: HEAD plus this diff):\n- npm test → 3 passed",
+      ),
+      "implementer", dir);
+    assert(implNoted.ok, `label with a parenthetical failed: ${implNoted.errors}`);
+    const implNotedEmpty = validate(
+      implementerReport("none — additive work leaves no obsolete artifact").replace("CLAIMS: README says X → b.md:1", "CLAIMS (none this round):"),
+      "implementer", dir);
+    assert(implNotedEmpty.errors.some((e) => e.includes("CLAIMS line without an anchor")), "a parenthetical is content, not an exemption");
+    const wholeBold = validate("**VERDICT: APPROVE**\n**EVIDENCE:** a.ts:1 — read; a.ts:2 — read\n__FINDINGS: none__", "reviewer", dir);
+    assert(wholeBold.ok, `whole-line bold labels failed: ${wholeBold.errors}`);
+    const boldTag = validate(
+      "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — issue — **Trigger:** static — rule — impact — fix — **Evidence:** `code`", "reviewer", dir);
+    assert(boldTag.ok, `bold trigger and evidence tags failed: ${boldTag.errors}`);
+    const proseNotLabel = validate("SYMBOLS: a.ts:1\nThe TESTS\nPATTERN: x", "mapper", dir);
+    assert(proseNotLabel.errors.some((e) => e.includes("missing label: TESTS:")), "a label inside a longer line is not a label");
+
+    // A finding or claim is one bullet with its wrapped and nested lines.
+    const reviewerWrapped = validate(
+      ["VERDICT: REJECT", "EVIDENCE: a.ts:1, a.ts:2", "FINDINGS:",
+       "- a.ts:3 — the page promises a refund that the code never issues",
+       "  - the page contradicts itself two paragraphs later",
+       "  trigger: static — doc-truth claim — impact: wrong promise — fix the sentence —",
+       "  evidence: code",
+       "- b.md:2 — stale count — trigger: static — claim — impact — fix — evidence: code",
+       "NOTES: none"].join("\n"),
+      "reviewer", dir);
+    assert(reviewerWrapped.ok, `wrapped finding failed: ${reviewerWrapped.errors}`);
+    const reviewerSecondBare = validate(
+      "VERDICT: REJECT\nEVIDENCE: a.ts:1, a.ts:2\nFINDINGS:\n- a.ts:3 — x — trigger: static — r — i — f — evidence: code\n- second finding with nothing",
+      "reviewer", dir);
+    assert(reviewerSecondBare.errors.filter((e) => e.startsWith("finding without")).length === 3, "each top-level bullet is checked on its own");
+    const claimsWrapped = validate(
+      implementerReport("none — additive work leaves no obsolete artifact").replace(
+        "CLAIMS: README says X → b.md:1",
+        "CLAIMS:\n- The README says the fee is reserved when the order is submitted and returned on\n  failure → b.md:1\n- The card names the month:\n  - en → a.ts:2\n  - pt-BR → `:4`",
+      ),
+      "implementer", dir);
+    assert(claimsWrapped.ok, `wrapped claims failed: ${claimsWrapped.errors}`);
+    const claimsUnbulleted = validate(
+      implementerReport("none — additive work leaves no obsolete artifact").replace(
+        "CLAIMS: README says X → b.md:1", "CLAIMS:\nfirst claim → b.md:1\nsecond claim with no anchor",
+      ),
+      "implementer", dir);
+    assert(claimsUnbulleted.errors.some((e) => e.includes("CLAIMS line without an anchor: second claim")), "unbulleted lines are separate claims");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -428,11 +665,17 @@ function main(argv) {
     return v;
   };
   const kind = opt("--kind");
-  const input = opt("--input");
+  const inputArg = opt("--input");
+  const input = inputArg === "-" ? null : inputArg;
   const repoRootArg = opt("--repo-root");
   const json = args.includes("--json");
+  const fix = args.includes("--fix");
   if (!kind || !["mapper", "reviewer", "final", "implementer", "correction", "anchors"].includes(kind)) {
-    console.error("usage: validate-report.mjs --kind mapper|reviewer|final|implementer|correction|anchors [--input file] [--repo-root dir] [--json] | --self-test");
+    console.error("usage: validate-report.mjs --kind mapper|reviewer|final|implementer|correction|anchors [--input file] [--repo-root dir] [--fix] [--json] | --self-test");
+    return 2;
+  }
+  if (fix && !input) {
+    console.error("--fix rewrites the report file and needs --input <file>");
     return 2;
   }
   let text;
@@ -454,17 +697,29 @@ function main(argv) {
       return 2;
     }
   }
-  const report = validate(text, kind, repoRoot);
-  if (json) console.log(JSON.stringify(report, null, 2));
+  const { fixed, ...report } = validate(text, kind, repoRoot);
+  const expanded = fix && fixed !== text;
+  if (expanded) writeFileSync(input, fixed);
+  if (json) console.log(JSON.stringify({ ...report, expanded }, null, 2));
   else {
     console.log(report.ok ? `OK (${report.warnings.length} warnings)` : `FAIL (${report.errors.length} errors, ${report.warnings.length} warnings)`);
     for (const e of report.errors) console.log(`  ERROR: ${e}`);
     for (const w of report.warnings) console.log(`  WARN:  ${w}`);
-    console.log(`  anchors: ${report.stats.anchors}; labels: ${report.stats.labels.join(", ") || "none"}`);
+    for (const r of report.resolutions.slice(0, 12)) {
+      console.log(`  NOTE:  short anchor ${r.short} taken as ${r.full}; write the full path if another file was meant`);
+    }
+    if (report.resolutions.length > 12) console.log(`  NOTE:  … and ${report.resolutions.length - 12} more short anchors`);
+    const short = report.stats.short
+      ? ` (${report.stats.short} short, ${expanded ? "expanded in the file" : "resolved; --fix writes the full paths"})`
+      : "";
+    console.log(`  anchors: ${report.stats.anchors}${short}; labels: ${report.stats.labels.join(", ") || "none"}`);
   }
   return report.ok ? 0 : 1;
 }
 
-if (process.argv[1] && basename(process.argv[1]) === "validate-report.mjs") {
+// Run the CLI when this file is the entry script, under any name or through a link; an importing
+// script gets the exports only.
+const entry = process.argv[1] ? resolve(process.argv[1]) : "";
+if (entry && [entry, realpathSync(entry)].includes(fileURLToPath(import.meta.url))) {
   process.exit(main(process.argv.slice(2)));
 }

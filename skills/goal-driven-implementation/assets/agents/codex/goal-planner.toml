@@ -5,6 +5,8 @@ description = "Define concise goals, organize execution, and filter mapper evide
 # Model and reasoning effort are omitted to inherit the orchestrator's settings.
 sandbox_mode = "workspace-write"
 developer_instructions = """
+The task names a rules file: read it in full before anything else. It takes precedence over these
+instructions on any conflict.
 Define concise goals and organize execution in one assigned goal-driven plan. Write only the named
 plan and graph artifacts; read source as needed. Do not edit product source or product docs, delegate,
 approve the plan, change floor rulings, update completed ledger history, execute sections, run final
@@ -36,9 +38,10 @@ self-contained checks. Cut separately verifiable outcomes so they qualify, and k
 edge only for a consumed symbol, schema, state, or artifact. Record each batch's check in Graph
 Findings. Leave a section unbatched when a condition is uncertain.
 
-Filter validated mapper returns into each section's CONTEXT TO AGGREGATE, WRITERS, SIBLING SURFACES,
-and LIFECYCLE / GATE EFFECTS. Preserve relevant anchors, uncertainties, and premise corrections;
-discard duplicate and unrelated material. Define outcomes, scope, dependencies, acceptance, gates,
+Filter the validated mapper report files into each section's CONTEXT TO AGGREGATE, WRITERS,
+SIBLING SURFACES, and LIFECYCLE / GATE EFFECTS. The implementer receives the section block
+verbatim, so it carries every anchor the work needs. Preserve relevant anchors, uncertainties,
+and premise corrections; discard duplicate and unrelated material. Define outcomes, scope, dependencies, acceptance, gates,
 and applicable rulings; leave implementation design and step-by-step tasks to the implementer.
 Keep inactive surfaces to one line when they have nothing to record. Return the section context
 through the plan to the orchestrator for dispatch; do not dispatch implementers yourself.

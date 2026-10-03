@@ -12,6 +12,7 @@ Sources: <roadmap / PRD / ADR / issue references>
 Written: <YYYY-MM-DD>
 Skill source: <resolved skill root; source revision if available; installed or repository copy>
 Feature map: <path from scout-repo.mjs — n apps / n features / n shared kernels, or "flat repository">
+Run directory: <absolute path outside the repository: baseline, assignment files, agent reports>
 
 ## Premise corrections
 
@@ -24,9 +25,9 @@ sections below are written against the corrected premise.
 
 ### Roles
 
-- Main session: orchestrator. It forwards filtered section context, assesses reviews, owns
-  acceptance and sign-off, verifies, owns rulings and approval/status, updates this ledger, and
-  commits.
+- Main session: orchestrator. It dispatches each section from its assignment file, assesses
+  reviews, owns acceptance and sign-off, verifies, owns rulings and approval/status, updates this
+  ledger, and commits.
   It never edits product source or product docs.
 - Plan author: one at a time for an initial draft or explicit replan (`gdi-planner` in Claude Code,
   `goal-planner` in Codex; a recorded fallback otherwise). It writes only the assigned plan and graph
@@ -129,6 +130,10 @@ plan approves exactly these; anything broader is a new brief.
 
 #### Recorded calls (orchestrator-ruled under the floor, user-vetoable)
 
+Start a call with `narrows:` when it delivers less than the inputs asked, or something different:
+a requirement met in part, a control left out, a behavior chosen where the inputs were silent.
+The plan presentation and the completion report list those calls first.
+
 | #   | Section                                 | Call                                                                                                                                                                               | Rationale                                |
 | --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | R0  | all                                     | `lane: <full / bounded>` — for `bounded`, the eligibility checks made (see SKILL.md, Bounded-fix lane)                                                                             | `<what was read to decide>`              |
@@ -196,6 +201,12 @@ flowchart LR
 - [ ] <failure mode degrades safely>
 
 The plan is complete only when every goal exit test passes.
+
+### Out of scope
+
+Every part of the inputs this plan does not deliver, with where it goes instead.
+
+- <input clause or expected capability> — <deferral row / issue / other repository, or why it is dropped>
 
 ## 2. Topology graph and recommended order
 
@@ -290,8 +301,8 @@ Sign-off decisions (only when used):
 
 ### Corrections in force
 
-Factual corrections accepted in earlier sections. The orchestrator appends here at every accept
-and prepends this block to every later implementer prompt.
+Factual corrections accepted in earlier sections; each applies to every later section. The
+orchestrator appends here at every accept, and every later assignment carries this block.
 
 - <date> — <section> — <corrected claim, with anchor>
 
@@ -400,7 +411,7 @@ VERIFY:
 - Evidence reuse: <valid results and tested state; inputs that invalidate them>.
 
 REVIEW:
-<Lenses: security, data, contract, reliability, convention/scope, doc-truth; + capacity when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
+<Lenses by name: security/authz, data/migration, contract/API, failure-mode/reliability, convention/scope, doc-truth; + capacity/false-positive when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
 
 ACCEPTANCE:
 <Exact Goal exit-test clause or usable internal capability established by this commit. Name
@@ -449,16 +460,20 @@ time, staging the paths that
 Record schema for a checked row (one line per rejection round):
 
 ```text
-- [x] A1 <title> — <exit clause> — accepted <YYYY-MM-DD> <sha> — rounds: 2 — review: independent — routing: requested=<...>; role=<...>; model/effort=<...> — cost: <observed tokens or unknown> / <m> agents — env-retries: 0
+- [x] <ID> <title> — <exit clause> — accepted <YYYY-MM-DD> <sha> — rounds: 2 — review: independent — routing: requested=<...>; role=<...>; model/effort=<...> — cost: <observed tokens or unknown> / <m> agents — env-retries: 0
   - R1 failure-mode: <one line — what the reviewer found>
   - R2 doc-truth: <one line>
 ```
 
-While a parallel batch is in progress, each member's unchecked row carries its state:
-`- [ ] A1 <title> — <exit clause> — batch <label>: implementing`; then `in review` with the path
-of the saved validated report; then `accepted, commit pending` with the rounds, review, routing,
-and cost record and the member's digest from the `--write-sets` listing. A member that leaves
-the batch carries `left batch <label>: needs <path>`. The row is checked when the member is
+A round line is `R<n> <class>:` with one lowercase lens word (`failure-mode`, `doc-truth`,
+`convention`, `security`, `data`, `contract`, `capacity`, `evaluator`); name a second lens after
+the colon.
+
+While a parallel batch is in progress, each member's unchecked row carries its state: `- [ ] A1
+<title> — <exit clause> — batch <label>: implementing`; then `in review` with the path of the
+validated report in the run directory; then `accepted, commit pending` with the rounds, review,
+routing, and cost record and the member's digest from the `--write-sets` listing. A member that
+leaves the batch carries `left batch <label>: needs <path>`. The row is checked when the member is
 committed.
 
 Use observed usage when exposed; otherwise write `cost: unknown`, never an invented estimate.

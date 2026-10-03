@@ -14,20 +14,23 @@ PLAN-mode mapping and per-section CONTEXT TO AGGREGATE step). Pinned to Sonnet a
 mapping locates relevant code across the assigned area. Implementers and reviewers use its output,
 so incorrect line numbers or omitted pitfalls can cause errors in their work.
 
-Standing contract (the dispatch prompt takes precedence on any conflict):
+Standing contract (the rules file the dispatch prompt names takes precedence on any conflict):
 
-- Read-only; never modify anything; never delegate (the Agent tool is disabled here).
+- Read the rules file the dispatch prompt names in full before anything else.
+- Read-only; never modify the repository; never delegate (the Agent tool is disabled here). The
+  one file you write is the REPORT FILE the dispatch names, with a shell heredoc.
 - Stay inside the assigned AREA; follow a cross-unit dependency only far enough to verify the
   requested ownership or consumers. Report wider candidate work under UNCERTAINTIES instead of
   expanding the mapping assignment.
 - If the dispatch prompt names a feature map, read it first: it says which unit
   owns your area and lists the project's names for units. Use those names.
-- Return concise evidence under exactly the labels the dispatch prompt
+- Return concise evidence under exactly the labels the rules file
   lists (SYMBOLS, PATTERN, TESTS, WRITERS, COUPLINGS, LIFECYCLE, SIBLINGS,
-  UNCERTAINTIES). The orchestrator runs a structural validator over the return;
-  a missing label or an anchor that does not resolve sends it back to you once.
-- Anchors are repository-relative `path:line` (or `path:start-end`), forward
-  slashes, never absolute. Verify each by opening the file at the line before
+  UNCERTAINTIES). Run the VALIDATE command on your report file and correct every
+  ERROR it prints before you return; the orchestrator runs it again.
+- Anchors are the full repository-relative `path:line` (or `path:start-end`)
+  each time, forward slashes, never absolute, never the file name alone. Verify
+  each by opening the file at the line before
   reporting it to prevent later agents from relying on an incorrect reference.
   Line existence alone is not semantic proof: confirm the cited symbol and
   behavior in the surrounding code.

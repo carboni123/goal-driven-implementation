@@ -10,7 +10,7 @@
 // gdi_schema 2 is the current contract; gdi_schema 1 plans are validated with the legacy rules.
 
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -143,6 +143,26 @@ function parseTable(body) {
 const isPlaceholder = (cell) =>
   !cell || /^<.*>$/.test(cell) || /^`<.*>`$/.test(cell);
 
+// A table header row with exactly these cells, whatever the column padding or letter case.
+const hasTableHeader = (text, cells) =>
+  text.split(/\r?\n/).some((line) => {
+    const row = line.trim();
+    if (!row.startsWith("|")) return false;
+    const got = row.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim().toLowerCase());
+    return got.length === cells.length && got.every((c, i) => c === cells[i].toLowerCase());
+  });
+
+// Fenced code blocks hold examples, such as the ledger record schema; blank them so an example
+// row is not read as plan content. Line count and offsets stay the same.
+const withoutFences = (text) => {
+  let fenced = false;
+  return text.split("\n").map((line) => {
+    const isFence = /^\s*(```|~~~)/.test(line);
+    if (isFence) fenced = !fenced;
+    return fenced || isFence ? "" : line;
+  }).join("\n");
+};
+
 // ---------- section / ledger / graph checks shared by both schemas ----------
 
 function checkSections(md, errors, requiredFields) {
@@ -198,7 +218,7 @@ function checkGraphMembership(md, ids, errors) {
 
 function ledgerRows(md) {
   const ledger = between(md, /^## 5\. Progress ledger$/m, /^## Completion$/m);
-  const lines = ledger.split(/\r?\n/);
+  const lines = withoutFences(ledger).split(/\r?\n/);
   const rows = [];
   for (let i = 0; i < lines.length; i += 1) {
     const m = lines[i].match(/^- \[([ xX])\]\s+([A-Z][0-9]+)\b(.*)$/);
@@ -246,8 +266,10 @@ function gitEnv() {
   );
 }
 
+// Read-only calls: without optional locks, `git status` never holds the index lock that an
+// implementer's own Git command may need at the same moment.
 function git(repoRoot, args, { trim = true } = {}) {
-  const out = execFileSync("git", ["-C", repoRoot, ...args], {
+  const out = execFileSync("git", ["--no-optional-locks", "-C", repoRoot, ...args], {
     encoding: "utf8",
     env: gitEnv(),
     stdio: ["ignore", "pipe", "pipe"],
@@ -555,11 +577,7 @@ function checkPreflight(md, status, errors) {
     if (!new RegExp(`^${f}:\\s*\\S.+$`, "m").test(pre))
       errors.push(`execution-environment preflight is missing ${f}`);
   }
-  if (
-    !/^\| Capability \| Probe \/ expected condition \| Observed evidence \| Classification \|$/m.test(
-      pre,
-    )
-  ) {
+  if (!hasTableHeader(pre, ["Capability", "Probe / expected condition", "Observed evidence", "Classification"])) {
     errors.push(
       "execution-environment preflight is missing the capability evidence table",
     );
@@ -731,7 +749,7 @@ function validateSchema2(md, fm, errors) {
     if (!re.test(md)) errors.push(`missing required heading: ${label}`);
 
   const { pre, pstatus } = checkPreflight(md, status, errors);
-  if (!/^\| Condition \| Detection \| Pre-approved handling \|$/m.test(pre)) {
+  if (!hasTableHeader(pre, ["Condition", "Detection", "Pre-approved handling"])) {
     errors.push(
       "Known blockers table is missing (Condition | Detection | Pre-approved handling)",
     );
@@ -1163,6 +1181,11 @@ function commitSelfTest() {
     const cli = execFileSync(process.execPath, [scriptPath, planPath, "--commit-boundaries", "--repo-root", repo],
       { encoding: "utf8", env: gitEnv(), stdio: ["ignore", "pipe", "pipe"] });
     if (!cli.includes("commits=1") || !cli.includes("commit-boundaries=checked")) throw new Error("CLI did not run requested checks");
+    const renamed = join(repo, "check-plan.mjs");
+    symlinkSync(scriptPath, renamed);
+    const linked = execFileSync(process.execPath, [renamed, planPath], { encoding: "utf8", env: gitEnv(), stdio: ["ignore", "pipe", "pipe"] });
+    if (!linked.includes("Plan validation passed")) throw new Error("the CLI did not run through a renamed link");
+    rmSync(renamed);
     for (const args of [[planPath, "--repo-root"], [planPath, "--unknown"], [planPath, "--commit-boundaries", "--commit-boundaries"], [planPath, "--write-sets"]]) {
       let status;
       try {
@@ -1246,6 +1269,31 @@ function selfTest() {
   const legacy = validatePlan(S1_FIXTURE);
   if (legacy.errors.length)
     throw new Error(`schema-1 fixture failed:\n${legacy.errors.join("\n")}`);
+
+  // Table headers are matched by cell, so a formatter's column padding does not hide a table.
+  const padded = validatePlan(
+    S2_FIXTURE
+      .replace("| Capability | Probe / expected condition | Observed evidence | Classification |",
+        "| Capability          | Probe / expected condition | Observed evidence | Classification  |")
+      .replace("| Condition | Detection | Pre-approved handling |", "| Condition   | Detection   | Pre-approved handling   |"),
+  );
+  if (padded.errors.length) throw new Error(`padded table headers were rejected:\n${padded.errors.join("\n")}`);
+  expectError(
+    validatePlan(S2_FIXTURE.replace("| Capability | Probe / expected condition | Observed evidence | Classification |", "| Capability | Observed evidence |")),
+    "missing the capability evidence table", "capability table header");
+  expectError(
+    validatePlan(S2_FIXTURE.replace("| Condition | Detection | Pre-approved handling |", "| Condition | Handling |")),
+    "Known blockers table is missing", "known blockers table header");
+
+  // The ledger record schema is an example inside a code fence, not a ledger row.
+  const fencedExample = validatePlan(S2_FIXTURE.replace(
+    "## 5. Progress ledger\n",
+    "## 5. Progress ledger\n```text\n- [x] A1 <title> — accepted <YYYY-MM-DD> <sha> — rounds: 2 — review: independent\n  - R1 failure-mode: <one line>\n```\n",
+  ));
+  if (fencedExample.errors.length) throw new Error(`a fenced ledger example was read as a row:\n${fencedExample.errors.join("\n")}`);
+  expectError(
+    validatePlan(S2_FIXTURE.replace("- [ ] A1 slice\n", "- [ ] A1 slice\n- [ ] A1 slice again\n")),
+    "exactly once; found 2", "duplicate ledger row outside a fence");
 
   const accepted = S2_FIXTURE.replace(
     "status: approved",
@@ -1432,61 +1480,70 @@ function selfTest() {
   console.log("validate-plan self-test passed (schemas, parallel batches, commit boundaries, real Git commits)");
 }
 
-const args = process.argv.slice(2);
-if (args.length === 1 && args[0] === "--self-test") {
-  selfTest();
-  process.exit(0);
-}
-const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo> [--write-sets [A1,A2]]] | --self-test";
-let planPath;
-const options = {};
-for (let i = 0; i < args.length; i += 1) {
-  if (args[i] === "--commit-boundaries" && !options.commitBoundaries) {
-    options.commitBoundaries = true;
-  } else if (args[i] === "--repo-root" && !options.repoRoot && args[i + 1] && !args[i + 1].startsWith("-")) {
-    options.repoRoot = resolve(args[++i]);
-  } else if (args[i] === "--write-sets" && !options.writeSets) {
-    options.writeSets = true;
-    if (/^[A-Z][0-9]+(,[A-Z][0-9]+)*$/.test(args[i + 1] ?? "")) options.writeSetIds = args[++i].split(",");
-  } else if (!args[i].startsWith("-") && !planPath) {
-    planPath = resolve(args[i]);
-  } else {
+export { between, field, ledgerRows, parseFrontmatter, parseTable, sectionBlocks, withoutFences, writeSet };
+
+function main() {
+  const args = process.argv.slice(2);
+  if (args.length === 1 && args[0] === "--self-test") {
+    selfTest();
+    process.exit(0);
+  }
+  const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo> [--write-sets [A1,A2]]] | --self-test";
+  let planPath;
+  const options = {};
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--commit-boundaries" && !options.commitBoundaries) {
+      options.commitBoundaries = true;
+    } else if (args[i] === "--repo-root" && !options.repoRoot && args[i + 1] && !args[i + 1].startsWith("-")) {
+      options.repoRoot = resolve(args[++i]);
+    } else if (args[i] === "--write-sets" && !options.writeSets) {
+      options.writeSets = true;
+      if (/^[A-Z][0-9]+(,[A-Z][0-9]+)*$/.test(args[i + 1] ?? "")) options.writeSetIds = args[++i].split(",");
+    } else if (!args[i].startsWith("-") && !planPath) {
+      planPath = resolve(args[i]);
+    } else {
+      console.error(usage);
+      process.exit(2);
+    }
+  }
+  if (!planPath || (options.writeSets && !options.repoRoot)) {
     console.error(usage);
     process.exit(2);
   }
-}
-if (!planPath || (options.writeSets && !options.repoRoot)) {
-  console.error(usage);
-  process.exit(2);
-}
-options.planPath = planPath;
-let markdown;
-try {
-  markdown = readFileSync(planPath, "utf8");
-} catch (error) {
-  console.error(`Could not read ${planPath}: ${error.message}`);
-  process.exit(2);
-}
-const result = validatePlan(markdown, options);
-if (result.errors.length) {
-  console.error(`Plan validation failed: ${basename(planPath)}`);
-  for (const e of result.errors) console.error(`- ${e}`);
-  process.exit(1);
-}
-const s = result.summary;
-console.log(
-  `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${s.batches ? `, parallel-batches=${s.batches}` : ""}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
-);
-if (options.writeSets) {
-  const { bySection, digests, outside, shared } = attributeChanges(markdown, options.repoRoot, planPath, options.writeSetIds);
-  const missing = (options.writeSetIds ?? []).filter((id) => !bySection.has(id));
-  if (missing.length) {
-    console.error(`--write-sets: no section with a WRITE SET named ${missing.join(", ")}`);
+  options.planPath = planPath;
+  let markdown;
+  try {
+    markdown = readFileSync(planPath, "utf8");
+  } catch (error) {
+    console.error(`Could not read ${planPath}: ${error.message}`);
     process.exit(2);
   }
-  const list = (paths) => (paths.length ? paths : ["(none)"]).map((path) => `  ${path}`).join("\n");
-  console.log("Uncommitted paths by WRITE SET (the plan file is left out):");
-  for (const [id, paths] of bySection) console.log(`${id}${digests.has(id) ? ` digest=${digests.get(id)}` : ""}\n${list(paths)}`);
-  console.log(`outside every listed WRITE SET\n${list(outside)}`);
-  if (shared.length) console.log(`in more than one listed WRITE SET\n${list(shared)}`);
+  const result = validatePlan(markdown, options);
+  if (result.errors.length) {
+    console.error(`Plan validation failed: ${basename(planPath)}`);
+    for (const e of result.errors) console.error(`- ${e}`);
+    process.exit(1);
+  }
+  const s = result.summary;
+  console.log(
+    `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${s.batches ? `, parallel-batches=${s.batches}` : ""}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
+  );
+  if (options.writeSets) {
+    const { bySection, digests, outside, shared } = attributeChanges(markdown, options.repoRoot, planPath, options.writeSetIds);
+    const missing = (options.writeSetIds ?? []).filter((id) => !bySection.has(id));
+    if (missing.length) {
+      console.error(`--write-sets: no section with a WRITE SET named ${missing.join(", ")}`);
+      process.exit(2);
+    }
+    const list = (paths) => (paths.length ? paths : ["(none)"]).map((path) => `  ${path}`).join("\n");
+    console.log("Uncommitted paths by WRITE SET (the plan file is left out):");
+    for (const [id, paths] of bySection) console.log(`${id}${digests.has(id) ? ` digest=${digests.get(id)}` : ""}\n${list(paths)}`);
+    console.log(`outside every listed WRITE SET\n${list(outside)}`);
+    if (shared.length) console.log(`in more than one listed WRITE SET\n${list(shared)}`);
+  }
 }
+
+// Run the CLI when this file is the entry script, under any name or through a link; a script that
+// imports the parsers gets the exports only.
+const entry = process.argv[1] ? resolve(process.argv[1]) : "";
+if (entry && [entry, realpathSync(entry)].includes(fileURLToPath(import.meta.url))) main();

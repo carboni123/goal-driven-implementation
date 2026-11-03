@@ -649,6 +649,11 @@ function selfTest() {
 
 function main(argv) {
   const args = [...argv];
+  const usage = "usage: validate-report.mjs --kind mapper|reviewer|final|implementer|correction|anchors [--input file] [--repo-root dir] [--fix] [--json] | --self-test";
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(usage);
+    return 0;
+  }
   if (args.includes("--self-test")) {
     selfTest();
     return 0;
@@ -671,7 +676,7 @@ function main(argv) {
   const json = args.includes("--json");
   const fix = args.includes("--fix");
   if (!kind || !["mapper", "reviewer", "final", "implementer", "correction", "anchors"].includes(kind)) {
-    console.error("usage: validate-report.mjs --kind mapper|reviewer|final|implementer|correction|anchors [--input file] [--repo-root dir] [--fix] [--json] | --self-test");
+    console.error(usage);
     return 2;
   }
   if (fix && !input) {

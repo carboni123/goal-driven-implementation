@@ -29,6 +29,12 @@ What the evidence showed, and what changed:
   - A verified or shipped plan whose Graph Findings has no completion trace, or one still
     `pending`, gets a `WARN:` line. It never fails validation. 14 Claude plans left the trace
     pending, and 89 Codex plans had no trace labels.
+- **Graph capture.** 46 of 47 Claude Code planners wrote their own Playwright capture script
+  (301 commands); one waited 583 minutes on it. Codex orchestrators read the renderer's source
+  52 times and passed it `--help` 28 times. `render-plan-graph.mjs --png <dir>` captures one
+  image per graph with a headless Chromium (`CHROME_PATH`, `PATH`, or the Playwright cache),
+  sized to the graph, with a 60-second limit per capture, and exits 3 when it cannot.
+- **`--help`** on every script prints its usage.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

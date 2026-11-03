@@ -431,11 +431,15 @@ None.
 
 function main(argv) {
   const args = [...argv];
+  const usage = "usage: section-brief.mjs <plan.md> <ID> [--run-dir <dir> --repo-root <repo>] [--round <n>] [--harness claude|codex] | --self-test";
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(usage);
+    return 0;
+  }
   if (args.includes("--self-test")) {
     selfTest();
     return 0;
   }
-  const usage = "usage: section-brief.mjs <plan.md> <ID> [--run-dir <dir> --repo-root <repo>] [--round <n>] [--harness claude|codex] | --self-test";
   const opt = (name) => {
     const i = args.indexOf(name);
     if (i === -1) return null;

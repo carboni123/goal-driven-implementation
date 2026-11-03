@@ -413,11 +413,13 @@ evidence, and continue in that lane.
 6. Validate: `node <skill-root>/assets/validate-plan.mjs <plan-file> --commit-boundaries`.
    This checks populated stopping-point fields; the planner still judges their coherence.
    Fix errors; never waive them in prose.
-7. Render the generated Mermaid: `node <skill-root>/assets/render-plan-graph.mjs <plan-file>`.
-   Open the resulting HTML with an available browser tool, wait for Mermaid to finish,
-   and capture readable screenshots of every graph. The script generates HTML, not screenshots.
-   Keep renders and images outside tracked plan files. Follow **Rendered graph inspection** in
-   `references/graph-analysis.md` for capture, the visual checklist, and unavailable-tool handling.
+7. Render the generated Mermaid and capture each graph:
+   `node <skill-root>/assets/render-plan-graph.mjs <plan-file> --out <run-dir>/plan.html --png <run-dir>`.
+   `--png` writes one image per graph with a headless Chromium and prints each path; it exits 3
+   when no browser is found or a capture fails, and then a browser tool captures the page
+   instead. Keep renders and images outside tracked plan files. Follow **Rendered graph
+   inspection** in `references/graph-analysis.md` for the visual checklist and unavailable-tool
+   handling.
 8. The plan-authoring planner visually inspects the rendered graphs before presenting the plan.
    Actually open the screenshots with image-viewing tools or supported image input, examine the
    visible paths and layout, then compare them with the Mermaid and plan. Follow **Rendered graph
@@ -730,8 +732,8 @@ When every section is checked:
 - `assets/prompts/` — the rules and report format each role reads: `planner.md`, `mapper.md`,
   `implementer.md`, `reviewer.md` (section lens checklists), `final-reviewer.md` (lenses a–f),
   `correction.md`.
-- `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML; `--open`
-  opens it in a browser.
+- `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML; `--png
+  <dir>` captures one image per graph with a headless Chromium; `--open` opens the page.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.
 - `assets/VERSION` — the skill release stamped into `gdi_version`.

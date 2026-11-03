@@ -63,9 +63,10 @@ prints the new snippet and leaves legacy config/files intact. See the
    mapper evidence, draw the topology graph (inputs → sections → goal
    exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
-   validate, render, have the plan author inspect supplied screenshots, and either wait for the
-   user's ruling on floor items or start. The plan author is a dedicated role in both harnesses
-   (`gdi-planner`, `goal-planner`); the orchestrator checks its write boundary and re-validates.
+   validate, render and capture the graphs (`render-plan-graph.mjs --png`), have the plan author
+   inspect the images, and either wait for the user's ruling on floor items or start. The plan
+   author is a dedicated role in both harnesses (`gdi-planner`, `goal-planner`); the orchestrator
+   checks its write boundary and re-validates.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
    eight review lenses in parallel. Dispatch is by file: `assets/section-brief.mjs` writes the
    section's assignment from the plan (section block, rulings, corrections in force, gates,
@@ -149,7 +150,7 @@ skills/goal-driven-implementation/
     plan-template.md             gdi_schema: 2 plan skeleton
     validate-plan.mjs            structural, batch, boundary, and Git commit checks (--self-test)
     section-brief.mjs            plan → one section's assignment file and dispatch stubs (--self-test)
-    render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger)
+    render-plan-graph.mjs        plan → HTML (graphs, findings, budget, ledger); --png images
     scout-repo.mjs               repository → feature map; --classify maps paths to units (--self-test)
     validate-report.mjs          structural check of agent returns and anchors; --fix (--self-test)
     prompts/*.md                 rules and report format each role reads (planner, mapper,
@@ -192,7 +193,7 @@ node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md 
 node skills/goal-driven-implementation/assets/validate-plan.mjs path/to/plan.md --repo-root path/to/repo --write-sets A1,A2
 node skills/goal-driven-implementation/assets/section-brief.mjs path/to/plan.md A1 --run-dir /tmp/run --repo-root path/to/repo
 node skills/goal-driven-implementation/assets/validate-report.mjs --kind reviewer --repo-root path/to/repo --input report.md --fix
-node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md
+node skills/goal-driven-implementation/assets/render-plan-graph.mjs path/to/plan.md --out /tmp/run/plan.html --png /tmp/run
 node skills/goal-driven-implementation/assets/scout-repo.mjs path/to/repo --out feature-map.yml
 ```
 

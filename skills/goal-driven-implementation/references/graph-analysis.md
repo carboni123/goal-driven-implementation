@@ -32,11 +32,14 @@ to the goal planner.
 
 ### Prepare the images
 
-1. Render the current plan with `assets/render-plan-graph.mjs <plan-file>`. Open the
-   returned HTML in a browser available to the harness. Wait until each Mermaid block is a rendered
-   diagram, not a loading placeholder, raw source, or an error panel. HTML creation alone does not
-   prove that the browser loaded Mermaid or rendered every block.
-2. Capture each topology and lifecycle diagram with a browser screenshot tool, or an available
+1. Render and capture the current plan with `assets/render-plan-graph.mjs <plan-file> --out
+   <run-dir>/plan.html --png <run-dir>`. It writes one image per Mermaid block at the graph's
+   natural size and prints each path, or prints why a capture failed and exits 3. Do not write a
+   capture script of your own. _Origin:_ 46 of 47 planners wrote their own Playwright capture
+   script (301 commands); one sat 583 minutes on it.
+2. When `--png` fails, open the HTML in a browser available to the harness, wait until each
+   Mermaid block is a rendered diagram, not a loading placeholder, raw source, or an error
+   panel, and capture each topology and lifecycle diagram with a screenshot tool, or an available
    Mermaid renderer that produces an image from the same source. Include a whole-graph overview
    and readable detail captures when the overview makes text or arrowheads too small. Preserve
    connecting edges, node IDs, and the legend across captures; an unreadable full-page thumbnail

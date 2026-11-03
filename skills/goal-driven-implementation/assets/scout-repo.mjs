@@ -506,6 +506,10 @@ function selfTest() {
 
 function main(argv) {
   const args = [...argv];
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log("usage: scout-repo.mjs <repo-root> [--out file] [--json] [--exclude a,b] [--classify paths|-] | --self-test");
+    return 0;
+  }
   if (args.includes("--self-test")) {
     selfTest();
     return 0;

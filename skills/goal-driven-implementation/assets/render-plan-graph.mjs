@@ -3,39 +3,54 @@
 // and progress ledger.
 //
 // Usage:
-//   node render-plan-graph.mjs <plan.md> [--out <file.html>] [--open]
+//   node render-plan-graph.mjs <plan.md> [--out <file.html>] [--png <dir>] [--open]
 //
-// The page is written and its path printed. --open also opens it in the default browser; an
-// agent captures the page with its own browser tool instead. --no-open is accepted and ignored.
+// The page is written and its path printed. --png also writes one PNG per Mermaid graph with a
+// headless Chromium, for the planner's visual inspection. --open also opens the page in the
+// default browser. --no-open is accepted and ignored.
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
-import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { basename, delimiter, dirname, join, resolve } from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+
+const USAGE = `Usage: node render-plan-graph.mjs <plan.md> [--out <file.html>] [--png <dir>] [--open]
+  --out <file.html>  where to write the page; default <tmp>/goal-driven-plans/<plan>.graph.html
+  --png <dir>        also write one PNG per Mermaid graph into <dir>, captured with a headless
+                     Chromium found through CHROME_PATH, PATH, or the Playwright browser cache;
+                     each capture stops after 60 seconds. Exit 3 when a capture fails.
+  --open             open the page in the default browser`;
 
 const args = process.argv.slice(2);
 let planArg;
 let outArg;
+let pngArg;
 let open = false;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
-  if (arg === '--open') {
+  if (arg === '--help' || arg === '-h') {
+    console.log(USAGE);
+    process.exit(0);
+  } else if (arg === '--open') {
     open = true;
   } else if (arg === '--no-open') {
     open = false;
-  } else if (arg === '--out') {
-    outArg = args[index + 1];
-    if (!outArg) {
-      console.error('--out requires a file path.');
+  } else if (arg === '--out' || arg === '--png') {
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      console.error(`${arg} requires a path.\n${USAGE}`);
       process.exit(1);
     }
+    if (arg === '--out') outArg = value;
+    else pngArg = value;
     index += 1;
-  } else if (arg.startsWith('--')) {
-    console.error(`Unknown option: ${arg}`);
+  } else if (arg.startsWith('-')) {
+    console.error(`Unknown option: ${arg}\n${USAGE}`);
     process.exit(1);
   } else if (planArg) {
-    console.error('Provide exactly one plan Markdown file.');
+    console.error(`Provide exactly one plan Markdown file.\n${USAGE}`);
     process.exit(1);
   } else {
     planArg = arg;
@@ -43,7 +58,7 @@ for (let index = 0; index < args.length; index += 1) {
 }
 
 if (!planArg) {
-  console.error('Usage: node render-plan-graph.mjs <plan.md> [--out <file.html>] [--open]');
+  console.error(USAGE);
   process.exit(1);
 }
 
@@ -352,6 +367,120 @@ console.log(
     `${ledger.length} ledger items${lifecycleBudget ? ', lifecycle budget shown' : ''}` +
     `${findings ? ', findings shown' : ''})`,
 );
+
+// ---------- --png: one image per graph through a headless Chromium ----------
+
+function findBrowser() {
+  const exe = process.platform === 'win32' ? '.exe' : '';
+  const candidates = [process.env.CHROME_PATH].filter(Boolean);
+  for (const name of ['chrome-headless-shell', 'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'chrome', 'msedge']) {
+    for (const dir of (process.env.PATH ?? '').split(delimiter).filter(Boolean)) candidates.push(join(dir, name + exe));
+  }
+  if (process.platform === 'darwin') {
+    candidates.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium');
+  }
+  const cache = process.env.PLAYWRIGHT_BROWSERS_PATH ||
+    (process.platform === 'darwin' ? join(homedir(), 'Library', 'Caches', 'ms-playwright')
+      : process.platform === 'win32' ? join(process.env.LOCALAPPDATA ?? homedir(), 'ms-playwright')
+        : join(homedir(), '.cache', 'ms-playwright'));
+  const version = (name) => Number(name.split('-').pop()) || 0;
+  const installs = existsSync(cache) ? readdirSync(cache).filter((d) => /^chromium(_headless_shell)?-\d+$/.test(d)) : [];
+  // Newest first; the headless shell before the full browser of the same version.
+  installs.sort((a, b) => version(b) - version(a) || (b.includes('headless') ? 1 : 0) - (a.includes('headless') ? 1 : 0));
+  for (const install of installs) {
+    for (const platformDir of readdirSync(join(cache, install))) {
+      for (const name of ['chrome-headless-shell', 'chrome', 'Chromium.app/Contents/MacOS/Chromium']) {
+        candidates.push(join(cache, install, platformDir, name + (name.includes('/') ? '' : exe)));
+      }
+    }
+  }
+  return candidates.find((path) => {
+    try {
+      return statSync(path).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
+// A page with one graph at its natural size. The body records the outcome and the drawn size
+// so the screenshot window can fit the graph.
+const graphPage = (graph) => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(graph.heading || 'Graph')}</title>
+<style>body { margin: 0; padding: 16px; background: #fff; font: 15px system-ui, sans-serif; }
+#g { display: inline-block; } #g svg { max-width: none !important; }</style></head>
+<body data-state="pending"><div id="g"><pre class="mermaid">${escapeHtml(graph.source)}</pre></div>
+<script type="module">
+  try {
+    const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+    await mermaid.run({ querySelector: 'pre.mermaid' });
+    const svg = document.querySelector('#g svg');
+    const view = svg?.viewBox?.baseVal;
+    if (view?.width) {
+      svg.removeAttribute('width');
+      svg.style.width = view.width + 'px';
+      svg.style.height = view.height + 'px';
+    }
+    const box = document.getElementById('g').getBoundingClientRect();
+    document.body.dataset.w = String(Math.ceil(box.width));
+    document.body.dataset.h = String(Math.ceil(box.height));
+    document.body.dataset.state = document.querySelector('#g svg') ? 'ok' : 'failed';
+  } catch (error) {
+    document.body.dataset.state = 'failed';
+    document.body.dataset.error = String(error?.message ?? error).slice(0, 200);
+  }
+</script></body></html>`;
+
+function capture(browser, pagePath, pngPath, profile) {
+  const base = ['--headless', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check',
+    `--user-data-dir=${profile}`, '--virtual-time-budget=30000'];
+  const url = pathToFileURL(pagePath).href;
+  const run = (extra) => spawnSync(browser, [...base, ...extra, url], { encoding: 'utf8', timeout: 60_000, maxBuffer: 64 * 1024 * 1024 });
+  const dom = run(['--window-size=6000,4000', '--dump-dom']);
+  if (dom.error) return { error: dom.error.code === 'ETIMEDOUT' ? 'timed out after 60 s' : dom.error.message };
+  const body = dom.stdout.match(/<body([^>]*)>/)?.[1] ?? '';
+  const attr = (name) => body.match(new RegExp(`data-${name}="([^"]*)"`))?.[1];
+  if (attr('state') !== 'ok') {
+    return { error: `Mermaid did not render (${attr('error') ?? attr('state') ?? `exit ${dom.status}`}); the page loads Mermaid from cdn.jsdelivr.net` };
+  }
+  const w = Number(attr('w')) + 32;
+  const h = Number(attr('h')) + 32;
+  const scale = w < 1400 ? 2 : 1;
+  const shot = run([`--window-size=${w},${h}`, `--force-device-scale-factor=${scale}`, `--screenshot=${pngPath}`]);
+  if (shot.error) return { error: shot.error.code === 'ETIMEDOUT' ? 'timed out after 60 s' : shot.error.message };
+  if (!existsSync(pngPath)) return { error: `no screenshot written (exit ${shot.status}): ${(shot.stderr ?? '').trim().split('\n').pop()}` };
+  return { w: w * scale, h: h * scale };
+}
+
+if (pngArg) {
+  const pngDir = resolve(pngArg);
+  mkdirSync(pngDir, { recursive: true });
+  const browser = findBrowser();
+  if (!browser) {
+    console.error('--png: no Chromium found; set CHROME_PATH, or capture the page with a browser tool.');
+    process.exit(3);
+  }
+  const slug = basename(planPath).replace(/\.md$/i, '');
+  const profile = mkdtempSync(join(tmpdir(), 'gdi-capture-'));
+  let failed = 0;
+  try {
+    graphs.forEach((graph, index) => {
+      const stem = join(pngDir, `${slug}.graph-${index + 1}`);
+      writeFileSync(`${stem}.html`, graphPage(graph), 'utf8');
+      const result = capture(browser, `${stem}.html`, `${stem}.png`, profile);
+      if (result.error) {
+        failed += 1;
+        console.error(`png ${index + 1} (${graph.heading || 'Graph'}): FAILED — ${result.error}`);
+      } else {
+        console.log(`png ${index + 1} (${graph.heading || 'Graph'}): ${stem}.png (${result.w}×${result.h})`);
+      }
+    });
+  } finally {
+    rmSync(profile, { recursive: true, force: true });
+  }
+  if (failed) process.exitCode = 3;
+}
 
 if (open) {
   const [command, commandArgs] =

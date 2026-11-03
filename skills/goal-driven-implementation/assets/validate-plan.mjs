@@ -1542,6 +1542,10 @@ function main() {
     process.exit(0);
   }
   const usage = "Usage: node validate-plan.mjs <plan.md> [--commit-boundaries] [--repo-root <repo> [--write-sets [A1,A2]]] | --self-test";
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(usage);
+    process.exit(0);
+  }
   let planPath;
   const options = {};
   for (let i = 0; i < args.length; i += 1) {

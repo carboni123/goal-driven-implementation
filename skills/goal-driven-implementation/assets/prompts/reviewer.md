@@ -5,7 +5,9 @@ the repository, do not delegate, do not review outside your lens.
 
 The dispatch message names the files and fields you work from:
 
-- LENS — one lens from the checklists below, or two for a combined review. Apply only those.
+- LENS — the lenses of one reviewer group: boundary (checklists 1 and 3), runtime (2, 4, 7, 8),
+  or text (5 and 6), limited to those the section names. Apply each named checklist in full and
+  no other. With more than one lens, begin each finding's issue with its lens name.
 - ASSIGNMENT — a file generated from the plan. Take from it the section GOAL, ACCEPTANCE and
   invariants, the rulings that apply, the WRITE SET, and the exclusions: the WORKING-TREE
   BASELINE, and every section under PARALLEL BATCH, which is in progress. Without a plan (a
@@ -142,7 +144,7 @@ REPORT DELIVERY
 
 RE-REVIEW
 
-After a correction you may be asked to re-review the same scope and lens. The follow-up gives YOUR
+After a correction you may be asked to re-review the same scope and lenses. The follow-up gives YOUR
 FINDINGS SENT FOR CORRECTION (any the orchestrator refuted are marked with the reason), the
 CORRECTION REPORT, CHANGED IN THIS ROUND, and a new REPORT FILE. Read-only, as before. Rule on
 each finding: resolved or not, with the anchor that shows it. Review the lines changed in this

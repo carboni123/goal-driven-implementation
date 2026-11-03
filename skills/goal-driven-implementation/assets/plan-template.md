@@ -174,7 +174,7 @@ by inspecting the rewritten section diffs; retain evidence whose behavioral inpu
 ```mermaid
 flowchart LR
   AGG["AGGREGATE<br>skip when anchored; ≤2 mappers"] --> IMPL["IMPLEMENT<br>one agent per section;<br>batch members together"]
-  IMPL --> REV["REVIEW<br>≥3 lenses in parallel"]
+  IMPL --> REV["REVIEW<br>≤3 reviewers, ≥3 lenses"]
   REV --> GATE{"full-diff read + gates pass +<br>seven checks pass?"}
   GATE -- "reject (converging)" --> IMPL
   GATE -- accept --> COMMIT["commit section + evidence<br>record SHA / verify Git"]
@@ -416,7 +416,7 @@ VERIFY:
 - Evidence reuse: <valid results and tested state; inputs that invalidate them>.
 
 REVIEW:
-<Lenses by name: security/authz, data/migration, contract/API, failure-mode/reliability, convention/scope, doc-truth; + capacity/false-positive when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth.>
+<Lenses by name: security/authz, data/migration, contract/API, failure-mode/reliability, convention/scope, doc-truth; + capacity/false-positive when a limiter/quota/timeout is touched; + evaluator soundness for journey sections. Bounded-fix lane: convention/scope + doc-truth. One reviewer per lens group runs them: boundary, runtime, text.>
 
 ACCEPTANCE:
 <Exact Goal exit-test clause or usable internal capability established by this commit. Name
@@ -506,7 +506,10 @@ outcomes (correction rounds and later escaped defects) alongside cost comparison
 - [ ] Every section is committed; all ledger records are committed.
 - [ ] Accepted SHAs resolve on this branch in dependency order; no section-owned product changes remain uncommitted.
 - [ ] Branch re-baselined on `origin/main` before final review.
+- [ ] PR description (or handoff summary) written before the final review; outside reader ran
+      (alone in a one-section plan).
 - [ ] Whole-branch final review is clean or has evidenced orchestrator sign-off; corrections committed.
+- [ ] Published text read back and matches the reviewed description.
 - [ ] Goal 1 exit tests pass with evidence.
 - [ ] Goal 2 exit tests pass with evidence.
 - [ ] Global and budgeted gate evidence is valid and passing for the final reviewed candidate.

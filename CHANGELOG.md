@@ -75,6 +75,43 @@ What the evidence showed, and what changed:
   I have no clue where we're at"). The plan presentation now gives the size (sections, a token
   estimate from earlier ledgers' `cost:` records, the smallest slice) and where the work lives,
   and each accept's status note starts with `<k>/<n> sections accepted`.
+- **Outside reader at final review.** After a run had finished, the maintainer asked for an
+  outside review 18 times where the outcome is recorded; 14 found defects that three to eight
+  section lenses and the final lenses had passed. On #1721 the PR shipped with `**RULE**` and
+  `**VERIFY**` placeholders that no reviewer saw, because the description was written after
+  the final review. The orchestrator now writes `pr-description.md` before the final review,
+  and a new lens (g) reads only that description and the merged diff. After publishing, the
+  orchestrator reads the published text back.
+- **Findings after completion.** Nine times the orchestrator confirmed a defect from a review
+  that came after completion, then asked whether to fix it, and waited (about 18 hours in all).
+  A confirmed in-scope defect is now corrected through the final-review route without asking.
+### Changed — at most three section reviewers; one-section plans skip the a–f final review
+
+**Maintainer rulings, 2026-11-03**, on the data above: "4-8 reviewers seems too much … we should
+cut", and yes to letting a one-section plan's section review serve as its final review, with the
+outside reader added.
+
+- **Reviewers.** Each lens ran on its own agent. Over 293 Claude Code sections the first round
+  sent 3 reviewers 77 times, 4 93 times, 5 52 times, 6 43 times, 7 24 times, and 8 4 times.
+  Section reviewers used 212M of 470M subagent tokens (45%), about 76k per return, and the
+  outside reviews above found defects in 14 of 18 runs that those reviewers had passed. A section
+  now has at most three reviewers, one per lens group:
+  - **boundary:** security/authz and contract/API;
+  - **runtime:** failure-mode/reliability, data/migration, capacity/false-positive, and
+    evaluator soundness;
+  - **text:** convention/scope and doc-truth.
+
+  Each reviewer applies every lens of its group that the section names, and a group with no
+  named lens is not dispatched. No lens or checklist is removed. The minimum of three lenses and
+  the full set for `⚠` sections still hold. The bounded-fix lane runs the text group alone.
+  `section-brief.mjs` prints one stub per group (`<ID>-rev-boundary.md`, `-runtime`, `-text`),
+  and the text group runs on `gdi-convention-reviewer`.
+- **One-section plans.** 40 plans had one section and ran the full loop. Each still ran 2–3
+  final reviewers over the same one-commit diff, and about 4 of the 40 had a final-review
+  finding, mostly documentation. A one-section plan, the bounded-fix lane included, now treats
+  its section review as the integration review: contract/API covers the reader sweep, and
+  data/migration covers the rollout window. The outside reader (g) runs alone at completion.
+
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

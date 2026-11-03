@@ -22,7 +22,7 @@ Otherwise use the main-session planner fallback if conflicting defaults cannot b
 | Plan author            | `goal-planner`        | Inherit orchestrator model and effort    | Concise goals/order and filtered section context  |
 | Implementer            | `goal-implementer`    | `goal-implementer.toml`                  | One per section; no nested spawns                 |
 | Mapper                 | `goal-explorer`       | `goal-explorer.toml`                     | Read-only                                         |
-| Reviewer               | `goal-reviewer`       | `goal-reviewer.toml`                     | Read-only; one lens per spawn                     |
+| Reviewer               | `goal-reviewer`       | `goal-reviewer.toml`                     | Read-only; one lens group per spawn               |
 
 Select worker pins explicitly. Keep the planner on the orchestrator's route; do not promote a
 worker when a review stalls. The orchestrator resolves stalled review in sign-off mode under

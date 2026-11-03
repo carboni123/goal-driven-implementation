@@ -31,7 +31,6 @@ import { fileURLToPath } from "node:url";
 import { between, ledgerRows, parseFrontmatter, parseTable, sectionBlocks, writeSet } from "./validate-plan.mjs";
 
 const ASSETS = dirname(fileURLToPath(import.meta.url));
-const slug = (lens) => lens.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 function gitEnv() {
   return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
@@ -185,22 +184,36 @@ export function dispatchStubs({ id, runDir, repoRoot, round = 0, lenses = [] }) 
         ...delivery("implementer", `${id}-impl${suffix}.md`),
       ];
   const report = round === 0 ? `${id}-impl.md` : `${id}-impl${suffix}.md`;
-  const named = lenses.length ? lenses : ["<lens>"];
-  const reviewer = [
-    `REVIEWER (one dispatch per lens${lenses.length ? "" : "; replace <lens>"})`,
+  const groups = reviewerGroups(lenses);
+  const reviewerStub = (group) => [
+    `REVIEWER ${group.name} — ${group.lenses.length ? group.lenses.join(" + ") : "<the applicable lenses of one group>"}`,
     `Read ${join(ASSETS, "prompts", "reviewer.md")}, ${assignment}, and the implementer report ${file(report)} in full before anything else.`,
-    `LENS: ${named.length === 1 ? named[0] : "<one of the lenses below>"}`,
+    `LENS: ${group.lenses.length ? group.lenses.join(" + ") : "<the applicable lenses of the group>"}`,
     "DIFF SCOPE: the uncommitted changes the report's DIFF lists",
     "GRAPH CONTEXT: none",
-    ...(named.length === 1
-      ? delivery("reviewer", `${id}-rev-${slug(named[0])}${suffix}.md`)
-      : [
-          `REPORT FILE: ${file(`${id}-rev-<lens>${suffix}.md`)}`,
-          `VALIDATE: ${validate("reviewer", `${id}-rev-<lens>${suffix}.md`)}`,
-          ...named.map((lens) => `  ${lens} → ${id}-rev-${slug(lens)}${suffix}.md`),
-        ]),
-  ];
-  return [implementer.join("\n"), reviewer.join("\n")].join("\n\n");
+    ...delivery("reviewer", `${id}-rev-${group.name}${suffix}.md`),
+  ].join("\n");
+  const reviewers = groups.length
+    ? groups.map(reviewerStub)
+    : [
+        `REVIEWERS — no lens recognized in REVIEW; dispatch one per group that applies:\n${REVIEWER_GROUPS.map((g) => `  ${g.name}: ${g.lenses.join(", ")}`).join("\n")}`,
+        reviewerStub({ name: "<group>", lenses: [] }),
+      ];
+  return [implementer.join("\n"), ...reviewers].join("\n\n");
+}
+
+// Reviewers per section: at most one per group, each applying the group's lenses that the section
+// names. A group with no named lens is not dispatched.
+export const REVIEWER_GROUPS = [
+  { name: "boundary", lenses: ["security/authz", "contract/API"] },
+  { name: "runtime", lenses: ["failure-mode/reliability", "data/migration", "capacity/false-positive", "evaluator soundness"] },
+  { name: "text", lenses: ["convention/scope", "doc-truth"] },
+];
+
+export function reviewerGroups(lenses) {
+  return REVIEWER_GROUPS
+    .map((group) => ({ name: group.name, lenses: group.lenses.filter((lens) => lenses.includes(lens)) }))
+    .filter((group) => group.lenses.length);
 }
 
 // The lens names a section's REVIEW field lists. Only a list item that is a lens name counts: a
@@ -362,17 +375,23 @@ None.
     "security/authz,data/migration,contract/API,doc-truth", "lens names with a note or a qualifier");
   const stubs = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", lenses: ["doc-truth"] });
   assert(stubs.includes("REPORT FILE: /run/A1-impl.md") && stubs.includes("--kind implementer --repo-root /repo --input /run/A1-impl.md --fix"), "implementer stub");
-  assert(stubs.includes("REPORT FILE: /run/A1-rev-doc-truth.md") && stubs.includes("the implementer report /run/A1-impl.md"), "reviewer stub");
+  assert(stubs.includes("REPORT FILE: /run/A1-rev-text.md") && stubs.includes("LENS: doc-truth\n") && stubs.includes("the implementer report /run/A1-impl.md"), `reviewer stub:\n${stubs}`);
   const round2 = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", round: 2, lenses: ["doc-truth", "contract/API"] });
   assert(round2.includes("PRIOR REPORT: /run/A1-impl-r1.md") && round2.includes("REPORT FILE: /run/A1-impl-r2.md"), "carrier stub names the prior and the new report");
-  assert(round2.includes("contract/API → A1-rev-contract-api-r2.md"), "reviewer file names per lens and round");
+  assert(round2.includes("REPORT FILE: /run/A1-rev-boundary-r2.md") && round2.includes("REPORT FILE: /run/A1-rev-text-r2.md"), "reviewer file names per group and round");
+  // Eight lenses are three reviewers; a group with no named lens is not dispatched.
+  const all = ["security/authz", "data/migration", "contract/API", "failure-mode/reliability", "convention/scope", "doc-truth", "capacity/false-positive", "evaluator soundness"];
+  assert(JSON.stringify(reviewerGroups(all).map((g) => [g.name, g.lenses.length])) === '[["boundary",2],["runtime",4],["text",2]]', "eight lenses, three reviewers");
+  assert(reviewerGroups(["doc-truth", "convention/scope", "failure-mode/reliability"]).map((g) => g.name).join() === "runtime,text", "no boundary reviewer without a boundary lens");
+  const grouped = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", lenses: all });
+  assert((grouped.match(/^REVIEWER /gm) ?? []).length === 3 && grouped.includes("LENS: failure-mode/reliability + data/migration + capacity/false-positive + evaluator soundness"), `three reviewer stubs:\n${grouped}`);
   const spaced = dispatchStubs({ id: "A1", runDir: "/tmp/my run", repoRoot: "/work/it's here", lenses: ["doc-truth"] });
   assert(spaced.includes(`--repo-root '/work/it'\\''s here' --input '/tmp/my run/A1-impl.md' --fix`), `paths are quoted as shell words:\n${spaced}`);
   // Codex roles write their report files too; one that cannot returns the report instead.
   const codex = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", harness: "codex", lenses: ["doc-truth"] });
   assert(codex === stubs, `codex stubs name the same report files:\n${codex}`);
-  const codexLenses = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", harness: "codex", lenses: ["doc-truth", "contract/API"] });
-  assert(codexLenses.includes("LENS: <one of the lenses below>") && codexLenses.endsWith("  contract/API → A1-rev-contract-api.md"), `codex stub lists the lenses:\n${codexLenses}`);
+  const none = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", lenses: [] });
+  assert(none.includes("no lens recognized in REVIEW") && none.includes("boundary: security/authz, contract/API"), `stub without recognized lenses:\n${none}`);
 
   // A real worktree: the first call stores the baseline, later calls reuse it.
   const repo = mkdtempSync(join(tmpdir(), "gdi-brief-"));
@@ -395,7 +414,7 @@ None.
       }
     };
     const first = run("A1", "--run-dir", runDir, "--repo-root", repo);
-    assert(first.includes(join(runDir, "A1.assignment.md")) && first.includes("LENS: <one of the lenses below>"), `CLI summary:\n${first}`);
+    assert(first.includes(join(runDir, "A1.assignment.md")) && first.includes("REVIEWER boundary — security/authz + contract/API") && first.includes("REVIEWER text — convention/scope + doc-truth"), `CLI summary:\n${first}`);
     assert(readFileSync(join(runDir, "baseline.txt"), "utf8") === "?? user notes.txt\n", "baseline stored without the plan file or the run directory");
     mkdirSync(join(repo, "src", "a"), { recursive: true });
     writeFileSync(join(repo, "src", "a", "new.ts"), "export {};\n");
@@ -519,7 +538,7 @@ function main(argv) {
   if (built.batchLabel && built.siblings.length === 0) {
     console.log(`  NOTE: ${id} carries batch ${built.batchLabel}, and no other ledger row carries batch state. If another member runs now, write its state on its row and run this again.`);
   }
-  console.log(`  lenses named in REVIEW: ${lenses.length ? lenses.join(", ") : "none recognized"} (SKILL.md step 4 decides which run)`);
+  console.log(`  lenses named in REVIEW: ${lenses.length ? lenses.join(", ") : "none recognized"} (SKILL.md step 4 decides which run; one reviewer per group)`);
   console.log("");
   console.log(dispatchStubs({ id, runDir, repoRoot, round: Number(roundArg), lenses }));
   return 0;

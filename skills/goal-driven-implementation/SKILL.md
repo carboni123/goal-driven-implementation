@@ -84,7 +84,7 @@ set holds that path, and record `⇢` before review.
 | PLANNER      | Goal-organizing session | Define concise goals/order; filter mapper evidence; write plan/graph; check dependencies   | Edit product source/docs; delegate; approve; alter rulings/history; execute; commit         |
 | IMPLEMENTER  | One per section         | Write code in its section; run gates/tests; spawn allowed read-only helpers                | Write outside its section or write set; commit; delegate writing; cross an unruled floor    |
 | MAPPER       | Read-only agent         | Map code, tests, conventions, lifecycle couplings                                          | Write files                                                                                 |
-| REVIEWER     | Read-only, one lens     | Review implemented code with `file:line` evidence                                          | Write files; design or approve plans                                                        |
+| REVIEWER     | Read-only, lens group   | Review implemented code with `file:line` evidence                                          | Write files; design or approve plans                                                        |
 
 The planner defines concise goals, groups them into sections, organizes execution order, and
 filters validated mapper output into the context each implementer needs. It returns the plan to
@@ -246,13 +246,15 @@ Inside the lane:
   preflight row per gate realm, a Known blockers row `None` when none applies, and an empty
   gate-budget table when no expensive gate is budgeted. Validate. Rendering is optional; the raw
   Mermaid in the message is enough.
-- **EXECUTE.** No aggregation step. One implementer with the standard stub. Two review
-  lenses: convention/scope and doc-truth. The orchestrator verifies the affected test evidence
+- **EXECUTE.** No aggregation step. One implementer with the standard stub. One reviewer, the
+  text group: convention/scope and doc-truth. The orchestrator verifies the affected test evidence
   named in the gate budget, reads the full diff, and applies the same seven checks and the same
   convergence and sign-off rules in EXECUTE step 6.
-- **COMPLETE.** The section review is the final review; no separate whole-branch review. Re-baseline on
-  `origin/main` and verify the global gate (owning package's full suite plus affected dependents)
-  against the merged tree, reusing evidence only if its inputs remain valid. Annotate, report.
+- **COMPLETE.** As in any one-section plan, the section review is the final review: no a–f
+  whole-branch review, and the outside reader (g) still runs (Complete the plan, step 2).
+  Re-baseline on `origin/main` and verify the global gate (owning package's full suite plus
+  affected dependents) against the merged tree, reusing evidence only if its inputs remain
+  valid. Annotate, report.
   The SHA-only ledger update, final evidence, and any archive move the host requires go in one
   closure commit.
 
@@ -279,7 +281,7 @@ Inside the lane:
    adds, new files included: `node <skill-root>/assets/scout-repo.mjs <repo> --classify
    <path,path,...>` reports one owning unit and no shared kernel.
 3. Dispatch one independent reviewer with the direct-lane stub (prompts reference §3):
-   `LENS: doc-truth and convention/scope`, both checklists, on the doc-truth reviewer route, with
+   `LENS: convention/scope + doc-truth`, the text group, on the text reviewer route, with
    the orchestrator's change summary and a CLAIMS block (every assertion the diff adds, with its
    anchor) in place of the implementer report. Validate the return (`--kind reviewer`) and apply
    EXECUTE step 4's refutation rules. The orchestrator corrects a REJECT and returns the diff to
@@ -528,15 +530,20 @@ new one given the full prior report.
 
 **4. Review.** As soon as the report validates, run `section-brief.mjs` for the section again, so
 the assignment carries every ruling and recorded call made since the dispatch, and launch the
-applicable lenses in one message, each with the REVIEWER stub it prints (prompts reference §3):
-security/authz · data/migration · contract/API · failure-mode/reliability · convention/scope ·
-**doc-truth** (every claim in the diff traced to code) · **capacity/false-positive** (only when the
-diff touches a limiter, quota, timeout, or admission policy) · **evaluator soundness** (only for
-journey/proof sections, using the proportionate-verification policy).
+section's reviewers in one message, each with the REVIEWER stub it prints (prompts reference §3).
+A section has at most three reviewers, one per lens group, and each applies every lens of its
+group that the section names:
 
-- **Which lenses.** Never fewer than three lenses outside the bounded-fix lane (which runs
-  convention/scope and doc-truth); `⚠` sections get the full set; keep security whenever tenancy,
-  auth, limits, resolvers, or hooks are touched; doc-truth always.
+- **boundary** — security/authz · contract/API.
+- **runtime** — failure-mode/reliability · data/migration · **capacity/false-positive** (only when
+  the diff touches a limiter, quota, timeout, or admission policy) · **evaluator soundness** (only
+  for journey/proof sections, using the proportionate-verification policy).
+- **text** — convention/scope · **doc-truth** (every claim in the diff traced to code).
+
+- **Which lenses.** Choose the lenses, then dispatch one reviewer per group that has one. Never
+  fewer than three lenses outside the bounded-fix lane (which runs the text group); `⚠` sections
+  get the full set; keep security whenever tenancy, auth, limits, resolvers, or hooks are
+  touched; doc-truth always. A group with no chosen lens is not dispatched.
 - **Returns.** Each returns APPROVE or REJECT with anchors and an evidence tag per finding;
   approvals cite anchors too. Validate each return (`--kind reviewer`) and read the report file.
 - **Refutation.** A reviewer can be wrong: refute a finding against the code and record the
@@ -573,9 +580,9 @@ reference's carrier rule applies. The handoff to a fresh agent is the validated 
 uncommitted section diff. Never message the first handle again once a fresh agent takes over: a
 section has one implementer at a time. Count rounds the same way for either carrier. After the
 correction report validates, re-review by follow-up to each reviewer that rejected (prompts
-reference §5): it rules on its own findings and the lines the correction changed. A lens that
-approved runs again only when the correction changed code in its scope. Dispatch a fresh reviewer
-for a re-review only when the first one is lost.
+reference §5): it rules on its own findings and the lines the correction changed. A reviewer that
+approved runs again only when the correction changed code in one of its lenses' scope. Dispatch
+a fresh reviewer for a re-review only when the first one is lost.
 
 **Convergence rule.** In-contract rounds continue while unresolved findings decrease. An unruled
 floor item goes to the user. A repeated defect mechanism or findings that stop decreasing enters
@@ -679,7 +686,15 @@ When every section is checked:
    If rebasing changes section SHAs, reconcile their ledger records against the rewritten diffs
    and rerun Git-aware validation; do not discard still-valid behavioral evidence solely for a
    new SHA. Preserve section commits rather than squashing them during execution.
-2. **Final review** — 2–3 read-only reviewers in one message over the full branch, integration
+2. **Final review** — first write the PR description (with no PR, the handoff summary the
+   report will give) to `<run-dir>/pr-description.md`. Then dispatch, in one message, one
+   **outside reader** (g) with the §4 outside-reader stub: it reads that description and the
+   merged diff, never the plan, and checks that the change does what the description says. In
+   a plan with one section, the section review served as the integration review and the outside
+   reader runs alone; that section's review must have included contract/API when it writes a new
+   value into shared state (the reader sweep) and data/migration when it changes a schema (the
+   rollout window). With more than one section, add 2–3 read-only reviewers over the full
+   branch, integration
    lenses: (a) cross-section seams and late obligations — for every seam a later section
    introduced, enumerate all call sites and prove each satisfies it; (b) whole-surface contract and
    conformance coherence; (c) plan conformance, deferral validation (each deferral still reachable
@@ -692,9 +707,8 @@ When every section is checked:
    the findings (prompts reference §7); validate its report with `validate-report.mjs --kind
    correction --repo-root <repo>`, then re-review by follow-up to the reviewers that reported
    findings (prompts reference §5); commit additively; repeat until clean or signed off by the
-   orchestrator under step 6. Required corrections and gates still have to pass. In the
-   bounded-fix lane the section review already served as the final review: skip the separate
-   review.
+   orchestrator under step 6. Required corrections and gates still have to pass. A correction
+   that changes what the description states updates `pr-description.md` before re-review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
    in the budgeted order. Reuse valid results; run missing or invalidated checks once and record
    `actual runs`. Record any `>1.5×` overrun as a missed finding in Graph
@@ -728,6 +742,17 @@ When every section is checked:
    do not establish monetary cost across models; compare total cost per accepted section together
    with rework and escaped defects before claiming a routing improvement paid off.
 
+The terminal action publishes the reviewed `pr-description.md`. After publishing a PR, comment,
+or other text, fetch the published copy and check it against the reviewed file and for unfilled
+placeholders before the report describes it.
+
+**Findings after completion.** A defect reported after the plan completed — an external review,
+a CI or deploy failure, a user report — that the orchestrator confirms in the delivered work
+and that lies inside the approved scope is corrected without asking: the final-review
+correction route (prompts reference §7), re-review by the reviewer that matches the finding,
+commit, update the published description, and report. Ask only for a floor item or a terminal
+action the user has not already ruled.
+
 ## Resources
 
 - `assets/plan-template.md` — plan skeleton (`gdi_schema: 2`).
@@ -743,7 +768,7 @@ When every section is checked:
   and correction returns, and of anchors in any text; `--fix` expands short anchors that resolve
   to one file; `--self-test`.
 - `assets/prompts/` — the rules and report format each role reads: `planner.md`, `mapper.md`,
-  `implementer.md`, `reviewer.md` (section lens checklists), `final-reviewer.md` (lenses a–f),
+  `implementer.md`, `reviewer.md` (section lens checklists), `final-reviewer.md` (lenses a–g),
   `correction.md`.
 - `assets/render-plan-graph.mjs` — renders graphs, findings, budget, and ledger to HTML; `--png
   <dir>` captures one image per graph with a headless Chromium; `--open` opens the page.

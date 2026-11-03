@@ -68,8 +68,9 @@ prints the new snippet and leaves legacy config/files intact. See the
    wait for the user's ruling on floor items or start. The plan author is a dedicated role in
    both harnesses (`gdi-planner`, `goal-planner`); the orchestrator checks its write boundary
    and re-validates.
-2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
-   eight review lenses in parallel. Dispatch is by file: `assets/section-brief.mjs` writes the
+2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, and at
+   most three reviewers in parallel, one per lens group (boundary, runtime, text), covering three
+   or more lenses. Dispatch is by file: `assets/section-brief.mjs` writes the
    section's assignment from the plan (section block, rulings, corrections in force, gates,
    preflight, baseline) and prints short dispatch stubs; each role reads its rules from
    `assets/prompts/`. Each agent writes its report to the plan's run directory and validates it
@@ -97,17 +98,20 @@ prints the new snippet and leaves legacy config/files intact. See the
    that pass without a sibling's result) are implemented at the same time in Claude Code, in one
    checkout; each is reviewed as it returns, and the batch is committed one section at a time
    after a join check on the combined tree. Codex runs batch members one after another.
-3. **COMPLETE** — re-baseline on `origin/main`, whole-branch final review (seams, contract
-   coherence, reader sweep of the diff's complement, claim decay, rollout window), expensive
+3. **COMPLETE** — re-baseline on `origin/main`, write the PR description, whole-branch final
+   review (seams, contract coherence, reader sweep of the diff's complement, claim decay, rollout
+   window) plus an outside reader that sees only the description and the diff (a one-section
+   plan runs the outside reader alone), expensive
    gates once against the reviewed candidate, deferrals filed as issues, graph annotated from
    the ledger, report. The report leads with the outcome in the user's terms (delivered, in
    part, not delivered), then the calls that narrowed the request and what is out of scope, then
    the size of the change by kind, then the process record.
 
 A change that is one section, touches nothing on the floor, and writes nothing into shared state
-runs the **bounded-fix lane** instead: same plan file and implementer, two review lenses, the
-affected tests, no whole-branch fan-out. Eligibility is decided by what the diff touches, not its
-size, and any disqualifier found mid-run continues under the full loop without redoing work.
+runs the **bounded-fix lane** instead: same plan file and implementer, one text-group reviewer
+(convention/scope and doc-truth), the affected tests, the outside reader at completion.
+Eligibility is decided by what the diff touches, not its size, and any disqualifier found mid-run
+continues under the full loop without redoing work.
 The orchestrator writes a bounded plan itself, and parts of the template that do not apply take
 one line.
 

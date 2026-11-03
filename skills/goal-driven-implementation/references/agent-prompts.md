@@ -30,7 +30,7 @@ Contents:
 | `assets/prompts/mapper.md`          | mapper                                                    |
 | `assets/prompts/implementer.md`     | section implementer, first dispatch and correction rounds |
 | `assets/prompts/reviewer.md`        | section reviewer; holds the eight lens checklists         |
-| `assets/prompts/final-reviewer.md`  | whole-branch reviewer; holds lenses a–f                   |
+| `assets/prompts/final-reviewer.md`  | whole-branch reviewer; holds lenses a–g                   |
 | `assets/prompts/correction.md`      | final-review correction implementer                       |
 
 ---
@@ -62,14 +62,14 @@ report as the final message from the start.
 | Mapper                                     | `map-<area>.md`                                   | `mapper`      |
 | Section implementer, first report          | `<ID>-impl.md`                                    | `implementer` |
 | Section implementer, correction round n    | `<ID>-impl-r<n>.md`                               | `implementer` |
-| Section reviewer; its re-review, round n   | `<ID>-rev-<lens>.md`; `<ID>-rev-<lens>-r<n>.md`   | `reviewer`    |
+| Section reviewer; its re-review, round n   | `<ID>-rev-<group>.md`; `<ID>-rev-<group>-r<n>.md` | `reviewer`    |
 | Final reviewer; its re-review, round n     | `final-<lenses>.md`; `final-<lenses>-r<n>.md`     | `final`       |
+| PR description or handoff summary          | `pr-description.md` (the orchestrator writes it)  | none          |
 | Final-review correction, round n           | `final-correction-r<n>.md`                        | `correction`  |
 
-In a file name, `<lens>` is the lens name in lowercase with every run of other characters
-replaced by `-` (`contract/API` → `contract-api`), `<lenses>` is the final reviewer's lens
-letters (`final-ab.md`), and `<area>` is a short slug of the mapper's AREA that no other report in
-the run directory uses.
+In a file name, `<group>` is the section reviewer's lens group (`boundary`, `runtime`, `text`),
+`<lenses>` is the final reviewer's lens letters (`final-ab.md`), and `<area>` is a short slug of
+the mapper's AREA that no other report in the run directory uses.
 
 **Validation.** The agent's `VALIDATION` line is a claim. Before acting on any report, run
 
@@ -186,25 +186,28 @@ carry batch state. Check the `parallel batch:` line the script prints.
 
 ## 3. Section reviewer
 
-Read-only, one lens each, all applicable lenses launched in one message after the implementer's
-report validates. Never fewer than three lenses outside the bounded-fix lane, which runs exactly
-convention/scope and doc-truth. `⚠` sections get the full set. Security stays whenever tenancy,
+Read-only, all launched in one message after the implementer's report validates. A section has
+at most three reviewers, one per lens group, each applying the group's lenses the section names:
+**boundary** (security/authz, contract/API), **runtime** (failure-mode/reliability,
+data/migration, capacity/false-positive, evaluator soundness), **text** (convention/scope,
+doc-truth). Never fewer than three lenses outside the bounded-fix lane, which runs the text
+group alone. `⚠` sections get the full set. Security stays whenever tenancy,
 auth, limits, resolvers, or hooks are touched. Doc-truth always runs. The lens names are
 security/authz, data/migration, contract/API, failure-mode/reliability, convention/scope,
 doc-truth, capacity/false-positive, and evaluator soundness; their checklists are in
 `assets/prompts/reviewer.md`.
 
-Run `section-brief.mjs` again for the section, then send the REVIEWER stub it prints, once per
-lens:
+Run `section-brief.mjs` again for the section, then send each REVIEWER stub it prints, one per
+group:
 
 ```text
 Read {skill-root}/assets/prompts/reviewer.md, {run-dir}/{ID}.assignment.md, and the implementer report {run-dir}/{ID}-impl.md in full before anything else.
-LENS: {lens name}
+LENS: {the group's lenses, joined by " + "}
 DIFF SCOPE: {the uncommitted changes the report's DIFF lists, or a commit range; in a parallel
 batch, the member's paths from the --write-sets listing}
 GRAPH CONTEXT: {planner-inspected image/crop + relevant node IDs + plan state, or "none"}
-REPORT FILE: {run-dir}/{ID}-rev-{lens}.md
-VALIDATE: node {skill-root}/assets/validate-report.mjs --kind reviewer --repo-root {repo} --input {run-dir}/{ID}-rev-{lens}.md --fix
+REPORT FILE: {run-dir}/{ID}-rev-{group}.md
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind reviewer --repo-root {repo} --input {run-dir}/{ID}-rev-{group}.md --fix
 ```
 
 Graph context is optional for section and final reviews: include an existing planner-inspected
@@ -213,12 +216,12 @@ integration gates inside the lens. Label the relevant nodes and matching plan st
 for a local review that gains nothing from a diagram. The plan-authoring planner owns graph
 inspection; missing graph context does not block code review.
 
-The direct lane has no plan and no assignment file. It runs one reviewer with both checklists and
-gives the fields in the message:
+The direct lane has no plan and no assignment file. It runs one text-group reviewer and gives
+the fields in the message:
 
 ```text
 Read {skill-root}/assets/prompts/reviewer.md in full before anything else.
-LENS: doc-truth and convention/scope
+LENS: convention/scope + doc-truth
 SECTION GOAL: {one-line goal}
 ACCEPTANCE AND INVARIANTS: {what the change must state or preserve}
 DIFF SCOPE: {changed files}
@@ -243,11 +246,12 @@ After validation, two more checks apply to a REJECT before it reaches the implem
 
 ## 4. Final-review reviewer
 
-Dispatched at completion, 2–3 in one message, over the branch **merged onto current
-`origin/main`**. Integration lenses, not section lenses; they are defined in
+Dispatched at completion, 2–3 in one message plus the outside reader, over the branch **merged
+onto current `origin/main`**; a one-section plan runs the outside reader alone. Integration lenses, not section lenses; they are defined in
 `assets/prompts/final-reviewer.md`: (a) seams and late obligations, (b) whole-surface contract and
 conformance coherence, (c) plan conformance, deferrals, debris, (d) reader sweep of the diff's
-complement, (e) claim decay, (f) rollout window.
+complement, (e) claim decay, (f) rollout window, (g) outside reader. Lens (g) runs alone in its
+own dispatch, with the second stub below.
 
 ```text
 Read {skill-root}/assets/prompts/final-reviewer.md in full before anything else. It holds your
@@ -263,8 +267,25 @@ REPORT FILE: {run-dir}/final-{lenses}.md   (or "none — return the report as yo
 VALIDATE: node {skill-root}/assets/validate-report.mjs --kind final --repo-root {repo} --input {report file} --fix
 ```
 
+Outside reader. Write `pr-description.md` first: the text the terminal action will publish, or
+the handoff summary when there is no PR. The stub names no plan, rulings, or graph:
+
+```text
+Read {skill-root}/assets/prompts/final-reviewer.md in full before anything else. It holds your
+rules, the lens definitions, and the report format.
+
+LENS: (g) outside reader
+BRANCH: {merged tree / commit range}
+DESCRIPTION: {run-dir}/pr-description.md
+BASELINE EXCLUSIONS: {pre-existing changes}
+REPORT FILE: {run-dir}/final-g.md
+VALIDATE: node {skill-root}/assets/validate-report.mjs --kind final --repo-root {repo} --input {run-dir}/final-g.md --fix
+```
+
 The same re-prompt-once, all-inference, and unreachable-trigger rules as the section reviewer
-apply.
+apply. A finding the outside reader makes against a ruling recorded in the plan is checked
+against that ruling: when the ruling holds, record why under Graph Findings; when the finding
+shows the ruling was wrong, it is a required correction or, on the floor, a brief to the user.
 
 ---
 
@@ -313,7 +334,8 @@ VALIDATE: node {skill-root}/assets/validate-report.mjs --kind implementer --repo
 ```
 
 **Re-review.** After the correction report validates, resume each reviewer that rejected with the
-body below. Resume a reviewer that approved only when the correction changed code in its lens.
+body below. Resume a reviewer that approved only when the correction changed code in one of its
+lenses.
 Dispatch a fresh reviewer only when the first one is lost: use the §3 stub with the correction
 report in place of the implementer report (for a final review, the §4 stub with it under
 CORRECTION REPORTS), and add the first and third fields below. Validate the return with `--kind
@@ -322,13 +344,13 @@ reported findings, with the final reviewer's file name and `--kind final`; its C
 ROUND is the correction report's DIFF.
 
 ```text
-RE-REVIEW of the same scope and lens after a correction. Apply RE-REVIEW in your rules file.
+RE-REVIEW of the same scope and lenses after a correction. Apply RE-REVIEW in your rules file.
 
 YOUR FINDINGS SENT FOR CORRECTION: {each finding as relayed; mark any the orchestrator refuted,
 with the reason}
 CORRECTION REPORT: {the validated correction report file}
 CHANGED IN THIS ROUND: {the DIFF lines the correction report marks `(changed this round)`}
-REPORT FILE: {run-dir}/{the re-review file name: {ID}-rev-{lens}-r{n}.md, or final-{lenses}-r{n}.md}   (or "none — return the report as your final message", without the next line)
+REPORT FILE: {run-dir}/{the re-review file name: {ID}-rev-{group}-r{n}.md, or final-{lenses}-r{n}.md}   (or "none — return the report as your final message", without the next line)
 VALIDATE: node {skill-root}/assets/validate-report.mjs --kind {reviewer, or final for a final review} --repo-root {repo} --input {report file} --fix
 ```
 

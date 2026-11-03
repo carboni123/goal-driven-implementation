@@ -68,9 +68,11 @@ copies in the same commit.
 - **Role rules.** A rule a role must follow lives in its `assets/prompts/<role>.md`, which every
   dispatch names, so it reaches installed roles, stale installs, and generic fallbacks alike. The
   role definition restates the rules that still matter when a dispatch omits the file.
-- **Reviewer lenses.** The checklists in `assets/prompts/reviewer.md` and
-  `final-reviewer.md`, the lens names in `agent-prompts.md` and `SKILL.md` step 4, the names
-  `section-brief.mjs` reads from a section's REVIEW field, and the `gdi-reviewer` description.
+- **Reviewer lenses and groups.** The checklists in `assets/prompts/reviewer.md` and
+  `final-reviewer.md`, the lens names in `agent-prompts.md`, `SKILL.md` step 4 and Complete
+  step 2, the names `section-brief.mjs` reads from a section's REVIEW field, the
+  `REVIEWER_GROUPS` in `section-brief.mjs` (boundary, runtime, text), the reviewer rows of both
+  routing tables, and the `gdi-reviewer` and `gdi-convention-reviewer` descriptions.
 - **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts §2 and §5, the CORRECTION ROUND
   block of `assets/prompts/implementer.md`, the carrier stub in `section-brief.mjs`, the acceptance
   protocol in `plan-template.md`, the carrier rule in `routing-claude.md`, and the README's run

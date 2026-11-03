@@ -32,7 +32,9 @@ import {
   renameSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -69,6 +71,21 @@ const version = readFileSync(
 ).trim();
 const home = homedir();
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+// The source revision an installed copy came from. VERSION changes only at a release, so an
+// install between releases carries the previous number; plans record this file to tell them apart.
+function sourceRecord() {
+  const run = (args) => {
+    try {
+      return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    } catch {
+      return "";
+    }
+  };
+  const revision = run(["rev-parse", "HEAD"]);
+  const describe = run(["describe", "--tags", "--always", "--dirty"]);
+  return `version: ${version}\nrevision: ${revision || "unknown (not a Git checkout)"}${describe ? ` (${describe})` : ""}\ninstalled: ${new Date().toISOString()}\n`;
+}
 
 const plan = [];
 function copyDir(src, dest) {
@@ -205,8 +222,10 @@ for (const step of plan) {
   let what = step.kind === "file" ? "agent" : "skill";
   if (!dryRun) {
     mkdirSync(dirname(step.dest), { recursive: true });
-    if (step.kind === "dir") cpSync(step.src, step.dest, { recursive: true });
-    else if (step.kind === "file") cpSync(step.src, step.dest);
+    if (step.kind === "dir") {
+      cpSync(step.src, step.dest, { recursive: true });
+      writeFileSync(join(step.dest, "assets", "SOURCE"), sourceRecord());
+    } else if (step.kind === "file") cpSync(step.src, step.dest);
     else {
       try {
         link(step.src, step.dest);

@@ -35,6 +35,10 @@ What the evidence showed, and what changed:
   image per graph with a headless Chromium (`CHROME_PATH`, `PATH`, or the Playwright cache),
   sized to the graph, with a 60-second limit per capture, and exits 3 when it cannot.
 - **`--help`** on every script prints its usage.
+- **Installed revision.** The installer writes `assets/SOURCE` with the version and Git
+  revision it copied from, and `SKILL.md` says to record it. Every plan in this corpus said
+  `0.9.0` and ran 0.10.0's content.
+
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

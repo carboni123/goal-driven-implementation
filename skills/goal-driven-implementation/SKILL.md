@@ -9,9 +9,10 @@ The plan file is both the implementation contract and the progress ledger. Each 
 vertical slice with its own goal, gates, acceptance clause, and commit. Every plan includes
 `gdi_schema` and `gdi_version` frontmatter; the version is this skill's release
 (`assets/VERSION`) so later retrospectives can correlate plan outcomes with skill revisions.
-Record the resolved skill root and source revision when available. An installed copy, repository
-checkout, and runtime-loaded agent profile may differ; a release label alone cannot identify
-unreleased edits. Follow the harness's routing check before attributing a run to a new profile.
+Record the resolved skill root and source revision when available: an installed copy holds the
+revision it was installed from in `assets/SOURCE`. An installed copy, repository checkout, and
+runtime-loaded agent profile may differ; a release label alone cannot identify unreleased
+edits. Follow the harness's routing check before attributing a run to a new profile.
 
 ## Commit-sized sections
 
@@ -736,7 +737,8 @@ When every section is checked:
   <dir>` captures one image per graph with a headless Chromium; `--open` opens the page.
 - `assets/scout-repo.mjs` — feature map of a repository (apps, features, shared kernels) with no
   LLM call; `--classify` maps changed paths to owning units; `--self-test`.
-- `assets/VERSION` — the skill release stamped into `gdi_version`.
+- `assets/VERSION` — the skill release stamped into `gdi_version`. An installed copy also has
+  `assets/SOURCE`, written by the installer: the version and the Git revision it came from.
 - `assets/agents/claude/` and `assets/agents/codex/` — role definitions the harness references
   install.
 - `assets/agents/claude/gdi-planner.md` — Claude Code goal organization and filtered-context role;

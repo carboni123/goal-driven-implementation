@@ -71,6 +71,10 @@ What the evidence showed, and what changed:
   outside their section's WRITE SET in 11 sessions: READMEs, nearby tests, snapshots, locale
   files, gate baselines, package configuration. Any section that declares a WRITE SET is now
   listed with `--write-sets <ID>` before review, and the template names those file kinds.
+- **Size and visibility.** About 16 status questions during long runs ("the task ran for 10h.
+  I have no clue where we're at"). The plan presentation now gives the size (sections, a token
+  estimate from earlier ledgers' `cost:` records, the smallest slice) and where the work lives,
+  and each accept's status note starts with `<k>/<n> sections accepted`.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

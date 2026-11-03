@@ -434,9 +434,13 @@ evidence, and continue in that lane.
    graphs after corrections.
    Record unavailable visual inspection explicitly; never turn missing images into an approval.
 9. Present the plan in this order: what the user will get, one line per goal; the **Out of
-   scope** list; every `narrows:` call, so the user can veto it before work is built on it; then
-   the inspected graph and Graph Findings. If rendering is unavailable, show raw Mermaid and the
-   inspection limitation; raw code is not visual evidence.
+   scope** list; every `narrows:` call, so the user can veto it before work is built on it; the
+   **size**: sections and milestones, a token estimate from the `cost:` records of this
+   repository's executed plans (or "no comparable run"), why it is larger than the request when
+   it is, and the smallest slice that delivers the first goal as a cut option; **where the work
+   lives**: worktree, branch, plan path, and run directory; then the inspected graph and Graph
+   Findings. If rendering is unavailable, show raw Mermaid and the inspection limitation; raw
+   code is not visual evidence.
    Apply the approval rule from **Select a mode**. On approval or auto-start, set `status`,
    record the approval evidence, and re-validate.
 
@@ -450,7 +454,9 @@ Do not dispatch a planner for an EXECUTE resume when no replan is needed.
 Read `references/agent-prompts.md` before the first dispatch; use its stubs verbatim.
 
 Run the loop without pausing between steps or sections. Accept a section and dispatch the next
-one in the same turn, and put status notes in the message that carries the next action. Stop
+one in the same turn, and put status notes in the message that carries the next action. Each
+accept's note starts with the progress: `<k>/<n> sections accepted`, the section dispatched
+next, and the plan path. Stop
 only where this skill names a stop: a floor ruling, the approval rule in **Select a mode**, a
 blocker identified in step 6, or a terminal action that needs the user. Do not end a
 turn with a summary that names the next step without taking it, an offer to continue, or options

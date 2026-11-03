@@ -64,9 +64,10 @@ prints the new snippet and leaves legacy config/files intact. See the
    exit tests → final review → gates → PR), run the
    [graph analysis checklist](skills/goal-driven-implementation/references/graph-analysis.md),
    validate, render and capture the graphs (`render-plan-graph.mjs --png`), have the plan author
-   inspect the images, and either wait for the user's ruling on floor items or start. The plan
-   author is a dedicated role in both harnesses (`gdi-planner`, `goal-planner`); the orchestrator
-   checks its write boundary and re-validates.
+   inspect the images, present the plan with its size and where the work will live, and either
+   wait for the user's ruling on floor items or start. The plan author is a dedicated role in
+   both harnesses (`gdi-planner`, `goal-planner`); the orchestrator checks its write boundary
+   and re-validates.
 2. **EXECUTE** — per section: aggregate context if anchors are stale, one implementer, three to
    eight review lenses in parallel. Dispatch is by file: `assets/section-brief.mjs` writes the
    section's assignment from the plan (section block, rulings, corrections in force, gates,

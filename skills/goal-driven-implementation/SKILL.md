@@ -337,7 +337,9 @@ evidence, and continue in that lane.
      plus affected dependents, including fail-closed registries in other packages. Establish a
      focused baseline or reproduction, reusing valid evidence when available; run a broader
      baseline only for a concrete risk or host rule. Record the baseline's scope separately
-     from the scheduled final gate.
+     from the scheduled final gate. Name the **static checks** every implementer runs before
+     each report: the host's format, lint, typecheck, unused-export, and dependency-boundary
+     commands, and the host's pre-push set when the plan moves files or re-routes exports.
    - **Execution-environment preflight**: probe every capability _and_ smoke-run the environment
      path of every budgeted expensive gate once, or classify that gate `unproven`. Fill the
      **Known blockers** rows: every host/environment condition that has blocked this repository's

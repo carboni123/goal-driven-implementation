@@ -39,6 +39,10 @@ when practical; add sensitivity checks for concrete risks of vacuous assertions 
 not merely because a test uses a mock. Record obstacles and alternative evidence honestly.
 For a needed sensitivity probe, inject the relevant implementation defect; changing an expectation
 or making a test fail unconditionally is not evidence that it detects that defect.
+Before each report, search the repository's prose (READMEs, docs, ADRs, runbooks, comments) for
+the names whose behavior you changed, and fix or report every sentence your diff makes false;
+record the searches under GATE EVIDENCE as `prose sweep: <searches> — <result>`. Run the static
+checks the assignment's GLOBAL GATE names over the packages you touched.
 Run checks due at the assigned stage; preserve explicit user and host requirements. Reuse valid
 results with their command, output, tested state, and relevant environment. Rerun only missing or
 invalidated checks or a targeted probe for a finding; pending gates are not successes. Keep report

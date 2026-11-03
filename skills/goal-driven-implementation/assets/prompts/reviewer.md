@@ -85,7 +85,10 @@ LENS CHECKLISTS
    makes stale (README, PRD, overview, docs page, OpenAPI description, conformance row, comment,
    UI copy): locate the code that makes it true at HEAD or REJECT with the anchor. An over-claim is
    a REJECT. A count, version, route list, evidence claim, or RETIRES rationale must trace to a
-   serialized artifact or the diff.
+   serialized artifact or the diff. Search the repository's prose for the changed names, as the
+   implementer's `prose sweep` line says it did, and check the hits it did not report. The
+   required correction of a doc-truth finding is the replacement sentence, true at HEAD, or
+   the deletion of the sentence.
 7. **Capacity/false-positive** — run only when the diff touches a limiter, quota, timeout, or
    admission policy. Enumerate every legitimate client of the governed surface, including the
    product's own first-party traffic, and its highest per-interaction request count you can find in

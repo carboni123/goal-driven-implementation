@@ -54,6 +54,19 @@ What the evidence showed, and what changed:
   - The economics note records that per-role usage is now measurable (`token_usage_record`).
     Correction turns were 10% of implementer tokens and kept a median 98.8% prompt cache, so
     Codex stays resume-only.
+- **Doc-truth remains the first rejection class.** It appears in 255 of 410 Claude round lines
+  (111 rounds were doc-truth alone) and 95 of 310 Codex round lines. In 65 Claude round lines the
+  finding was an existing sentence, often in another package's README, an ADR, or a PRD, that the
+  diff had made false. Five of the 25 distinct sign-off reasons were doc-truth findings that came
+  back on wording in a second or third round. The implementer now sweeps the repository's prose
+  for the names whose behavior it changed before every report, and again for what a correction
+  changes, and records the searches under GATE EVIDENCE (`prose sweep:`). A doc-truth finding's
+  required correction is the replacement sentence, which the implementer uses unless the code
+  contradicts it. The planner puts that prose in TARGET and WRITE SET.
+- **Static checks found after review.** About 75 round lines are lint, unused-export,
+  typecheck, or format failures that the orchestrator's broad gate found after the reviewers
+  had approved. The plan names the host's **static checks** under the Global gate, and the
+  implementer runs them over its packages before every report.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

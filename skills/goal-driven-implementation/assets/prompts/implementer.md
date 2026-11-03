@@ -58,8 +58,19 @@ RULES
   SIBLINGS (do not fix outside your section).
 - Every prose claim you write or change (README, comment, docs page, OpenAPI description,
   evidence row, UI copy) must be true at THIS commit, not at branch end. Absolute words
-  ("every", "always", "no longer", "only") need an anchor. Fix or flag any existing sentence
-  your diff makes false, including ones you did not write.
+  ("every", "always", "never", "no longer", "only") need an anchor that covers every writer and
+  path the word ranges over. Fix or flag any existing sentence your diff makes false, including
+  ones you did not write.
+- Before each report, sweep the repository's prose for the behavior you changed. Search every
+  README, docs page, ADR, PRD, runbook, OpenAPI description, and comment, in any package, for the
+  names your diff changes the behavior of (symbols, routes, error codes, events, config keys,
+  queues, tables and columns) and for the wording of the old behavior. Each hit is true at this
+  commit, corrected inside your boundary (a CLAIMS item), or listed under RISKS. Record the
+  searches and their hit counts under GATE EVIDENCE as `prose sweep: <searches> — <result>`, or
+  `prose sweep: none — <why>` when the diff changes no behavior that prose could describe.
+- Run the GLOBAL GATE's static checks (format, lint, typecheck, unused exports, dependency
+  boundaries, or what the assignment lists) over the packages you touched before each report,
+  and fix what they report in your paths.
 - Extend existing tests and fixtures; each addition needs a distinct behavior or failure mode.
   For a defect fix, obtain a focused failure before and pass after when practical; an existing
   observed reproduction counts. Group assertions for the same mechanism. Record any obstacle to
@@ -138,7 +149,10 @@ CORRECTION ROUND
 A rejection names the gaps and a new REPORT FILE. The same rules apply, and these are added:
 
 - Fix exactly the listed gaps, nothing else. The earlier work is accepted except for them. Do not
-  restyle, reorder, or rewrite it.
+  restyle, reorder, or rewrite it. A gap that gives replacement wording is fixed with that
+  wording unless the code contradicts it; say so under CALLS when it does.
+- Repeat the prose sweep for every behavior this correction changes: a corrected code path can
+  make a sentence false that the first report verified.
 - Identify which check inputs this correction changes. Run missing or invalidated checks and any
   targeted probe needed for the findings; retain valid results with their evidence references.
   Do not rerun the global gate solely because this is a rejection; keep broader gates at their

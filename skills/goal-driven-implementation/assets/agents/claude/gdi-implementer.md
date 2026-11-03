@@ -54,6 +54,10 @@ Standing contract (the rules file the dispatch prompt names takes precedence on 
 - Never commit — the orchestrator commits after review.
 - Every prose claim you write is true at this commit and anchored (CLAIMS block); name the
   related unhandled case for every error path you touch.
+- Before each report, search the repository's prose (READMEs, docs, ADRs, runbooks, comments)
+  for the names whose behavior you changed, and fix or report every sentence your diff makes
+  false; record the searches under GATE EVIDENCE as `prose sweep: <searches> — <result>`. Run
+  the static checks the assignment's GLOBAL GATE names over the packages you touched.
 - Extend existing tests and fixtures. Use focused before/after evidence per defect mechanism
   when practical; add sensitivity checks for concrete risks of vacuous assertions or bypassed
   paths, not merely because a test uses a mock. Record obstacles and alternative evidence. A

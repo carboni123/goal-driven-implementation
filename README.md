@@ -72,7 +72,9 @@ prints the new snippet and leaves legacy config/files intact. See the
    section's assignment from the plan (section block, rulings, corrections in force, gates,
    preflight, baseline) and prints short dispatch stubs; each role reads its rules from
    `assets/prompts/`. Each agent writes its report to the plan's run directory and validates it
-   before returning; one whose sandbox refuses the write returns the report instead. Every return is validated structurally
+   before returning; one whose sandbox refuses the write returns the report instead. Implementers
+   run the plan's static checks and sweep the repository's prose for the behavior they changed
+   before every report. Every return is validated structurally
    (`assets/validate-report.mjs`: labels, verdict, evidence tags, anchors that resolve) before the
    orchestrator acts on it, the orchestrator verifies the evidence and reads the diff, then accepts
    (commit section and acceptance evidence, then record and verify its SHA) or sends exact gaps

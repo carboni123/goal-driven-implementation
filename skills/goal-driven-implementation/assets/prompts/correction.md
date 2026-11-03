@@ -20,7 +20,11 @@ RULES
 - Read the repository instruction files and every touched module's README first.
 - Every prose claim you write or change (README, comment, docs page, OpenAPI description,
   evidence row, UI copy) must be true at this commit and listed under CLAIMS with its anchor.
-  Fix or flag any existing sentence your diff makes false.
+  Fix or flag any existing sentence your diff makes false. Before the report, search the
+  repository's prose (READMEs, docs, ADRs, runbooks, comments) for the names whose behavior the
+  correction changes, and record the searches and hits under GATE EVIDENCE as
+  `prose sweep: <searches> — <result>` (or `none — <why>`). A finding that gives replacement
+  wording is fixed with that wording unless the code contradicts it.
 - For every error path you add or touch, name the related unhandled case and handle it or list
   it under RISKS.
 - Extend existing tests and fixtures first; each addition needs a distinct behavior or failure

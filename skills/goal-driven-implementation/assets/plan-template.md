@@ -63,6 +63,9 @@ ledger row and add the accepted risk to Graph Findings; the final review must th
 
 Baseline result: <focused command/reproduction, tested state, date, exit code, decisive output>
 Final gate: <scheduled stage and executor; valid evidence reference if already run>
+Static checks: <the host's format, lint, typecheck, unused-export, and dependency-boundary
+commands that every implementer runs over its packages before each report; the pre-push set
+when the plan moves files or re-routes exports>
 
 ### Execution-environment preflight
 

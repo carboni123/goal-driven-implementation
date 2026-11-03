@@ -58,7 +58,11 @@ in braces in the recommended order, and record each batch's check in Graph Findi
 section unbatched when a condition is uncertain.
 
 Name each section's review lenses in its REVIEW field with the lens names the workflow uses, and
-list under **Out of scope** every part of the inputs the plan does not deliver.
+list under **Out of scope** every part of the inputs the plan does not deliver. Under the Global
+gate, name the host's static checks (format, lint, typecheck, unused exports, dependency
+boundaries; the pre-push set when files move) that implementers run before each report. A
+section's TARGET and WRITE SET include the prose that describes the behavior it changes, in any
+package: READMEs, ADRs, PRDs, runbooks, and docs pages.
 
 HANDOFF
 

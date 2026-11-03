@@ -85,6 +85,11 @@ What the evidence showed, and what changed:
 - **Findings after completion.** Nine times the orchestrator confirmed a defect from a review
   that came after completion, then asked whether to fix it, and waited (about 18 hours in all).
   A confirmed in-scope defect is now corrected through the final-review route without asking.
+- **The prose sweep is visible.** `validate-report.mjs` warns when a complete implementer or
+  correction report has no `prose sweep:` line, so the next retrospective can count whether the
+  rule was followed. Replayed over 394 implementer and correction reports from these runs, no
+  error changes; 362 complete reports draw the warning, because none had the line yet.
+
 ### Changed — at most three section reviewers; one-section plans skip the a–f final review
 
 **Maintainer rulings, 2026-11-03**, on the data above: "4-8 reviewers seems too much … we should
@@ -111,6 +116,36 @@ outside reader added.
   finding, mostly documentation. A one-section plan, the bounded-fix lane included, now treats
   its section review as the integration review: contract/API covers the reader sweep, and
   data/migration covers the rollout window. The outside reader (g) runs alone at completion.
+
+### Measure at the next retrospective
+
+Treude and Baltes ("How Do Coding-Agent Harnesses Self-Evolve?", arXiv:2610.34938) tested
+harness changes on later tasks: in the seven tests where the targeted problem arose, two changes
+eliminated the targeted action, one reduced it, and four did not, and one added work on an
+unrelated task. Each change above therefore carries the count it should lower.
+Count it again in the next month's plans and transcripts, grouped by the `assets/SOURCE`
+revision each run recorded, and revise or remove a change whose count did not fall or whose
+added work outweighs it.
+
+- **Prose sweep and replacement wording.** Doc-truth alone in 111 of 410 Claude rounds;
+  doc-truth in 95 of 310 Codex round lines. Adoption: `prose sweep:` lines (0 of 394 reports).
+- **Static checks.** About 75 of 720 round lines were lint, unused-export, typecheck, or format.
+- **Work the sweep and static checks add.** Codex implementer turns: median 10.5 minutes for a
+  first report, 3.4 for a correction.
+- **Outside reader.** 14 of 18 post-run outside reviews found defects. Count (g) findings and
+  the outside reviews still requested after completion. Adoption: `final-g.md` in run
+  directories.
+- **Findings after completion.** 9 permission questions before fixing a confirmed defect.
+- **Size and progress.** About 16 status questions during runs.
+- **Graph capture.** 46 of 47 planners wrote their own capture script.
+- **WRITE SET check.** 75 committed paths outside their WRITE SET, in 11 sessions.
+- **Plan validator.** 165 of 196 Codex `validate-plan` failures were `Actual runs`.
+- **Codex.** 338 reports retyped by the orchestrator; 96 sections sent to a finished
+  implementer; 192 of 197 turns in one thread ended while an agent ran; 34 `fork_turns: "all"`.
+- **Reviewer groups.** 4.6 reviewers per section; section reviewers 45% of subagent tokens in
+  Claude Code. Watch for defects the section review now misses: final-review and outside-reader
+  findings per section.
+- **One-section plans.** 2–3 final reviewers per one-section plan; about 4 of 40 found anything.
 
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 

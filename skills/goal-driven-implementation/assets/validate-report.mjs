@@ -282,6 +282,13 @@ function checkReview(sec, errors, warnings, { verdicts, minEvidence, rejecting }
     warnings.push("every finding is evidence: inference — verify against the code before relaying to the implementer");
 }
 
+// The implementer and correction rules ask for the prose sweep's searches under GATE EVIDENCE. Its
+// absence is a warning: the line is how a later retrospective sees whether the rule was followed.
+function checkProseSweep(text, status, warnings) {
+  if (status === "complete" && !/\bprose sweep\s*:/i.test(text))
+    warnings.push("no `prose sweep:` line: record the prose searches and their hits under GATE EVIDENCE");
+}
+
 function checkImplementer(sec, errors, warnings) {
   requireLabels(sec, IMPLEMENTER_LABELS, errors);
   const status = (sec.get("STATUS") ?? "").trim().split(/\s+/)[0]?.toLowerCase() ?? "";
@@ -293,6 +300,7 @@ function checkImplementer(sec, errors, warnings) {
     errors.push("GATE EVIDENCE is empty");
   if (status === "complete" && /\b(not run|unrun|did not run|skipped)\b/i.test(sec.get("TESTS RUN") ?? ""))
     warnings.push("STATUS: complete but TESTS RUN mentions an unrun or skipped check");
+  checkProseSweep([...sec.values()].join("\n"), status, warnings);
   if (status === "decision-needed" && !sec.has("DECISION BRIEF"))
     errors.push("STATUS: decision-needed without a DECISION BRIEF");
 }
@@ -335,6 +343,7 @@ function checkCorrection(sec, errors, warnings) {
     errors.push("GATE EVIDENCE is empty");
   if (status === "complete" && /\b(not run|unrun|did not run|skipped)\b/i.test(sec.get("TESTS RUN") ?? ""))
     warnings.push("STATUS: complete but TESTS RUN mentions an unrun or skipped check");
+  checkProseSweep([...sec.values()].join("\n"), status, warnings);
   if (status === "decision-needed" && !hasCorrectionDecisionBrief(sec))
     errors.push("STATUS: decision-needed without a substantive correction DECISION BRIEF");
 }
@@ -443,6 +452,10 @@ function selfTest() {
     ].join("\n");
     const implGood = validate(implementerReport("legacy-flag removed from a.ts"), "implementer", dir);
     assert(implGood.ok, `implementer good failed: ${implGood.errors}`);
+    assert(implGood.warnings.some((w) => w.includes("prose sweep")), "a complete report without a prose sweep line warns");
+    const implSwept = validate(implementerReport("legacy-flag removed from a.ts").replace(
+      "GATE EVIDENCE: npm test → 3 passed", "GATE EVIDENCE: npm test → 3 passed\n- prose sweep: rg -n 'meter' docs packages → 2 hits, both true"), "implementer", dir);
+    assert(implSwept.ok && !implSwept.warnings.some((w) => w.includes("prose sweep")), `prose sweep line accepted: ${implSwept.warnings}`);
     const implRetention = validate(
       implementerReport("none — retained compatibility facade still serves legacy callers"),
       "implementer", dir,
@@ -487,6 +500,7 @@ function selfTest() {
       "correction", dir,
     );
     assert(correctionGood.ok, `correction good failed: ${correctionGood.errors}`);
+    assert(correctionGood.warnings.some((w) => w.includes("prose sweep")), "a complete correction without a prose sweep line warns");
     const correctionAdditive = validate(
       correctionReport("none — additive correction leaves no obsolete artifact"),
       "correction", dir,

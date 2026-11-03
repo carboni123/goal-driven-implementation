@@ -507,7 +507,11 @@ makes it true _at this commit_, and a **RETIRES** block that names artifacts rem
 why none was retired, such as additive work with no obsolete artifact or retained compatibility.
 Validate the report (`validate-report.mjs --kind implementer --repo-root <repo> --input <report
 file> --fix`) and read it before any reviewer is dispatched; a hard error goes back to the same
-agent once.
+agent once. When the section declares a `WRITE SET`, run `validate-plan.mjs <plan-file>
+--repo-root <repo> --write-sets <ID>` before review: a changed path outside it is added to the
+`WRITE SET` with `⇢` when the section runs alone, and handled under **Parallel batch
+execution** when it does not. Reviewers then see the full scope, and the Git-aware validation
+after the commit passes.
 
 **3. Decisions.** `STATUS: decision-needed` with a brief that names a floor item → put the
 options to the user, relay the ruling to the same agent. A brief that names a non-floor item →

@@ -363,7 +363,9 @@ WRITE SET:
 <Required for a batch member, optional otherwise. One repository-relative path or glob per line;
 a note may follow a dash. `*` and `?` match inside one path segment, `**` is a whole segment of
 any depth, and a directory ends with `/`. List every file this section may create, edit, or
-delete, counting tests, owning docs, registries, wiring files, and tracked generated artifacts.>
+delete, counting tests, owning docs, registries, wiring files, and tracked generated artifacts,
+and the files sections like it touched: module READMEs, nearby tests, snapshots, locale files,
+gate baselines, and package configuration.>
 
 IMPLEMENTER PROFILE:
 <role / model / effort per the routing table>

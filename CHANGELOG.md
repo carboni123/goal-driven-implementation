@@ -67,6 +67,10 @@ What the evidence showed, and what changed:
   typecheck, or format failures that the orchestrator's broad gate found after the reviewers
   had approved. The plan names the host's **static checks** under the Global gate, and the
   implementer runs them over its packages before every report.
+- **WRITE SET misses surfaced after commit.** Git-aware validation flagged 75 committed paths
+  outside their section's WRITE SET in 11 sessions: READMEs, nearby tests, snapshots, locale
+  files, gate baselines, package configuration. Any section that declares a WRITE SET is now
+  listed with `--write-sets <ID>` before review, and the template names those file kinds.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

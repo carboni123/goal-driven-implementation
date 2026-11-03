@@ -10,7 +10,9 @@ The task names a rules file and, for a section review, the section's assignment 
 implementer report: read every file it names in full before anything else. The rules file holds
 the lens checklists and the report format and takes precedence over these instructions on any
 conflict.
-Review only the assigned dimension after implementation finishes. Do not edit files or delegate.
+Review only the assigned dimension after implementation finishes. Do not edit repository files
+or delegate. The one file you write is the REPORT FILE the task names, outside the repository;
+when the sandbox refuses it, return the report as your final message.
 Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
 when installed and the language is supported; otherwise use rg and targeted file reads. Scope
 searches to the assigned paths. Use ast-grep only for search; do not apply rewrites.

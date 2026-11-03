@@ -38,8 +38,10 @@ Role names identify responsibilities. Worker model and effort belong in the TOML
 changing them does not rename the role. Codex's `goal-implementer` corresponds to Claude Code's
 `gdi-implementer` through the harness routing, with the same shared task and report contract.
 
-Economics note: no routing change so far has produced per-role usage counters. Do not state
-prices or claim proven quality equivalence between routes.
+Economics note: each subagent thread's rollout file records `token_usage_record` per response,
+so per-role usage is measurable from the session files; record it in the ledger `cost:` field
+when the orchestrator can read it, otherwise `unknown`. Do not state prices or claim proven
+quality equivalence between routes.
 
 ## Tool configuration
 
@@ -119,7 +121,8 @@ metadata is `unknown`.
 
 Use an explicit bounded fork (`fork_turns: "none"` or a small integer) to supply only the task's
 context; inherited model/effort does not require inheriting the conversation. Do not rely on the
-default fork. Try `agent_type` naming the current registered role first. For a planner, omit
+default fork, and never pass `fork_turns: "all"`: the stub and the files it names are the whole
+task context. Try `agent_type` naming the current registered role first. For a planner, omit
 model/effort overrides unless needed to match the parent against global defaults. The generic
 planner fallback uses that same parent route and the planner contract in
 `assets/prompts/planner.md`. Worker fallbacks use
@@ -209,20 +212,29 @@ For configuration inheritance, see the official
 - **Prompt files.** Every role reads the prompt file its stub names under
   `<skill-root>/assets/prompts/`, and the implementer and reviewers read the section's assignment
   file. Give absolute paths; a read-only sandbox can read them.
-- **Reports.** Codex stubs carry `REPORT FILE: none`: `goal-explorer` and `goal-reviewer` run in
-  a read-only sandbox and cannot write to the run directory, and no Codex run has shown that
-  the implementer's sandbox can. Each role returns its report as its final message, after the
-  `ROUTING` line. The root saves that message to the run directory under the name in the prompts
-  reference, then validates it with `--fix`. `section-brief.mjs` prints `REPORT FILE: none` when
-  the plan's `harness` is `codex`.
+- **Reports.** Stubs name a `REPORT FILE` in the run directory, as in Claude Code. A role writes
+  its report there, `ROUTING` line first, validates it, and returns the pointer. A role whose
+  sandbox refuses the write returns the report as its final message, and the root saves that
+  message to the named path with one shell command, then validates it with `--fix`.
+- **Sandbox.** A spawned role may run with the parent session's sandbox rather than its TOML's
+  `sandbox_mode`. Read-only roles then hold to read-only by their prompt file's rules, not by the
+  sandbox; review `git status` after mapper and reviewer returns as after the planner's.
 
 ## Dispatch mechanics
 
 - Follow-ups (rejection, decision relay) resume the same implementer with `followup_task`. Codex
   has no correction-carrier rule: every rejection uses the same-implementer body of prompts
-  reference §5. In sign-off mode, the orchestrator sends only the required corrections and
-  verifies the result itself; the implementer stays on its usual route. A re-review resumes the
-  same reviewer with `followup_task` and the re-review body of §5.
+  reference §5. Resumed correction turns kept their prompt cache, so a fresh carrier would save
+  little. In sign-off mode, the orchestrator sends only the required corrections and verifies
+  the result itself; the implementer stays on its usual route. A re-review resumes the same
+  reviewer with `followup_task` and the re-review body of §5.
+- A new section gets a new `goal-implementer` spawn. Never send another section to a finished
+  implementer with `followup_task`: its context holds the earlier section's work and grows with
+  each one.
+- Wait for a running agent with `wait_agent`. Do not end a turn while an agent whose result the
+  next step needs is still running; a turn that ends there is resumed only to wait again.
+- A linked worktree's Git directory sits outside the implementer's writable roots. Dispatch file
+  moves as plain `mv` (Git records them as renames by content); the root stages and commits.
 - Parallel mappers and reviewers within the thread cap; the root session consumes one slot.
 - One implementer at a time: this reference defines no parallel implementation. Members of a
   parallel batch run one after another in ledger order through the per-section loop, and each is

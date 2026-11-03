@@ -70,5 +70,7 @@ REPORT DELIVERY
   VALIDATION: <the first line the validator printed on its last run>
   STATUS: <complete | blocked | decision-needed>
 
-- With `REPORT FILE: none`: your final message is the report itself, starting with the ROUTING
-  line when your instructions ask for one. Do not append a second summary.
+- With `REPORT FILE: none`, or when the REPORT FILE cannot be written (a read-only sandbox
+  refuses it): your final message is the report itself, starting with the ROUTING line when
+  your instructions ask for one. Do not append a second summary.
+- When your instructions ask for a ROUTING line, it is also the first line of the REPORT FILE.

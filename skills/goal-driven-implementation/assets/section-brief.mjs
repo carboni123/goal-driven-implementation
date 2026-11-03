@@ -18,7 +18,8 @@
 //              baseline.txt by hand then. Edit the file when unrelated changes appear.
 // --round      0 (default) for the first dispatch; n for the n-th correction round. It selects
 //              the report file names and, from round 1, prints the stub for a fresh carrier.
-// --harness    defaults to the plan's `harness` frontmatter. Codex stubs carry REPORT FILE: none.
+// --harness    accepted for older calls; both harnesses get the same stubs. A role that cannot
+//              write its REPORT FILE returns the report as its final message (prompts' REPORT DELIVERY).
 //
 // Exit 0 = written, 1 = the plan lacks the section, 2 = usage or IO error.
 
@@ -158,15 +159,13 @@ export function buildAssignment(md, id, { planPath = "", baseline = null } = {})
   return { text: parts.join("\n"), title, siblings, batchLabel, batchState, harness: fm.harness };
 }
 
-export function dispatchStubs({ id, runDir, repoRoot, round = 0, harness = "claude", lenses = [] }) {
+export function dispatchStubs({ id, runDir, repoRoot, round = 0, lenses = [] }) {
   const file = (name) => join(runDir, name);
   const suffix = round > 0 ? `-r${round}` : "";
   const prior = round > 1 ? `${id}-impl-r${round - 1}.md` : `${id}-impl.md`;
   const validate = (kind, name) =>
     `node ${q(join(ASSETS, "validate-report.mjs"))} --kind ${kind} --repo-root ${repoRoot ? q(repoRoot) : "<repo>"} --input ${q(file(name))} --fix`;
-  const delivery = (kind, name) => harness === "codex"
-    ? ["REPORT FILE: none — return the report as your final message"]
-    : [`REPORT FILE: ${file(name)}`, `VALIDATE: ${validate(kind, name)}`];
+  const delivery = (kind, name) => [`REPORT FILE: ${file(name)}`, `VALIDATE: ${validate(kind, name)}`];
   const assignment = file(`${id}.assignment.md`);
   const implementer = round === 0
     ? [
@@ -193,15 +192,13 @@ export function dispatchStubs({ id, runDir, repoRoot, round = 0, harness = "clau
     `LENS: ${named.length === 1 ? named[0] : "<one of the lenses below>"}`,
     "DIFF SCOPE: the uncommitted changes the report's DIFF lists",
     "GRAPH CONTEXT: none",
-    ...(harness === "codex"
-      ? [...delivery("reviewer", ""), ...(named.length > 1 ? named.map((lens) => `  ${lens}`) : [])]
-      : named.length === 1
-        ? delivery("reviewer", `${id}-rev-${slug(named[0])}${suffix}.md`)
-        : [
-            `REPORT FILE: ${file(`${id}-rev-<lens>${suffix}.md`)}`,
-            `VALIDATE: ${validate("reviewer", `${id}-rev-<lens>${suffix}.md`)}`,
-            ...named.map((lens) => `  ${lens} → ${id}-rev-${slug(lens)}${suffix}.md`),
-          ]),
+    ...(named.length === 1
+      ? delivery("reviewer", `${id}-rev-${slug(named[0])}${suffix}.md`)
+      : [
+          `REPORT FILE: ${file(`${id}-rev-<lens>${suffix}.md`)}`,
+          `VALIDATE: ${validate("reviewer", `${id}-rev-<lens>${suffix}.md`)}`,
+          ...named.map((lens) => `  ${lens} → ${id}-rev-${slug(lens)}${suffix}.md`),
+        ]),
   ];
   return [implementer.join("\n"), reviewer.join("\n")].join("\n\n");
 }
@@ -371,10 +368,11 @@ None.
   assert(round2.includes("contract/API → A1-rev-contract-api-r2.md"), "reviewer file names per lens and round");
   const spaced = dispatchStubs({ id: "A1", runDir: "/tmp/my run", repoRoot: "/work/it's here", lenses: ["doc-truth"] });
   assert(spaced.includes(`--repo-root '/work/it'\\''s here' --input '/tmp/my run/A1-impl.md' --fix`), `paths are quoted as shell words:\n${spaced}`);
+  // Codex roles write their report files too; one that cannot returns the report instead.
   const codex = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", harness: "codex", lenses: ["doc-truth"] });
-  assert(!codex.includes("VALIDATE:") && codex.includes("REPORT FILE: none"), "codex stubs return the report as the final message");
+  assert(codex === stubs, `codex stubs name the same report files:\n${codex}`);
   const codexLenses = dispatchStubs({ id: "A1", runDir: "/run", repoRoot: "/repo", harness: "codex", lenses: ["doc-truth", "contract/API"] });
-  assert(codexLenses.includes("LENS: <one of the lenses below>") && codexLenses.endsWith("  doc-truth\n  contract/API"), `codex stub lists the lenses:\n${codexLenses}`);
+  assert(codexLenses.includes("LENS: <one of the lenses below>") && codexLenses.endsWith("  contract/API → A1-rev-contract-api.md"), `codex stub lists the lenses:\n${codexLenses}`);
 
   // A real worktree: the first call stores the baseline, later calls reuse it.
   const repo = mkdtempSync(join(tmpdir(), "gdi-brief-"));
@@ -511,7 +509,6 @@ function main(argv) {
   const out = join(runDir, `${id}.assignment.md`);
   writeFileSync(out, built.text);
 
-  const harness = harnessArg ?? (built.harness === "codex" ? "codex" : "claude");
   const lenses = sectionLenses(sectionBlocks(md).find((s) => s.id === id).block);
   console.log(`assignment: ${out}`);
   console.log(`  section ${id} — ${built.title}`);
@@ -524,7 +521,7 @@ function main(argv) {
   }
   console.log(`  lenses named in REVIEW: ${lenses.length ? lenses.join(", ") : "none recognized"} (SKILL.md step 4 decides which run)`);
   console.log("");
-  console.log(dispatchStubs({ id, runDir, repoRoot, round: Number(roundArg), harness, lenses }));
+  console.log(dispatchStubs({ id, runDir, repoRoot, round: Number(roundArg), lenses }));
   return 0;
 }
 

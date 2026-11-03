@@ -74,8 +74,8 @@ copies in the same commit.
 - **Correction carrier.** `SKILL.md` steps 2, 3, and 6, prompts §2 and §5, the CORRECTION ROUND
   block of `assets/prompts/implementer.md`, the carrier stub in `section-brief.mjs`, the acceptance
   protocol in `plan-template.md`, the carrier rule in `routing-claude.md`, and the README's run
-  description. Codex has no carrier rule and stays resume-only until a Codex run yields per-role
-  usage.
+  description. Codex has no carrier rule and stays resume-only: per-role usage measured from
+  32 Codex runs (2026-10) showed resumed correction turns kept their prompt cache.
 - **Sign-off.** The orchestrator's authority and acceptance checks live in `SKILL.md` step 6.
   Prompts §5, the plan template, both routing references, the README, and the plan validator's
   optional `review: sign-off (<reason>)` value must agree. Sign-off retains reviewer verdicts

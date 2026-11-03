@@ -46,5 +46,7 @@ REPORT DELIVERY
   REPORT: <the REPORT FILE path>
   VALIDATION: <the first line the validator printed on its last run>
 
-- With `REPORT FILE: none`: your final message is the report itself, starting with the ROUTING
-  line when your instructions ask for one.
+- With `REPORT FILE: none`, or when the REPORT FILE cannot be written (a read-only sandbox
+  refuses it): your final message is the report itself, starting with the ROUTING line when
+  your instructions ask for one.
+- When your instructions ask for a ROUTING line, it is also the first line of the REPORT FILE.

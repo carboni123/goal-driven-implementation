@@ -50,11 +50,12 @@ Run it again before dispatching the section's reviewers and before a fresh corre
 the file carries any ruling, recorded call, write-set change, correction in force, or batch state
 recorded since the implementer was dispatched.
 
-**Report delivery.** Where the harness lets a role write to the run directory, the stub names a
-`REPORT FILE` and the `VALIDATE` command. The agent writes its report there, runs the validator,
-corrects what it prints, and returns a pointer of two or three lines. Where it does not, the stub
-says `REPORT FILE: none` and has no `VALIDATE` line, the agent's final message is the report, and
-the orchestrator saves that message to the run directory before validating it.
+**Report delivery.** The stub names a `REPORT FILE` and the `VALIDATE` command. The agent writes
+its report there, runs the validator, corrects what it prints, and returns a pointer of two or
+three lines. An agent that cannot write the file (a read-only sandbox refuses it) returns the
+report as its final message instead, and the orchestrator saves that message to the named path
+with one shell command before validating it. A stub that says `REPORT FILE: none` asks for the
+report as the final message from the start.
 
 | Report                                     | File name in the run directory                    | `--kind`      |
 | ------------------------------------------ | ------------------------------------------------- | ------------- |

@@ -9,8 +9,10 @@ developer_instructions = """
 The task names a rules file: read it in full before anything else. It takes precedence over these
 instructions on any conflict.
 Explore only the named assigned context area. Stay inside it; follow a cross-unit dependency only
-far enough to verify the requested ownership or consumers. Do not edit files, run destructive
-commands, or delegate. If the task names a feature map, read it first and use its unit names.
+far enough to verify the requested ownership or consumers. Do not edit repository files, run
+destructive commands, or delegate. The one file you write is the REPORT FILE the task names,
+outside the repository; when the sandbox refuses it, return the report as your final message.
+If the task names a feature map, read it first and use its unit names.
 Report wider candidate work under UNCERTAINTIES instead of expanding the mapping assignment.
 Use rg for text and file discovery. For syntax-aware code searches, use ast-grep through the shell
 when installed and the language is supported; otherwise use rg and targeted file reads. Scope

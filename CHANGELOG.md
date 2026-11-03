@@ -39,6 +39,21 @@ What the evidence showed, and what changed:
   revision it copied from, and `SKILL.md` says to record it. Every plan in this corpus said
   `0.9.0` and ran 0.10.0's content.
 
+- **Codex report files.** Codex stubs carried `REPORT FILE: none`, yet every subagent ran with
+  the parent's `danger-full-access` sandbox and 506 returns were pointers to files the agents
+  wrote anyway. The orchestrator retyped 338 reports into files. Codex stubs now name the report
+  file like Claude Code's. A role whose sandbox refuses the write returns the report, and the
+  root saves it.
+- **Codex routing.**
+  - A new section gets a new implementer: 31 implementer threads took further sections by
+    `followup_task`, one of them 27 sections.
+  - The orchestrator waits with `wait_agent` instead of ending the turn: in one thread, 192 of
+    197 turns ended while a subagent ran.
+  - `fork_turns: "all"` is ruled out (34 spawns).
+  - File moves in a linked worktree use plain `mv`.
+  - The economics note records that per-role usage is now measurable (`token_usage_record`).
+    Correction turns were 10% of implementer tokens and kept a median 98.8% prompt cache, so
+    Codex stays resume-only.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

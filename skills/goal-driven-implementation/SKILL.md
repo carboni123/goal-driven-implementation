@@ -691,7 +691,9 @@ When every section is checked:
 6. **Annotate the graph from the ledger** — the validator refuses a graph whose marks disagree
    with the ledger. Marks: `✅` accepted · `🔁×n` rounds · `⚠→` a brief reached a human (note the
    ruling) · `⇢` orchestrator-ruled inside the floor · `⚙×n` environment retries · `✎` goal or scope
-   amended at completion. Re-render and show it.
+   amended at completion. Re-render and show it. Fill the completion trace in Graph Findings
+   (Confirmed / Did not occur / Missed); the validator warns while a verified or shipped plan
+   leaves it pending.
 7. **Report** — in this order:
    - **Outcome.** For each thing the inputs asked for, in the user's words: delivered, delivered
      in part, or not delivered, with the evidence and what is missing. Say what still has to

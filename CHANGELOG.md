@@ -3,6 +3,32 @@
 Entries cite the evidence that motivated them. "Retrospective" means the 2026-09-01 review of 90
 executed plans (July 2 to September 1, 2026): roughly 410 sections and 380 correction rounds.
 
+## Unreleased
+
+### Changed — what a month of runs showed
+
+**Maintainer request, 2026-11-03: learn from the executed plans and improve the skill.** The
+evidence is three sources, all from runs between 2026-10-03 and 2026-11-03:
+
+- **Plans.** 162 unique executed plans stamped `gdi_version: 0.9.0` in nine repositories (48
+  Claude Code, 114 Codex; 854 sections; 720 recorded correction rounds). The installed copy had
+  0.10.0's content: it was installed from `ccffbb1`, before the release commit bumped `VERSION`.
+- **Claude Code transcripts.** 21 orchestrator sessions in tyxter-messaging and pncp-mcp, 26
+  runs, about 300 sections, 2,899 subagent transcripts.
+- **Codex transcripts.** 32 Codex-orchestrated root threads and their 951 subagent threads.
+
+What the evidence showed, and what changed:
+
+- **Plan validator.**
+  - `Actual runs` accepts the planned column's `impl / orch` split and a count followed by a
+    note. It caused 165 of the 196 failed validations in Codex runs (`1/0`,
+    `2 (B1: first failed, corrected pass)`), and Claude runs hit it in 10 sessions. Its error now
+    names what passes. Over the 162 plans, no result changes.
+  - A WRITE SET entry may carry Markdown escapes from a formatter (`apps/landing/\*.html`). This
+    was the only validation failure in the corpus.
+  - A verified or shipped plan whose Graph Findings has no completion trace, or one still
+    `pending`, gets a `WARN:` line. It never fails validation. 14 Claude plans left the trace
+    pending, and 89 Codex plans had no trace labels.
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 
 ### Changed — dispatch by file, reports validated before they return, a tolerant report validator

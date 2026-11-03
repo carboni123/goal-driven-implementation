@@ -313,7 +313,9 @@ function writeSet(block, id, errors) {
     const line = raw.trim().replace(/^(?:[-*]|\d+[.)])\s+/, "");
     if (!line) continue;
     const quoted = line.match(/^`([^`]+)`(.*)$/);
-    const entry = (quoted ? quoted[1] : line.split(/\s/)[0]).replace(/^\.\//, "");
+    // A Markdown formatter escapes punctuation outside code spans (`apps/\*.html`, `app/\_lib/`).
+    const bare = quoted ? quoted[1] : line.split(/\s/)[0].replace(/\\([!-/:-@[-`{-~])/g, "$1");
+    const entry = bare.replace(/^\.\//, "");
     const rest = (quoted ? quoted[2] : line.slice(line.split(/\s/)[0].length)).trim();
     if (rest && !/^(?:—|–|-|\(|#|\/\/)/.test(rest)) {
       errors.push(`${id} WRITE SET takes one path per line, with any note after a dash: "${line}"`);
@@ -769,10 +771,11 @@ function validateSchema2(md, fm, errors) {
     );
   else if (["verified", "shipped"].includes(status)) {
     bt.rows.forEach((r, i) => {
-      const cell = r[actualIdx] ?? "";
-      if (!/^\d+$/.test(cell.replace(/`/g, ""))) {
+      const cell = (r[actualIdx] ?? "").replace(/`/g, "").trim();
+      // A count, or the planned column's `impl / orch` split, optionally followed by a note.
+      if (!/^\d+(?:\s*\/\s*\d+)?(?:\s*(?:\(|—|–|-|;|,).*)?$/.test(cell)) {
         errors.push(
-          `gate budget row ${i + 1} must record an integer in "Actual runs" once ${status}`,
+          `gate budget row ${i + 1} must record the runs made in "Actual runs" once ${status}: a count ("2"), an impl / orch split ("1 / 1"), either followed by a note ("2 (first hit a stale lease)"); found "${cell}"`,
         );
       }
     });
@@ -886,10 +889,38 @@ function validateSchema2(md, fm, errors) {
   return { preflight: pstatus, sections: ids.length, batches };
 }
 
+// ---------- warnings (never fail validation) ----------
+
+// A verified or shipped plan has run Complete the plan: Graph Findings carries the trace of what
+// the analysis predicted against what happened. An item is either text on the label's line or
+// indented bullets under it.
+function completionTraceWarnings(md, status) {
+  if (!["verified", "shipped"].includes(status)) return [];
+  const lines = withoutFences(between(md, /^### Graph Findings$/m, /^### /m)).split(/\r?\n/);
+  const labels = ["Confirmed", "Did not occur", "Missed"];
+  const open = [];
+  let found = 0;
+  lines.forEach((line, i) => {
+    const m = line.match(/^\s*-\s*(Confirmed|Did not occur|Missed):[ \t]*(.*)$/i);
+    if (!m) return;
+    found += 1;
+    const value = m[2].trim();
+    const nested = /^\s{2,}[-*]\s+\S/.test(lines[i + 1] ?? "");
+    if (/^(pending\.?|<[^>]*>?)$/i.test(value) || (!value && !nested)) open.push(m[1]);
+  });
+  if (!found) {
+    return [`status ${status}: Graph Findings has no completion trace (${labels.join(" / ")}); record it before reporting (SKILL.md, Complete the plan)`];
+  }
+  return open.length
+    ? [`status ${status}: completion trace still pending for ${[...new Set(open)].join(", ")}; record what occurred before reporting (SKILL.md, Complete the plan)`]
+    : [];
+}
+
 // ---------- entry ----------
 
 export function validatePlan(md, { commitBoundaries = false, repoRoot, planPath } = {}) {
   const errors = [];
+  const warnings = [];
   const fm = parseFrontmatter(md, errors);
   const schema = fm.gdi_schema;
   const status = fm.status;
@@ -906,8 +937,10 @@ export function validatePlan(md, { commitBoundaries = false, repoRoot, planPath 
     errors.push(`status ${status} requires non-pending approval evidence`);
   }
   let extra = {};
-  if (schema === "2") extra = validateSchema2(md, fm, errors);
-  else if (schema === "1") extra = validateSchema1(md, fm, errors);
+  if (schema === "2") {
+    extra = validateSchema2(md, fm, errors);
+    warnings.push(...completionTraceWarnings(md, status));
+  } else if (schema === "1") extra = validateSchema1(md, fm, errors);
   else errors.push("frontmatter gdi_schema must be 2 (current) or 1 (legacy)");
   if (commitBoundaries) checkCommitBoundaries(md, errors);
   if (repoRoot) {
@@ -916,6 +949,7 @@ export function validatePlan(md, { commitBoundaries = false, repoRoot, planPath 
   }
   return {
     errors,
+    warnings,
     summary: {
       approval: fm.approval,
       schema,
@@ -1380,15 +1414,16 @@ function selfTest() {
     throw new Error(
       `tracked deferral failed:\n${trackedDeferral.errors.join("\n")}`,
     );
-  expectError(
-    validatePlan(
-      annotated
-        .replace("status: implemented", "status: verified")
-        .replace("| 1 | after review", "| <n> | after review"),
-    ),
-    'must record an integer in "Actual runs"',
-    "actual runs once verified",
+  const verifiedRuns = (cell) => validatePlan(
+    annotated.replace("status: implemented", "status: verified").replace("| 1 | after review", `| ${cell} | after review`),
   );
+  for (const cell of ["<n>", "1 running", "pending", ""]) {
+    expectError(verifiedRuns(cell), 'must record the runs made in "Actual runs"', `actual runs "${cell}" once verified`);
+  }
+  for (const cell of ["2", "`1`", "1/0", "1 / 1", "2 (B1: first failed, corrected pass)", "0 — reused the C1 receipt"]) {
+    const result = verifiedRuns(cell);
+    if (result.errors.some((e) => e.includes("Actual runs"))) throw new Error(`actual runs "${cell}" was rejected: ${result.errors.join("; ")}`);
+  }
   expectError(
     validatePlan(
       S2_FIXTURE.replace("gdi_version: 0.2.0", "gdi_version: <copy>"),
@@ -1449,7 +1484,7 @@ function selfTest() {
   ]) {
     expectError(validatePlan(batch({ a2: set })), needle, `WRITE SET line: ${set}`);
   }
-  const tolerated = validatePlan(batch({ a2: "1. src/b/**\n2) ./Makefile\n* `docs/b notes.md` (owning doc)\n- LICENSE - text" }));
+  const tolerated = validatePlan(batch({ a2: "1. src/b/**\n2) ./Makefile\n* `docs/b notes.md` (owning doc)\n- LICENSE - text\n- apps/landing/\\*.html\n- apps/docs/app/\\_lib/meta.ts" }));
   if (tolerated.errors.length) throw new Error(`valid WRITE SET lines were rejected:\n${tolerated.errors.join("\n")}`);
   for (const serial of [batch({ a2: "- src/a/x.ts", a2Parallel: "no — applies a migration" }), batch({ a2: "- src/a/x.ts", a2Parallel: "batch 2" }),
     batch({ a2: "- src/a/x.ts", a2Parallel: "", a2Deps: "A1." }), batch({ a2: "none", a2Parallel: "no" })]) {
@@ -1476,6 +1511,24 @@ function selfTest() {
       throw new Error(`WRITE SET overlap(${a}, ${b}) should be ${expected}`);
     }
   }
+  // Completion trace: a warning, never an error, and only once the plan is verified or shipped.
+  const traced = (status, trace) => S2_FIXTURE.replace("status: approved", `status: ${status}`)
+    .replace("### Graph Findings\n- None.\n", `### Graph Findings\n- None.\n\nAt completion (trace vs findings):\n\n${trace}\n`);
+  const pendingTrace = "- Confirmed: pending\n- Did not occur: pending\n- Missed: pending";
+  for (const [md, needle, label] of [
+    [S2_FIXTURE.replace("status: approved", "status: verified"), "no completion trace", "verified plan without a trace"],
+    [traced("shipped", pendingTrace), "still pending for Confirmed, Did not occur, Missed", "pending trace"],
+    [traced("verified", "- Confirmed: none\n- Did not occur: <accepted risk that did not occur>\n- Missed:"), "still pending for Did not occur, Missed", "placeholder and empty trace"],
+  ]) {
+    const w = completionTraceWarnings(md, parseFrontmatter(md, []).status);
+    if (!w.some((x) => x.includes(needle))) throw new Error(`${label}: expected a warning with "${needle}", got ${JSON.stringify(w)}`);
+  }
+  for (const md of [traced("executing", pendingTrace), traced("verified", "- Confirmed: the reader sweep held\n- Did not occur: none\n- Missed:\n  - the lease needed seeding")]) {
+    const w = completionTraceWarnings(md, parseFrontmatter(md, []).status);
+    if (w.length) throw new Error(`completion trace warned unexpectedly: ${w.join("; ")}`);
+  }
+  if (validatePlan(traced("verified", pendingTrace)).warnings.length !== 1) throw new Error("validatePlan does not return the completion-trace warning");
+
   commitSelfTest();
   console.log("validate-plan self-test passed (schemas, parallel batches, commit boundaries, real Git commits)");
 }
@@ -1522,12 +1575,14 @@ function main() {
   if (result.errors.length) {
     console.error(`Plan validation failed: ${basename(planPath)}`);
     for (const e of result.errors) console.error(`- ${e}`);
+    for (const w of result.warnings) console.error(`WARN: ${w}`);
     process.exit(1);
   }
   const s = result.summary;
   console.log(
     `Plan validation passed: ${basename(planPath)} (schema=${s.schema}${s.version ? `, gdi_version=${s.version}` : ""}, status=${s.status}, preflight=${s.preflight}, sections=${s.sections}${s.batches ? `, parallel-batches=${s.batches}` : ""}${options.commitBoundaries ? ", commit-boundaries=checked" : ""}${options.repoRoot ? `, commits=${s.commits}` : ""})`,
   );
+  for (const w of result.warnings) console.log(`WARN: ${w}`);
   if (options.writeSets) {
     const { bySection, digests, outside, shared } = attributeChanges(markdown, options.repoRoot, planPath, options.writeSetIds);
     const missing = (options.writeSetIds ?? []).filter((id) => !bySection.has(id));

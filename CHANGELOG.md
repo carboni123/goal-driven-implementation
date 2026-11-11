@@ -133,6 +133,14 @@ outside reader added.
   the browser-tool fallback at it. Checked on a tyxter-messaging plan with two graphs: both
   images written and no page left; with a browser that exits 1, exit 3 and both pages kept.
 
+- **Host plan metadata.** In tyxter-messaging on 2026-11-11, 8 of 108 active plans carried
+  ownership frontmatter the host's archive tool rejects: four `tracking_issues: []`, two naming a
+  deleted issue, two naming pull requests. The host's `plans:check` exited 1 on `main`, its
+  online run could not read GitHub, and 97 finished plans had stayed in `docs/plans`. The skill
+  said only "follow host conventions". The planner now fills host-documented plan frontmatter
+  with values the host's check accepts and leaves a valueless key out, and the orchestrator runs
+  that check with the plan validator (`SKILL.md` PLAN, `prompts/planner.md`).
+
 ### Measure at the next retrospective
 
 Treude and Baltes ("How Do Coding-Agent Harnesses Self-Evolve?", arXiv:2610.34938) tested
@@ -162,6 +170,8 @@ added work outweighs it.
   Claude Code. Watch for defects the section review now misses: final-review and outside-reader
   findings per section.
 - **One-section plans.** 2–3 final reviewers per one-section plan; about 4 of 40 found anything.
+- **Host plan metadata.** 8 of 108 active plans in tyxter-messaging carried ownership frontmatter
+  the host's plan check rejects. Count the plans a host check rejects.
 
 ## 0.10.0 — 2026-10-03 (tag `v0.10.0`)
 

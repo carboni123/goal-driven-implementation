@@ -331,8 +331,12 @@ evidence, and continue in that lane.
    the orchestrator confirms that only the plan and graph artifacts changed and runs the
    validation itself. The planner instantiates
    `assets/plan-template.md` at `docs/plans/<slug>-plan.md` (follow host conventions) and fills
-   every field concisely. Fields with nothing to record take one line. Define outcomes and
-   execution order; leave implementation design and detailed task lists to the implementer.
+   every field concisely. Fields with nothing to record take one line. Where the host documents
+   plan frontmatter or a plan check of its own (owning issues, for example), the plan carries
+   those keys with values that check accepts, a key with no value is left out instead of written
+   empty, and the orchestrator runs the host check together with the plan validator. Define
+   outcomes and execution order; leave implementation design and detailed task lists to the
+   implementer.
    Filter mapper evidence into each section's context fields, preserving anchors, uncertainties,
    and premise corrections needed for that goal. In particular:
    - **Global gate**: name the final verification command: the owning package's _full_ suite

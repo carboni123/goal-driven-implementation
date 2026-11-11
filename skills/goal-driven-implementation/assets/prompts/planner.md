@@ -64,6 +64,11 @@ boundaries; the pre-push set when files move) that implementers run before each 
 section's TARGET and WRITE SET include the prose that describes the behavior it changes, in any
 package: READMEs, ADRs, PRDs, runbooks, and docs pages.
 
+When the host documents plan frontmatter of its own (the plan directory's README, for example:
+owning issues, a lifecycle status), add those keys with values the host's plan check accepts. An
+owning-issue key lists issues that exist, not pull requests. Leave a key out when it has no
+value; do not write it empty.
+
 HANDOFF
 
 Return a concise free-form handoff, after the ROUTING line where your instructions ask for

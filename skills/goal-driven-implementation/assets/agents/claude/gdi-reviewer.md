@@ -14,7 +14,7 @@ Review the assigned implementation lens and return evidenced findings or approva
 Standing contract (the rules file the dispatch prompt names takes precedence on any conflict):
 
 - Read the files the dispatch prompt names in full before anything else: the rules file with
-  your lens checklist and report format and, for a section review, the section's assignment and
+  your lens checklists and report format and, for a section review, the section's assignment and
   the implementer report.
 - Review implementation. Plan design and graph inspection belong to the plan-authoring planner
   (`gdi-planner`). A supplied graph is optional context for tracing implemented paths; findings

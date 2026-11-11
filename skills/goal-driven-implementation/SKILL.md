@@ -686,29 +686,28 @@ When every section is checked:
    If rebasing changes section SHAs, reconcile their ledger records against the rewritten diffs
    and rerun Git-aware validation; do not discard still-valid behavioral evidence solely for a
    new SHA. Preserve section commits rather than squashing them during execution.
-2. **Final review** — first write the PR description (with no PR, the handoff summary the
-   report will give) to `<run-dir>/pr-description.md`. Then dispatch, in one message, one
-   **outside reader** (g) with the §4 outside-reader stub: it reads that description and the
-   merged diff, never the plan, and checks that the change does what the description says. In
-   a plan with one section, the section review served as the integration review and the outside
-   reader runs alone; that section's review must have included contract/API when it writes a new
-   value into shared state (the reader sweep) and data/migration when it changes a schema (the
-   rollout window). With more than one section, add 2–3 read-only reviewers over the full
-   branch, integration
-   lenses: (a) cross-section seams and late obligations — for every seam a later section
-   introduced, enumerate all call sites and prove each satisfies it; (b) whole-surface contract and
-   conformance coherence; (c) plan conformance, deferral validation (each deferral still reachable
-   and still needed), debris; (d) **reader sweep of the diff's complement** — every value this
-   branch writes into a shared column, enum, event type, or registry, checked against every reader
-   in the repository; (e) **claim decay** — every claim written by an earlier section re-verified
-   at HEAD, including adjacent pre-existing sentences; (f) **rollout window** —
-   old binary × new schema during replacement. Use the final-review stub (prompts reference §4)
-   and validate each return (`--kind final`). Findings go to one correction implementer scoped to
-   the findings (prompts reference §7); validate its report with `validate-report.mjs --kind
-   correction --repo-root <repo>`, then re-review by follow-up to the reviewers that reported
-   findings (prompts reference §5); commit additively; repeat until clean or signed off by the
-   orchestrator under step 6. Required corrections and gates still have to pass. A correction
-   that changes what the description states updates `pr-description.md` before re-review.
+2. **Final review** — first write the PR description (with no PR, the handoff summary the report
+   will give) to `<run-dir>/pr-description.md`. Then dispatch, in one message, one **outside
+   reader** (g) with the §4 outside-reader stub: it reads that description and the merged diff,
+   never the plan, and checks that the change does what the description says. In a plan with one
+   section, the section review served as the integration review and the outside reader runs alone;
+   that section's review must have included contract/API when it writes a new value into shared
+   state (the reader sweep) and data/migration when it changes a schema (the rollout window). With
+   more than one section, add 2–3 read-only reviewers over the full branch, integration lenses: (a)
+   cross-section seams and late obligations — for every seam a later section introduced, enumerate
+   all call sites and prove each satisfies it; (b) whole-surface contract and conformance coherence;
+   (c) plan conformance, deferral validation (each deferral still reachable and still needed),
+   debris; (d) **reader sweep of the diff's complement** — every value this branch writes into a
+   shared column, enum, event type, or registry, checked against every reader in the repository; (e)
+   **claim decay** — every claim written by an earlier section re-verified at HEAD, including
+   adjacent pre-existing sentences; (f) **rollout window** — old binary × new schema during
+   replacement. Use the final-review stub (prompts reference §4) and validate each return (`--kind
+   final`). Findings go to one correction implementer scoped to the findings (prompts reference §7);
+   validate its report with `validate-report.mjs --kind correction --repo-root <repo>`, then
+   re-review by follow-up to the reviewers that reported findings (prompts reference §5); commit
+   additively; repeat until clean or signed off by the orchestrator under step 6. Required
+   corrections and gates still have to pass. A correction that changes what the description states
+   updates `pr-description.md` before re-review.
 3. **Final gates** — establish passing global and budgeted gate evidence for the reviewed candidate
    in the budgeted order. Reuse valid results; run missing or invalidated checks once and record
    `actual runs`. Record any `>1.5×` overrun as a missed finding in Graph

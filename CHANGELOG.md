@@ -117,6 +117,16 @@ outside reader added.
   its section review as the integration review: contract/API covers the reader sweep, and
   data/migration covers the rollout window. The outside reader (g) runs alone at completion.
 
+### Changed — review of the unreleased changes before release
+
+**Maintainer request, 2026-11-11: review the unreleased changes, improve them, and publish.**
+
+- **Reviewer wording.** A section reviewer now holds a lens group, but `reviewer.md`,
+  `final-reviewer.md`, and the `gdi-reviewer` definition still told it to stay inside "your
+  lens" in five places. They say "your lenses". Two paragraphs the reviewer-group and
+  outside-reader edits had left with 130-column lines are rewrapped (`SKILL.md` Complete step 2,
+  prompts reference §4), and the `gdi-reviewer` row of the Claude routing table is realigned.
+
 ### Measure at the next retrospective
 
 Treude and Baltes ("How Do Coding-Agent Harnesses Self-Evolve?", arXiv:2610.34938) tested

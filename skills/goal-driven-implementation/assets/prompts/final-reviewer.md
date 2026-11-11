@@ -102,5 +102,5 @@ RE-REVIEW
 After a correction you may be asked to re-review the same scope and lens. The follow-up gives YOUR
 FINDINGS SENT FOR CORRECTION (any the orchestrator refuted are marked with the reason), the
 CORRECTION REPORT, CHANGED IN THIS ROUND, and a new REPORT FILE. Rule on each finding: resolved or
-not, with the anchor that shows it. Review the lines changed in this round within your lens. Do
-not repeat the rest of the review. Report in the same format, delivered the same way.
+not, with the anchor that shows it. Review the lines changed in this round within your lenses.
+Do not repeat the rest of the review. Report in the same format, delivered the same way.

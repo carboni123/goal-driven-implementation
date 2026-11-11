@@ -7,7 +7,7 @@
 | Plan author                                                                                                         | `gdi-planner`             | inherit · session        | Concise goals/order and filtered mapper context; writes only plan/graph artifacts                |
 | Implementer                                                                                                         | `gdi-implementer`         | claude-opus-5-5 · high   | One writer per section; may spawn ≤5 read-only helpers via the Agent tool                        |
 | Mapper                                                                                                              | `gdi-mapper`              | sonnet · medium          | Read-only; verifies anchors before reporting; no delegation                                      |
-| Boundary and runtime reviewers (security, contract, failure-mode, data, capacity, evaluator) and final-review lenses | `gdi-reviewer`            | claude-opus-5-5 · medium | Read-only; may run tests and probes to verify; no delegation                                     |
+| Boundary and runtime reviewers (security, contract, failure-mode, data, capacity, evaluator); final-review lenses   | `gdi-reviewer`            | claude-opus-5-5 · medium | Read-only; may run tests and probes to verify; no delegation                                     |
 | Text reviewer (convention/scope and doc-truth)                                                                      | `gdi-convention-reviewer` | claude-opus-5-5 · medium | Read-only; no delegation                                                                         |
 
 Model and effort pins are set in the agent definitions' frontmatter. **Never pass a per-call

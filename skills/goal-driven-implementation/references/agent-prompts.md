@@ -246,12 +246,12 @@ After validation, two more checks apply to a REJECT before it reaches the implem
 
 ## 4. Final-review reviewer
 
-Dispatched at completion, 2–3 in one message plus the outside reader, over the branch **merged
-onto current `origin/main`**; a one-section plan runs the outside reader alone. Integration lenses, not section lenses; they are defined in
-`assets/prompts/final-reviewer.md`: (a) seams and late obligations, (b) whole-surface contract and
-conformance coherence, (c) plan conformance, deferrals, debris, (d) reader sweep of the diff's
-complement, (e) claim decay, (f) rollout window, (g) outside reader. Lens (g) runs alone in its
-own dispatch, with the second stub below.
+Dispatched at completion, 2–3 in one message plus the outside reader, over the branch **merged onto
+current `origin/main`**; a one-section plan runs the outside reader alone. Integration lenses, not
+section lenses; they are defined in `assets/prompts/final-reviewer.md`: (a) seams and late
+obligations, (b) whole-surface contract and conformance coherence, (c) plan conformance, deferrals,
+debris, (d) reader sweep of the diff's complement, (e) claim decay, (f) rollout window, (g) outside
+reader. Lens (g) runs alone in its own dispatch, with the second stub below.
 
 ```text
 Read {skill-root}/assets/prompts/final-reviewer.md in full before anything else. It holds your

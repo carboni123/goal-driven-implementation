@@ -37,13 +37,14 @@ to the goal planner.
    natural size and prints each path, or prints why a capture failed and exits 3. Do not write a
    capture script of your own. _Origin:_ 46 of 47 planners wrote their own Playwright capture
    script (301 commands); one sat 583 minutes on it.
-2. When `--png` fails, open the HTML in a browser available to the harness, wait until each
-   Mermaid block is a rendered diagram, not a loading placeholder, raw source, or an error
-   panel, and capture each topology and lifecycle diagram with a screenshot tool, or an available
-   Mermaid renderer that produces an image from the same source. Include a whole-graph overview
-   and readable detail captures when the overview makes text or arrowheads too small. Preserve
-   connecting edges, node IDs, and the legend across captures; an unreadable full-page thumbnail
-   is insufficient. Do not substitute an illustrative redraw for the actual Mermaid rendering.
+2. When `--png` fails, open the graph page it kept (`<plan>.graph-<n>.html`) or the full HTML in a
+   browser available to the harness, wait until each Mermaid block is a rendered diagram, not a
+   loading placeholder, raw source, or an error panel, and capture each topology and lifecycle
+   diagram with a screenshot tool, or an available Mermaid renderer that produces an image from the
+   same source. Include a whole-graph overview and readable detail captures when the overview makes
+   text or arrowheads too small. Preserve connecting edges, node IDs, and the legend across
+   captures; an unreadable full-page thumbnail is insufficient. Do not substitute an illustrative
+   redraw for the actual Mermaid rendering.
 3. Keep the plan path, render path, and absolute image paths accessible to the planner's image tool,
    or load the images through the harness's supported image input. Identify each image's diagram
    and region. Reload after source changes so the images correspond to the current Mermaid blocks;

@@ -127,6 +127,12 @@ outside reader added.
   outside-reader edits had left with 130-column lines are rewrapped (`SKILL.md` Complete step 2,
   prompts reference §4), and the `gdi-reviewer` row of the Claude routing table is realigned.
 
+- **Capture pages.** `render-plan-graph.mjs --png` left a `<plan>.graph-<n>.html` page beside
+  every image in the run directory. It removes the page once the image is written and keeps it
+  when the capture fails; the failure line names the kept page, and the graph checklist points
+  the browser-tool fallback at it. Checked on a tyxter-messaging plan with two graphs: both
+  images written and no page left; with a browser that exits 1, exit 3 and both pages kept.
+
 ### Measure at the next retrospective
 
 Treude and Baltes ("How Do Coding-Agent Harnesses Self-Evolve?", arXiv:2610.34938) tested

@@ -19,7 +19,8 @@ const USAGE = `Usage: node render-plan-graph.mjs <plan.md> [--out <file.html>] [
   --out <file.html>  where to write the page; default <tmp>/goal-driven-plans/<plan>.graph.html
   --png <dir>        also write one PNG per Mermaid graph into <dir>, captured with a headless
                      Chromium found through CHROME_PATH, PATH, or the Playwright browser cache;
-                     each capture stops after 60 seconds. Exit 3 when a capture fails.
+                     each capture stops after 60 seconds. Exit 3 when a capture fails; the
+                     failed graph's page stays in <dir> for a browser tool.
   --open             open the page in the default browser`;
 
 const args = process.argv.slice(2);
@@ -471,8 +472,9 @@ if (pngArg) {
       const result = capture(browser, `${stem}.html`, `${stem}.png`, profile);
       if (result.error) {
         failed += 1;
-        console.error(`png ${index + 1} (${graph.heading || 'Graph'}): FAILED — ${result.error}`);
+        console.error(`png ${index + 1} (${graph.heading || 'Graph'}): FAILED — ${result.error}; page kept: ${stem}.html`);
       } else {
+        rmSync(`${stem}.html`, { force: true });
         console.log(`png ${index + 1} (${graph.heading || 'Graph'}): ${stem}.png (${result.w}×${result.h})`);
       }
     });
